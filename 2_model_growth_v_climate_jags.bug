@@ -1,0 +1,62 @@
+model {
+    # Likelihood
+    for (i in 1:n){
+        y[i] ~ dnorm(y.hat[i], tau.y)
+        y.hat[i] <- fix_ef + mix_ef
+        mix_ef <- u[ID_tree[i]] + v1[ID_plot[i]] + w[ID_site[i]] + z[ID_period[i]] + (slp_dbh + v2[ID_plot[i]])*dbh[i]
+        fix_ef <- int + slp_WD*WD[i] + slp_spi*spi_24[i] + slp_spi_sq*spi_24_sq[i]
+    }
+    tau.y <- pow(sigma.y, -2)
+    sigma.y ~ dunif(0, 100)
+
+    # Fixed intercept
+    int ~ dnorm(0, .0001)
+
+    # Fixed slopes, prior is normally distributed with mean zero, sd 100
+    slp_dbh ~ dnorm(0, .0001)
+    slp_WD ~ dnorm(0, .0001)
+    slp_spi ~ dnorm(0, .0001)
+    slp_spi_sq~ dnorm(0, .0001)
+
+    # Tree-level model
+    for (l in 1:n_tree) {
+        u[l] ~ dnorm(0, tau.u) # Random intercept at tree-level
+    }
+    tau.u <- pow(sigma.u, -2)
+    sigma.u ~ dunif(0, 100)
+
+    # Plot-level model
+    for (j in 1:n_plot) {
+        v1[j] <- V[j, 1]
+        v2[j] <- V[j, 2]
+        V[j, 1:2] ~ dmnorm(V.hat[j,], tau.V[,])
+        V.hat[j, 1] <- mu.v1
+        V.hat[j, 2] <- mu.v2
+    }
+
+    mu.v1 ~ dnorm(0, .0001)
+    mu.v2 ~ dnorm(0, .0001)
+    tau.V[1:2,1:2] <- inverse(Sigma.V[,])
+    # Variances of the random effects
+    sigma.V[1, 1] <- pow(sigma.v1, 2)
+    sigma.v1 ~ dunif(0, 100)
+    sigma.V[2, 2] <- pow(sigma.v2, 2)
+    sigma.v2 ~ dunif(0, 100)
+    # Correlation
+    sigma.V[1, 2] <- rho*sigma.v1*sigma.v2
+    sigma.V[2, 1] <- sigma.V[1, 2]
+    rho ~ dunif(-1, 1)
+
+    for (k in 1:n_site) {
+        w[k] ~ dnorm(0, tau.w) # Random intercept at site-level
+    }
+    tau.w <- pow(sigma.w, -2)
+    sigma.w ~ dunif(0, 100)
+
+    # Period-level model
+    for (t in 1:n_period) {
+        z[t] ~ dnorm(0, tau.z) # Random intercept by period
+    }
+    tau.z <- pow(sigma.z, -2)
+    sigma.z ~ dunif(0, 100)
+}
