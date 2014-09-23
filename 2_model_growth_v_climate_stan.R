@@ -23,7 +23,7 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 
 ###############################################################################
 ### TESTING ONLY
-growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
 # n_burnin <- 20000
@@ -70,53 +70,54 @@ growth_ts <- arrange(growth_ts, ID_period) %>%
     mutate(dbh_latent=calc_latent_growth(dbh)) %>%
     arrange(ID_tree, ID_period)
 
-
 # Setup data
-n_per_tree <- group_by(growth_ts, ID_tree) %>% summarize(n=n())
+obs_per_tree <- group_by(growth_ts, ID_tree) %>% summarize(n=n())
 n_tree <- length(unique(growth_ts$ID_tree))
 n_site <- length(unique(growth_ts$ID_site))
 n_plot <- length(unique(growth_ts$ID_plot))
 
-stan_data <- list(n_obs=nrow(growth_ts),
+stan_data <- list(n_dbhs=nrow(growth_ts),
                   n_tree=n_tree,
                   n_plot=n_plot,
                   n_site=n_site,
-                  n_per_tree=n_per_tree$n,
-                  n_growths=sum(n_per_tree$n)-n_tree,
+                  n_obs_per_tree=obs_per_tree$n,
+                  n_growths=(sum(obs_per_tree$n) - n_tree),
                   tree_ID=as.integer(factor(growth_ts$ID_tree)),
                   plot_ID=as.integer(factor(growth_ts$ID_plot)),
                   site_ID=as.integer(factor(growth_ts$ID_site)),
                   log_dbh=log(growth_ts$dbh))
 
+#var(log(growth_ts$dbh))
 # Setup inits
 stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        beta_0=-1.7,
                        beta_1=.008,
-                       sigma=.6, 
-                       sigma_ijk=.6,
-                       sigma_jk=.6,
-                       sigma_k=.6,
+                       sigma_obs=.02, 
+                       sigma_proc=.02, 
+                       sigma_ijk=.06,
+                       sigma_jk=.12,
+                       sigma_k=.24,
                        b_ijk=rep(0, n_tree),
                        b_jk=rep(0, n_plot),
-                       b_k=rep(0, n_site),
-                       w=var(log(growth_ts$dbh))))
+                       b_k=rep(0, n_site)))
+                       #w=var(log(growth_ts$dbh))))
 stan_init <- rep(stan_init, n_chains)
 
 ## Finish adjustment for change of variables
 fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains, 
             init=stan_init, warmup=n_burnin)
 
-# Compile and run piece-by-piece
-ret <- stanc(model_file, model_name="my_model")
-## compilation
-my_model.sm <- stan_model(stanc_ret=ret)
-
-for (s in 1:n.sims) {
-
-   my_model.sf <- sampling(my_model.sm, data=stan_data, iter=n_iter, 
-                           chains=n_chains, init=stan_init, warmup=n_burnin)
-
-}
+# # Compile and run piece-by-piece
+# ret <- stanc(model_file, model_name="my_model")
+# ## compilation
+# my_model.sm <- stan_model(stanc_ret=ret)
+#
+# for (s in 1:n.sims) {
+#
+#    my_model.sf <- sampling(my_model.sm, data=stan_data, iter=n_iter, 
+#                            chains=n_chains, init=stan_init, warmup=n_burnin)
+#
+# }
 
 # cl <- makeCluster(8)
 # registerDoParallel(cl)
