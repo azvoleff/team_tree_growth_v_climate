@@ -26,13 +26,9 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 #growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
-# n_burnin <- 20000
-# n_chains <- 8
-# n_iter <- 100000
-# n_thin <- 10
-n_burnin <- 200
-n_chains <- 4
-n_iter <- 1000
+n_burnin <- 10
+n_chains <- 8
+n_iter <- 20
 
 ###############################################################################
 #  Stan model
@@ -101,11 +97,11 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        b_jk=rep(0, n_plot),
                        b_k=rep(0, n_site)))
                        #w=var(log(growth_ts$dbh))))
-stan_init <- rep(stan_init, n_chains)
 
 ## Finish adjustment for change of variables
-fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains, 
-            init=stan_init, warmup=n_burnin)
+
+# fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
+#             init=rep(stan_init, n_chains), warmup=n_burnin)
 
 # # Compile and run piece-by-piece
 # ret <- stanc(model_file, model_name="my_model")
@@ -113,23 +109,26 @@ fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
 # my_model.sm <- stan_model(stanc_ret=ret)
 #
 # for (s in 1:n.sims) {
-#
-#    my_model.sf <- sampling(my_model.sm, data=stan_data, iter=n_iter, 
-#                            chains=n_chains, init=stan_init, warmup=n_burnin)
-#
+#    my_model.sf <- sampling(my_model.sm, data=stan_data, iter=n_iter,
+#                            chains=n_chains, init=rep(stan_init, n_chains),
+#                            warmup=n_burnin)
 # }
 
-# cl <- makeCluster(8)
-# registerDoParallel(cl)
-#
-# sflist <- foreach(n=1:n_chains) %dopar% {
-#     fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains, 
-#                 init=stan_init, warmup=n_burnin)
-# }
-# stan_fit <- sflist2stanfit(sflist)
-#
-# # Without inits
-# fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
-#             warmup=n_burnin)
-#
-# stopCluster(cl)
+ret <- stanc(model_file, model_name="tree_growth")
+tree_growth_model <- stan_model(stanc_ret=ret)
+
+seed <- 1638
+fit <- stan(model_file, data=stan_data, iter=500, chains=1,
+            init=rep(stan_init, n_chains), chain_id=1)
+
+cl <- makeCluster(n_chains)
+registerDoParallel(cl)
+sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
+    # Add 1 to n in order to ensure chain_id 1 is not reused
+    stan(fit, seed=seed, chains=1, iter=n_iter, chain_id=n+1, refresh=-1)
+}
+stopCluster(cl)
+
+stan_fit <- sflist2stanfit(sflist)
+
+save(stan_fit, file="stan_fit.RData")
