@@ -48,11 +48,12 @@ transformed parameters {
     {
         // obs_index tracks the current observation
         int obs_index;
-        obs_index <- 1;
         // growths_index tracks position in the growths vector (shorter than 
         // the observations vector since growth can't be calculated for the 
         // first time period).
         int growths_index;
+
+        obs_index <- 1;
         growths_index <- 1;
         for (tree_num in 1:n_tree) {
             obs_index <- obs_index + 1;
