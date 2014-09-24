@@ -26,9 +26,9 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 #growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
-n_burnin <- 10
+n_burnin <- 200
 n_chains <- 8
-n_iter <- 20
+n_iter <- 1000
 
 ###############################################################################
 #  Stan model
