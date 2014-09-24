@@ -26,9 +26,9 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 #growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
-n_burnin <- 10
+n_burnin <- 200
 n_chains <- 8
-n_iter <- 20
+n_iter <- 1000
 
 ###############################################################################
 #  Stan model
@@ -96,7 +96,6 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        b_ijk=rep(0, n_tree),
                        b_jk=rep(0, n_plot),
                        b_k=rep(0, n_site)))
-                       #w=var(log(growth_ts$dbh))))
 
 # fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
 #             init=rep(stan_init, n_chains), warmup=n_burnin)
