@@ -111,12 +111,15 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 #                            warmup=n_burnin)
 # }
 
+
+# Fit initial model, on a single CPU
 seed <- 1638
 stan_fit <- stan(model_file, data=stan_data, iter=10, chains=1,
                  init=rep(stan_init, 1), chain_id=1)
 
 save(stan_fit, file="stan_fit.RData")
 
+# Fit n_chains chains in parallel
 cl <- makeCluster(n_chains)
 registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
