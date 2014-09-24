@@ -96,7 +96,6 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        b_ijk=rep(0, n_tree),
                        b_jk=rep(0, n_plot),
                        b_k=rep(0, n_site)))
-                       #w=var(log(growth_ts$dbh))))
 
 ## Finish adjustment for change of variables
 
