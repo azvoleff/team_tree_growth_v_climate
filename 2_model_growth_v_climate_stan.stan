@@ -42,21 +42,22 @@ parameters {
 transformed parameters {
     vector[n_growths] log_dbh_latent_st;
     vector[n_growths] growth;
-    vector[n_growths] growth_hat;
+    vector[n_growths] log_growth_hat;
     // to use obs_index and growths_index below, need to set them up to be 
     // local variables, by enclosing w/in brackets
     {
+        // obs_index tracks the current observation
         int obs_index;
-        // Below tracks position in the growths vector (shorter than the 
-        // observations vector since growth can't be calculated for the first 
-        // time period).
-        int growths_index;
         obs_index <- 1;
+        // growths_index tracks position in the growths vector (shorter than 
+        // the observations vector since growth can't be calculated for the 
+        // first time period).
+        int growths_index;
         growths_index <- 1;
         for (tree_num in 1:n_tree) {
             obs_index <- obs_index + 1;
             for (obs_num in 2:n_obs_per_tree[tree_num]) {
-                growth[growths_index] <- log_diff_exp(log_dbh_latent[obs_index], log_dbh_latent[obs_index - 1]);
+                growth[growths_index] <- exp(log_dbh_latent[obs_index]) - exp(log_dbh_latent[obs_index - 1]);
                 // save log_dbh_latent_st since we need a vector of starting 
                 // dbh values for use in the likelihood that is of the same 
                 // length as growths
@@ -68,10 +69,10 @@ transformed parameters {
     }
     
     for (i in 1:n_growths)
-        growth_hat[i] <- beta_0 + beta_1 * exp(log_dbh_latent_st[i]) + b_ijk[tree_ID[i]] + b_jk[plot_ID[i]] + b_k[site_ID[i]];
+        log_growth_hat[i] <- beta_0 + beta_1 * exp(log_dbh_latent_st[i]) + b_ijk[tree_ID[i]] + b_jk[plot_ID[i]] + b_k[site_ID[i]];
 
     /* print("growth=", growth[1], */
-    /*       ", growth_hat=", growth_hat[1], */
+    /*       ", log_growth_hat=", log_growth_hat[1], */
     /*       ", dbh_latent_st=", log_dbh_latent[2 - 1], */
     /*       ", dbh_latent_end=", log_dbh_latent[2], */
     /*       ", log_dbh_st=", log_dbh[2 - 1], */
@@ -81,8 +82,7 @@ transformed parameters {
 model {
     log_dbh ~ normal(log_dbh_latent, sigma_obs);
     sigma_obs ~ cauchy(0, 1);
-    // TODO: Fix below increment_log_prob statement
-    growth ~ normal(growth_hat, sigma_proc);
+    log(growth) ~ normal(log_growth_hat, sigma_proc);
     sigma_proc ~ cauchy(0, 1);
     // Jacobian adjustment to account for log transform of latent growth 
     // variables (log absolute determinant of transform):
