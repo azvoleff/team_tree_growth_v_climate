@@ -26,11 +26,11 @@ data {
 parameters {
     real<lower=-3, upper=3> beta_0;
     real<lower=-3, upper=3> beta_1;
-    real<lower=0, upper=1> sigma_obs;
-    real<lower=0, upper=1> sigma_proc;
-    real<lower=0, upper=1> sigma_ijk;
-    real<lower=0, upper=1> sigma_jk;
-    real<lower=0, upper=1> sigma_k;
+    real<lower=0> sigma_obs;
+    real<lower=0> sigma_proc;
+    real<lower=0> sigma_ijk;
+    real<lower=0> sigma_jk;
+    real<lower=0> sigma_k;
     real log_dbh_latent[n_dbhs];
     vector[n_tree] b_ijk;
     vector[n_plot] b_jk;
@@ -43,10 +43,6 @@ transformed parameters {
     vector[n_growths] log_dbh_latent_st;
     vector[n_growths] growth;
     vector[n_growths] growth_hat;
-    /* real a7; */
-    /* real a8; */
-    /* a7 <- 10 * n_dbhs; // Clark (2007), pg. 1947 */
-    /* a8 <- .001 * (a7 - 1); // Clark (2007), pg. 1947 */
     // to use obs_index and growths_index below, need to set them up to be 
     // local variables, by enclosing w/in brackets
     {
@@ -84,20 +80,18 @@ transformed parameters {
 
 model {
     log_dbh ~ normal(log_dbh_latent, sigma_obs);
-    //w ~ inv_gamma(a7, a8);
-    //w ~ inv_gamma(.001, .001);
+    sigma_obs ~ cauchy(0, 1);
     // TODO: Fix below increment_log_prob statement
     growth ~ normal(growth_hat, sigma_proc);
-    // Account for log transform of latent growth variables:
-    //for (i in 1:n_growths)
-    //    increment_log_prob(-log(fabs(growth[i])));
-    //beta_0 ~ normal(0, 100);
-    //beta_1 ~ normal(0, 100);
+    sigma_proc ~ cauchy(0, 1);
+    // Jacobian adjustment to account for log transform of latent growth 
+    // variables (log absolute determinant of transform):
+    for (i in 1:n_growths)
+        increment_log_prob(-log(fabs(growth[i])));
     b_ijk ~ normal(0, sigma_ijk);
+    sigma_ijk ~ cauchy(0, 1);
     b_jk ~ normal(0, sigma_jk);
+    sigma_jk ~ cauchy(0, 1);
     b_k ~ normal(0, sigma_k);
-    //sigma ~ inv_gamma(.001, .001);
-    //sigma_ijk ~ inv_gamma(.001, .001);
-    //sigma_jk ~ inv_gamma(.001, .001);
-    //sigma_k ~ inv_gamma(.001, .001);
+    sigma_k ~ cauchy(0, 1);
 }
