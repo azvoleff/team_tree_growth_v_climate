@@ -113,7 +113,7 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 
 # Fit initial model, on a single CPU
 seed <- 1638
-stan_fit <- stan(model_file, data=stan_data, iter=10, chains=1,
+stan_fit <- stan(model_file, data=stan_data, iter=1000, chains=1,
                  init=rep(stan_init, 1), chain_id=1)
 save(stan_fit, file="stan_fit.RData")
 
