@@ -98,8 +98,6 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        b_k=rep(0, n_site)))
                        #w=var(log(growth_ts$dbh))))
 
-## Finish adjustment for change of variables
-
 # fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
 #             init=rep(stan_init, n_chains), warmup=n_burnin)
 
@@ -114,12 +112,10 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 #                            warmup=n_burnin)
 # }
 
-ret <- stanc(model_file, model_name="tree_growth")
-tree_growth_model <- stan_model(stanc_ret=ret)
-
 seed <- 1638
-stan_fit <- stan(model_file, data=stan_data, iter=500, chains=1,
-                 init=rep(stan_init, n_chains), chain_id=1)
+stan_fit <- stan(model_file, data=stan_data, iter=10, chains=1,
+                 init=rep(stan_init, 1), chain_id=1)
+
 save(stan_fit, file="stan_fit.RData")
 
 cl <- makeCluster(n_chains)
