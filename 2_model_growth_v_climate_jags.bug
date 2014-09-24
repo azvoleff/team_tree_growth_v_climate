@@ -1,22 +1,28 @@
 model {
     # Likelihood
-    for (i in 1:n){
+    for (tree_num in 1:n_tree) {
+        for (obs_num in 1:n_obs_per_tree[i]) {
+            growth[(tree_num-1)*max_obs_per_tree + obs_num] <- log(exp(log_dbh_latent[obs_index]), exp(log_dbh_latent[obs_index - 1]));
+        }
+    }
         y[i] ~ dnorm(y.hat[i], tau.y)
-        y.hat[i] <- fix_ef + mix_ef
-        mix_ef <- u[ID_tree[i]] + v1[ID_plot[i]] + w[ID_site[i]] + z[ID_period[i]] + (slp_dbh + v2[ID_plot[i]])*dbh[i]
-        fix_ef <- int + slp_WD*WD[i] + slp_spi*spi_24[i] + slp_spi_sq*spi_24_sq[i]
+        y.hat[i] <- beta_0 + b_ijk[ID_tree[i]] + b_jk[ID_plot[i]] + b_k[ID_site[i]] + slp_dbh * exp(log_dbh_latent_st[i])
+
+        growth_hat[i] <- beta_0 + b_ijk[ID_tree[i]] + b_jk[ID_plot[i]] + b_k[ID_site[i]] + slp_dbh * exp(log_dbh_latent_st[i])
+
+        # For the below trick see http://bit.ly/1uFTjlx
+        ln_dia_inc.true[n] <- log(exp(ln_dbh_end_latent[n]) - exp(ln_dbh_st_latent[n]))
+        ln_dia_inc.minus[n] <- ln_dia_inc.true[n] - ln_dia_inc.pred[n]
+
     }
     tau.y <- pow(sigma.y, -2)
     sigma.y ~ dunif(0, 100)
 
     # Fixed intercept
-    int ~ dnorm(0, .0001)
+    beta_0 ~ dnorm(0, .0001)
 
     # Fixed slopes, prior is normally distributed with mean zero, sd 100
     slp_dbh ~ dnorm(0, .0001)
-    slp_WD ~ dnorm(0, .0001)
-    slp_spi ~ dnorm(0, .0001)
-    slp_spi_sq~ dnorm(0, .0001)
 
     # Tree-level model
     for (l in 1:n_tree) {
