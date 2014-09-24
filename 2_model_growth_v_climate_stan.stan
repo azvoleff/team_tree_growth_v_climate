@@ -89,8 +89,8 @@ model {
     // TODO: Fix below increment_log_prob statement
     growth ~ normal(growth_hat, sigma_proc);
     // Account for log transform of latent growth variables:
-    for (i in 1:n_growths)
-        increment_log_prob(-log(fabs(growth[i])));
+    //for (i in 1:n_growths)
+    //    increment_log_prob(-log(fabs(growth[i])));
     //beta_0 ~ normal(0, 100);
     //beta_1 ~ normal(0, 100);
     b_ijk ~ normal(0, sigma_ijk);

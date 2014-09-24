@@ -118,17 +118,17 @@ ret <- stanc(model_file, model_name="tree_growth")
 tree_growth_model <- stan_model(stanc_ret=ret)
 
 seed <- 1638
-fit <- stan(model_file, data=stan_data, iter=500, chains=1,
-            init=rep(stan_init, n_chains), chain_id=1)
+stan_fit <- stan(model_file, data=stan_data, iter=500, chains=1,
+                 init=rep(stan_init, n_chains), chain_id=1)
+save(stan_fit, file="stan_fit.RData")
 
 cl <- makeCluster(n_chains)
 registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
-    stan(fit, seed=seed, chains=1, iter=n_iter, chain_id=n+1, refresh=-1)
+    stan(stan_fit, seed=seed, chains=1, iter=n_iter, chain_id=n+1, refresh=-1)
 }
 stopCluster(cl)
 
-stan_fit <- sflist2stanfit(sflist)
-
-save(stan_fit, file="stan_fit.RData")
+stan_fit_allchains <- sflist2stanfit(sflist)
+save(stan_fit_allchains, file="stan_fit_allchains.RData")
