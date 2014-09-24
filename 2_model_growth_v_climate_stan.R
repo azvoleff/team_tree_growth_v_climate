@@ -111,18 +111,20 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 #                            warmup=n_burnin)
 # }
 
-# Fit initial model, on a single CPU
+# Fit initial model, on a single CPU. Run only one iteration.
 seed <- 1638
-stan_fit <- stan(model_file, data=stan_data, iter=1000, chains=1,
-                 init=rep(stan_init, 1), chain_id=1)
-save(stan_fit, file="stan_fit.RData")
+stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1, init=stan_init, 
+                 chain_id=1)
+save(stan_fit_initial, file="stan_fit_initial.RData")
 
-# Fit n_chains chains in parallel
+# Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
+# used by stan to properly seed each chain differently.
 cl <- makeCluster(n_chains)
 registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
-    stan(stan_fit, seed=seed, chains=1, iter=n_iter, chain_id=n+1, refresh=-1)
+    stan(stan_fit_initial, seed=seed, chains=1, iter=n_iter, chain_id=n+1, 
+         refresh=-1)
 }
 stopCluster(cl)
 
