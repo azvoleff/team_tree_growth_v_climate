@@ -82,6 +82,7 @@ stan_data <- list(n_dbhs=nrow(growth_ts),
                   plot_ID=as.integer(factor(growth_ts$ID_plot)),
                   site_ID=as.integer(factor(growth_ts$ID_site)),
                   log_dbh=log(growth_ts$dbh))
+save(stan_data, file="stan_data.RData")
 
 #var(log(growth_ts$dbh))
 # Setup inits
@@ -93,13 +94,13 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        sigma_ijk=.06,
                        sigma_jk=.12,
                        sigma_k=.24,
-                       b_ijk=rep(0, n_tree),
-                       b_jk=rep(0, n_plot),
-                       b_k=rep(0, n_site)))
+                       b_ijk_std=rep(.5, n_tree),
+                       b_jk_std=rep(.3, n_plot),
+                       b_k_std=rep(.2, n_site)))
 save(stan_init, file="stan_init.RData")
 
-# fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
-#             init=rep(stan_init, n_chains), warmup=n_burnin)
+fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
+            init=rep(stan_init, n_chains), warmup=n_burnin)
 
 # Fit initial model, on a single CPU. Run only one iteration.
 seed <- 1638
