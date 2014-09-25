@@ -18,7 +18,7 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 
 ###############################################################################
 ### TESTING ONLY
-#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
 n_burnin <- 200
@@ -95,7 +95,7 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 save(stan_init, file="stan_init.RData")
 
 fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
-            init=rep(stan_init, n_chains), warmup=n_burnin)
+            init=rep(stan_init, n_chains), warmup=n_burnin, refresh=1)
 
 # Fit initial model, on a single CPU. Run only one iteration.
 seed <- 1638
