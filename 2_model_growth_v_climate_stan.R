@@ -110,12 +110,27 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 #                            chains=n_chains, init=rep(stan_init, n_chains),
 #                            warmup=n_burnin)
 # }
-
+stop()
 # Fit initial model, on a single CPU. Run only one iteration.
 seed <- 1638
-stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1, init=stan_init, 
-                 chain_id=1)
+stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1,
+                         init=stan_init, chain_id=1)
+print("finished running initial stan model")
 save(stan_fit_initial, file="stan_fit_initial.RData")
+
+# Extract the final values from this chain and use them to initialize the next
+# chains:
+init_param_ests <- extract(stan_fit_initial, permuted=TRUE)
+# Drop tranformed params and likelihood (not needed for initialization)
+init_param_ests <- init_param_ests[!(names(init_param_ests) %in%
+                                     c("log_dbh_latent_st",  "growth",
+                                       "log_growth_hat", "lp__"))
+init_param_ests <- list(init_param_ests)
+
+get_inits <- function(stan_fit, orig_inits) {
+    params <- names(orig_inits[[1]])
+    init_param_ests <- extract(stan_fit_initial, permuted=TRUE, par=params)
+}
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -123,10 +138,23 @@ cl <- makeCluster(n_chains)
 registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
-    stan(stan_fit_initial, seed=seed, chains=1, iter=n_iter, chain_id=n+1, 
-         refresh=-1)
+    stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
+         iter=n_iter, chain_id=n+1, refresh=-1, init=init_param_ests)
 }
+print("finished running stan models on cluster")
 stopCluster(cl)
 
 stan_fit_allchains <- sflist2stanfit(sflist)
 save(stan_fit_allchains, file="stan_fit_allchains.RData")
+
+# model_params <- c("log_dbh_latent",
+#                   "beta_0",
+#                   "beta_1",
+#                   "sigma_obs",
+#                   "sigma_proc",
+#                   "sigma_ijk",
+#                   "sigma_jk",
+#                   "sigma_k",
+#                   "b_ijk",
+#                   "b_jk",
+#                   "b_k")

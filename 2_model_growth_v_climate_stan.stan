@@ -41,7 +41,7 @@ parameters {
 
 transformed parameters {
     vector[n_growths] log_dbh_latent_st;
-    vector[n_growths] growth;
+    vector<lower=0>[n_growths] growth;
     vector[n_growths] log_growth_hat;
     // to use obs_index and growths_index below, need to set them up to be 
     // local variables, by enclosing w/in brackets
