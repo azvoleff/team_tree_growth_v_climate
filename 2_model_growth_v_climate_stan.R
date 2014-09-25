@@ -100,17 +100,6 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
 # fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
 #             init=rep(stan_init, n_chains), warmup=n_burnin)
 
-# # Compile and run piece-by-piece
-# ret <- stanc(model_file, model_name="my_model")
-# ## compilation
-# my_model.sm <- stan_model(stanc_ret=ret)
-#
-# for (s in 1:n.sims) {
-#    my_model.sf <- sampling(my_model.sm, data=stan_data, iter=n_iter,
-#                            chains=n_chains, init=rep(stan_init, n_chains),
-#                            warmup=n_burnin)
-# }
-stop()
 # Fit initial model, on a single CPU. Run only one iteration.
 seed <- 1638
 stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1,
@@ -118,19 +107,29 @@ stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1,
 print("finished running initial stan model")
 save(stan_fit_initial, file="stan_fit_initial.RData")
 
-# Extract the final values from this chain and use them to initialize the next
-# chains:
-init_param_ests <- extract(stan_fit_initial, permuted=TRUE)
-# Drop tranformed params and likelihood (not needed for initialization)
-init_param_ests <- init_param_ests[!(names(init_param_ests) %in%
-                                     c("log_dbh_latent_st",  "growth",
-                                       "log_growth_hat", "lp__"))
-init_param_ests <- list(init_param_ests)
-
-get_inits <- function(stan_fit, orig_inits) {
-    params <- names(orig_inits[[1]])
-    init_param_ests <- extract(stan_fit_initial, permuted=TRUE, par=params)
+# Function to extract the last parameter estimates from a chain in a stanfit 
+# object to use as initialization values for a new chain.
+get_inits <- function(stan_fit, stan_init) {
+    pars <- names(stan_init[[1]])
+    init_param_ests <- extract(stan_fit_initial, permuted=TRUE, par=pars)
+    # Convert arrays into numeric
+    last_iter_num <- nrow(init_param_ests[[1]])
+    for (n in 1:length(init_param_ests)) {
+        # Select the last estimate if the chain has more than one iteration:
+        if (length(dim(init_param_ests[[n]])) > 1) {
+            init_param_ests[[n]] <- as.numeric(init_param_ests[[n]][last_iter_num, ])
+        } else {
+            init_param_ests[[n]] <- as.numeric(init_param_ests[[n]])
+        }
+    }
+    # Stan wants inits to be a list of lists:
+    init_param_ests <- list(init_param_ests)
+    return(init_param_ests)
 }
+
+# Extract the final values from this chain and use them to initialize the next
+# chains.
+new_inits <- get_inits(stan_fit_initial, stan_init)
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -139,7 +138,7 @@ registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
     stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
-         iter=n_iter, chain_id=n+1, refresh=-1, init=init_param_ests)
+         iter=n_iter, chain_id=n+1, refresh=-1, init=new_inits)
 }
 print("finished running stan models on cluster")
 stopCluster(cl)
