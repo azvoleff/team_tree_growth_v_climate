@@ -31,7 +31,7 @@ parameters {
     real<lower=0, upper=100> sigma_ijk;
     real<lower=0, upper=100> sigma_jk;
     real<lower=0, upper=100> sigma_k;
-    real log_dbh_latent[n_dbhs];
+    real<lower=2, upper=5.6> log_dbh_latent[n_dbhs];
     vector[n_tree] b_ijk_std; // standardized ranef for tree
     vector[n_plot] b_jk_std; // standardized ranef for plot
     vector[n_site] b_k_std; // standardized ranef for site

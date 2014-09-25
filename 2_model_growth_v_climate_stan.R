@@ -1,14 +1,9 @@
 library(dplyr)
-library(ggplot2)
 library(rstan)
 library(foreach)
 library(doParallel)
 
 load("growth_ctfsflagged_merged_detrended.RData")
-
-img_height <- 4
-img_width <- 3
-img_dpi <- 300
 
 growth <- tbl_df(growth)
 
