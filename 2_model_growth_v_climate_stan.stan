@@ -7,23 +7,23 @@
 */
 
 data {
-    int<lower=0> n_dbhs;
     int<lower=0> n_tree;
     int<lower=0> n_plot;
     int<lower=0> n_site;
-    int<lower=0, upper=13> n_obs_per_tree[n_tree];
-    int<lower=0> n_growths;
+    int<lower=0> max_obs_per_tree;
+    int<lower=0> first_obs_period[n_tree];
+    int<lower=0> last_obs_period[n_tree];
     //int<lower=0> n_period;
     //int<lower=0> n_genus;
-    int<lower=0, upper=n_tree> tree_ID[n_dbhs];
-    int<lower=0, upper=n_plot> plot_ID[n_dbhs];
-    int<lower=0, upper=n_site> site_ID[n_dbhs];
+    int<lower=0, upper=n_plot> plot_ID[n_tree];
+    int<lower=0, upper=n_site> site_ID[n_tree];
     //int<lower=1, upper=n_period> period_ID;
     //int<lower=1, upper=n_genus> genus_ID;
-    vector[n_dbhs] log_dbh;
+    matrix[n_tree, max_obs_per_tree] log_dbh;
 }
 
 parameters {
+    matrix<lower=2, upper=5.6>[n_tree, max_obs_per_tree] log_dbh_latent;
     real<lower=-3, upper=3> beta_0;
     real<lower=-3, upper=3> beta_1;
     real<lower=0, upper=100> sigma_obs;
@@ -31,7 +31,6 @@ parameters {
     real<lower=0, upper=100> sigma_ijk;
     real<lower=0, upper=100> sigma_jk;
     real<lower=0, upper=100> sigma_k;
-    real<lower=2, upper=5.6> log_dbh_latent[n_dbhs];
     vector[n_tree] b_ijk_std; // standardized ranef for tree
     vector[n_plot] b_jk_std; // standardized ranef for plot
     vector[n_site] b_k_std; // standardized ranef for site
@@ -40,67 +39,46 @@ parameters {
 }
 
 transformed parameters {
-    vector[n_growths] log_dbh_latent_st;
-    vector<lower=0>[n_growths] growth;
     vector[n_tree] b_ijk;
     vector[n_plot] b_jk;
     vector[n_site] b_k;
-    // to use obs_index and growths_index below, need to set them up to be 
-    // local variables, by enclosing w/in brackets
-    {
-        // obs_index tracks the current observation
-        int obs_index;
-        // growths_index tracks position in the growths vector (shorter than 
-        // the observations vector since growth can't be calculated for the 
-        // first time period).
-        int growths_index;
-
-        obs_index <- 1;
-        growths_index <- 1;
-        for (tree_num in 1:n_tree) {
-            obs_index <- obs_index + 1;
-            for (obs_num in 2:n_obs_per_tree[tree_num]) {
-                growth[growths_index] <- exp(log_dbh_latent[obs_index]) - exp(log_dbh_latent[obs_index - 1]);
-                // save log_dbh_latent_st since we need a vector of starting 
-                // dbh values for use in the likelihood that is of the same 
-                // length as growths
-                log_dbh_latent_st[growths_index] <- log_dbh_latent[obs_index - 1];
-                obs_index <- obs_index + 1;
-                growths_index <- growths_index + 1;
-            }
-        }
-    }
 
     // Matt trick- see http://bit.ly/1qz4NC6
     b_ijk <- sigma_ijk * b_ijk_std; // b_ijk ~ normal(0, sigma_ijk)
     b_jk <- sigma_jk * b_jk_std; // b_jk ~ normal(0, sigma_jk)
     b_k <- sigma_k * b_k_std; // b_k ~ normal(0, sigma_k)
     
-    /* print("growth=", growth[1], */
-    /*       ", dbh_latent_st=", log_dbh_latent[2 - 1], */
+    /* print("dbh_latent_st=", log_dbh_latent[2 - 1], */
     /*       ", dbh_latent_end=", log_dbh_latent[2], */
     /*       ", log_dbh_st=", log_dbh[2 - 1], */
     /*       ", log_dbh_end=", log_dbh[2]) */
 }
 
 model {
-    // Predicted growths
-    vector[n_growths] log_growth_hat;
-    for (i in 1:n_growths)
-        log_growth_hat[i] <- beta_0 + beta_1 * exp(log_dbh_latent_st[i]) + b_ijk[tree_ID[i]] + b_jk[plot_ID[i]] + b_k[site_ID[i]];
+    matrix[n_tree, max_obs_per_tree] log_growth_hat;
+    matrix<lower=0>[n_tree, max_obs_per_tree] growth;
+    growth <- rep_matrix(0, n_tree, max_obs_per_tree);
+    log_growth_hat <- rep_matrix(0, n_tree, max_obs_per_tree);
+    for (tree_num in 1:n_tree) {
+        // Make sure first latent dbh is also modeled
+        log_dbh[tree_num, first_obs_period[tree_num]] ~ normal(log_dbh_latent[tree_num, first_obs_period[tree_num]], sigma_obs);
+        for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
+            // Distribution of dbh, with  mean latent dbh
+            log_dbh[tree_num, obs_num] ~ normal(log_dbh_latent[tree_num, obs_num], sigma_obs);
 
-    // Distribution of dbh, with  mean latent dbh
-    log_dbh ~ normal(log_dbh_latent, sigma_obs);
+            // Growth model
+            growth[tree_num, obs_num] <- exp(log_dbh_latent[tree_num, obs_num]) - exp(log_dbh_latent[tree_num, obs_num - 1]);
+            log_growth_hat[tree_num, obs_num] <- beta_0 + beta_1 * exp(log_dbh_latent[tree_num, obs_num - 1]) + b_ijk[tree_num] + b_jk[plot_ID[tree_num]] + b_k[site_ID[tree_num]];
+            log(growth[tree_num, obs_num]) ~ normal(log_growth_hat[tree_num, obs_num], sigma_proc);
+
+            // Jacobian adjustment to account for log transform of latent growth 
+            // variables (log absolute determinant of transform):
+            increment_log_prob(-log(fabs(growth[tree_num, obs_num])));
+        }
+    }
+
     //sigma_obs ~ cauchy(0, 1);
-
-    // Growth model
-    log(growth) ~ normal(log_growth_hat, sigma_proc);
     //sigma_proc ~ cauchy(0, 1);
-
-    // Jacobian adjustment to account for log transform of latent growth 
-    // variables (log absolute determinant of transform):
-    for (i in 1:n_growths)
-        increment_log_prob(-log(fabs(growth[i])));
 
     // Random effects
     b_ijk_std ~ normal(0, 1); // Matt trick

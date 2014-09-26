@@ -1,7 +1,9 @@
 library(dplyr)
 library(rstan)
 library(foreach)
+library(reshape2)
 library(doParallel)
+library(zoo) # for na.approx
 
 load("growth_ctfsflagged_merged_detrended.RData")
 
@@ -30,6 +32,8 @@ n_iter <- 1000
 
 model_file <- "2_model_growth_v_climate_stan.stan" 
 
+
+
 # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
 # first growth measurement can only be calculated from time 1 to time 2)
 growth_wide <- data.frame(ID_tree=as.integer(factor(growth$SamplingUnitName)),
@@ -38,50 +42,96 @@ growth_wide <- data.frame(ID_tree=as.integer(factor(growth$SamplingUnitName)),
                           ID_period=as.integer(factor(growth$SamplingPeriodNumber)),
                           dbh_st=growth$diameter_start,
                           dbh_end=growth$diameter_end)
-growth_ts <- arrange(growth_wide, ID_period) %>%
+dbh_ts <- arrange(growth_wide, ID_period) %>%
     group_by(ID_tree) %>%
     do(data.frame(ID_tree=c(.$ID_tree[1], .$ID_tree),
-                  ID_plot=c(0, .$ID_plot),
-                  ID_site=c(0, .$ID_site),
-                  ID_period=c(0, .$ID_period),
+                  ID_plot=c(.$ID_plot[1], .$ID_plot),
+                  ID_site=c(.$ID_site[1], .$ID_site),
+                  ID_period=c(1, .$ID_period + 1), # Start period IDs at 1
+                  obs_num=seq(0, length(.$dbh_st)),
                   dbh=c(.$dbh_st[1], .$dbh_end))) %>%
     arrange(ID_tree, ID_period)
 
 # Add latent growth inits
-calc_latent_growth <- function(dbh) {
+calc_latent_dbh <- function(dbh) {
     dbh_latent <- rep(NA, length(dbh))
     dbh_latent[1] <- dbh[1]
     for (i in 2:length(dbh)) {
-        dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1], dbh[i], dbh_latent[i - 1] + .01)
+        dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1],
+            dbh[i], dbh_latent[i - 1] + .01)
     }
     return(dbh_latent)
 }
-growth_ts <- arrange(growth_ts, ID_period) %>%
+dbh_ts <- arrange(dbh_ts, ID_period) %>%
     group_by(ID_tree) %>%
-    mutate(dbh_latent=calc_latent_growth(dbh)) %>%
+    mutate(dbh_latent=calc_latent_dbh(dbh)) %>%
     arrange(ID_tree, ID_period)
 
-# Setup data
-obs_per_tree <- group_by(growth_ts, ID_tree) %>% summarize(n=n())
-n_tree <- length(unique(growth_ts$ID_tree))
-n_site <- length(unique(growth_ts$ID_site))
-n_plot <- length(unique(growth_ts$ID_plot))
+# Setup wide format dbh and dbh_latent dataframes
+dbh <- dcast(dbh_ts, ID_tree + ID_plot + ID_site ~ ID_period, value.var="dbh")
+dbh_latent <- dcast(dbh_ts, ID_tree + ID_plot + ID_site ~ ID_period, value.var="dbh_latent")
+ID_tree <- dbh$ID_tree
+ID_plot <- dbh$ID_plot
+ID_site <- dbh$ID_site
+# Eliminate the ID columns
+dbh <- dbh[!grepl('^ID_', names(dbh))]
+dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
 
-stan_data <- list(n_dbhs=nrow(growth_ts),
-                  n_tree=n_tree,
+dbh_missing <- is.na(dbh)
+
+# Check how many trees have missing observations in the middle of their 
+# observation periods (with each tree's observation period defined by the 
+# periods with the first and last known diameter measurements).
+calc_n_missings <- function(x) {
+    first_obs <- min(which(!is.na(x)))
+    last_obs <- max(which(!is.na(x)))
+    sum(is.na(x[first_obs:last_obs]))
+}
+n_missing_periods <- t(apply(dbh, 1, calc_n_missings))
+table(n_missing_periods)
+
+# TEMPORARY: interpolate missing values in dbh (TODO: model NAs in Stan)
+interp_dbh_obs <- function(x) {
+    first_obs <- min(which(!is.na(x)))
+    last_obs <- max(which(!is.na(x)))
+    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    return(x)
+}
+dbh <- t(apply(dbh, 1, interp_dbh_obs))
+
+# Interpolate missing values in dbh_latent
+dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
+
+# Stan doesn't support NAs - but these rows will be ignored in Stan regardless 
+# of their values since the indexing will be determined by "first_obs_period" and 
+# "last_obs_period". So set them to 10 so that they will fit the constraints applied 
+# to the matrix and not cause Stan to throw an error when they are read in.
+dbh[is.na(dbh)] <- 10
+dbh_latent[is.na(dbh_latent)] <- 10
+
+# Setup data
+n_tree <- length(unique(dbh_ts$ID_tree))
+n_site <- length(unique(dbh_ts$ID_site))
+n_plot <- length(unique(dbh_ts$ID_plot))
+
+obs_per_tree <- group_by(dbh_ts, ID_tree) %>%
+    summarize(first_obs_period=min(ID_period),
+              last_obs_period=max(ID_period))
+
+stan_data <- list(n_tree=n_tree,
                   n_plot=n_plot,
                   n_site=n_site,
-                  n_obs_per_tree=obs_per_tree$n,
-                  n_growths=(sum(obs_per_tree$n) - n_tree),
-                  tree_ID=as.integer(factor(growth_ts$ID_tree)),
-                  plot_ID=as.integer(factor(growth_ts$ID_plot)),
-                  site_ID=as.integer(factor(growth_ts$ID_site)),
-                  log_dbh=log(growth_ts$dbh))
+                  first_obs_period=obs_per_tree$first_obs_period,
+                  last_obs_period=obs_per_tree$last_obs_period,
+                  max_obs_per_tree=ncol(dbh),
+                  plot_ID=as.integer(factor(ID_plot)),
+                  site_ID=as.integer(factor(ID_site)),
+                  log_dbh=as.matrix(log(dbh)))
 save(stan_data, file="stan_data.RData")
 
-#var(log(growth_ts$dbh))
+#var(log(dbh_ts$dbh))
 # Setup inits
-stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
+stan_init <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
                        beta_0=-1.7,
                        beta_1=.008,
                        sigma_obs=.02, 
@@ -94,11 +144,12 @@ stan_init <- list(list(log_dbh_latent=log(growth_ts$dbh_latent),
                        b_k_std=rep(.2, n_site)))
 save(stan_init, file="stan_init.RData")
 
-fit <- stan(model_file, data=stan_data, iter=n_iter, chains=n_chains,
-            init=rep(stan_init, n_chains), warmup=n_burnin, refresh=1)
+seed <- 1638
+fit <- stan(model_file, data=stan_data, iter=n_iter, chains=1,
+            init=rep(stan_init, 1), warmup=n_burnin, refresh=1, 
+            seed=seed)
 
 # Fit initial model, on a single CPU. Run only one iteration.
-seed <- 1638
 # stan_fit_initial <- stan(model_file, data=stan_data, iter=1, chains=1,
 #                          init=stan_init, chain_id=1)
 # print("finished running initial stan model")
