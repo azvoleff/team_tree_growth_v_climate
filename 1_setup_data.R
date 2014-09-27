@@ -25,13 +25,8 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
-n_chains <- 12
-n_iter <- 1000
-
 ###############################################################################
 #  Stan model
-
-model_file <- "2_model_growth_v_climate_stan.stan" 
 
 growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
 growth$ID_plot <- as.integer(factor(growth$plot_ID))

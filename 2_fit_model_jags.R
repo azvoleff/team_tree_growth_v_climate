@@ -2,6 +2,10 @@ library(rstan)
 library(foreach)
 library(doParallel)
 
+model_file <- "full_model.stan" 
+n_chains <- 12
+n_iter <- 1000
+
 load("stan_data.RData")
 load("stan_init.RData")
 
