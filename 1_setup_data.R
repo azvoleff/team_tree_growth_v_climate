@@ -25,9 +25,6 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
-###############################################################################
-#  Stan model
-
 growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
 growth$ID_plot <- as.integer(factor(growth$plot_ID))
 growth$ID_site <- as.integer(factor(growth$sitecode))
@@ -75,6 +72,7 @@ dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
 spi <- spi[!grepl('^ID_', names(spi))]
 
 WD <- growth$WD[match(ID_tree, growth$ID_tree)]
+WD <- (WD - mean(WD)) / sd(WD)
 
 dbh_missing <- is.na(dbh)
 
@@ -89,7 +87,7 @@ calc_n_missings <- function(x) {
 n_missing_periods <- t(apply(dbh, 1, calc_n_missings))
 table(n_missing_periods)
 
-# TEMPORARY: interpolate missing values in dbh (TODO: model NAs in Stan)
+# TEMPORARY: interpolate missing values in dbh (TODO: model NAs in Stan/JAGS)
 interp_dbh_obs <- function(x) {
     first_obs <- min(which(!is.na(x)))
     last_obs <- max(which(!is.na(x)))
@@ -101,14 +99,6 @@ dbh <- t(apply(dbh, 1, interp_dbh_obs))
 # Interpolate missing values in dbh_latent
 dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
-# Stan doesn't support NAs - but these rows will be ignored in Stan regardless 
-# of their values since the indexing will be determined by "first_obs_period" and 
-# "last_obs_period". So set them to 10 so that they will fit the constraints applied 
-# to the matrix and not cause Stan to throw an error when they are read in.
-dbh[is.na(dbh)] <- 10
-dbh_latent[is.na(dbh_latent)] <- 10
-spi[is.na(spi)] <- 10
-
 # Setup data
 n_tree <- length(unique(dbh_ts$ID_tree))
 n_site <- length(unique(dbh_ts$ID_site))
@@ -118,22 +108,22 @@ obs_per_tree <- group_by(dbh_ts, ID_tree) %>%
     summarize(first_obs_period=min(ID_period),
               last_obs_period=max(ID_period))
 
-stan_data <- list(n_tree=n_tree,
-                  n_plot=n_plot,
-                  n_site=n_site,
-                  first_obs_period=obs_per_tree$first_obs_period,
-                  last_obs_period=obs_per_tree$last_obs_period,
-                  max_obs_per_tree=ncol(dbh),
-                  plot_ID=as.integer(factor(ID_plot)),
-                  site_ID=as.integer(factor(ID_site)),
-                  log_dbh=as.matrix(log(dbh)),
-                  WD=WD,
-                  spi=spi)
-save(stan_data, file="stan_data.RData")
+model_data <- list(n_tree=n_tree,
+                   n_plot=n_plot,
+                   n_site=n_site,
+                   first_obs_period=obs_per_tree$first_obs_period,
+                   last_obs_period=obs_per_tree$last_obs_period,
+                   max_obs_per_tree=ncol(dbh),
+                   plot_ID=as.integer(factor(ID_plot)),
+                   site_ID=as.integer(factor(ID_site)),
+                   log_dbh=as.matrix(log(dbh)),
+                   WD=WD,
+                   spi=spi)
+save(model_data, file="model_data.RData")
 
 #var(log(dbh_ts$dbh))
 # Setup inits
-stan_init <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
+init_data <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
                        inter=-1.7,
                        slp_dbh=.008,
                        slp_spi=.1,
@@ -148,4 +138,4 @@ stan_init <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
                        b_ijk_std=rep(.5, n_tree),
                        b_jk_std=rep(.3, n_plot),
                        b_k_std=rep(.2, n_site)))
-save(stan_init, file="stan_init.RData")
+save(init_data, file="init_data.RData")

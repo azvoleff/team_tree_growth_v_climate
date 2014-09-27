@@ -6,23 +6,23 @@ model_file <- "full_model.stan"
 n_chains <- 12
 n_iter <- 1000
 
-load("stan_data.RData")
-load("stan_init.RData")
+load("model_data.RData")
+load("init_data.RData")
 
 seed <- 1638
-fit <- stan(model_file, data=stan_data, iter=n_iter, chains=1,
-            init=rep(stan_init, 1), refresh=1, seed=seed)
+fit <- stan(model_file, data=model_data, iter=n_iter, chains=1,
+            init=rep(init_data, 1), refresh=1, seed=seed)
 
 # Fit initial model, on a single CPU. Run only one iteration.
-stan_fit_initial <- stan(model_file, data=stan_data, iter=0, chains=1,
-                         init=stan_init, chain_id=1)
+stan_fit_initial <- stan(model_file, data=model_data, iter=0, chains=1,
+                         init=init_data, chain_id=1)
 print("finished running initial stan model")
 save(stan_fit_initial, file="stan_fit_initial.RData")
 
 # # Function to extract the last parameter estimates from a chain in a stanfit 
 # # object to use as initialization values for a new chain.
-# get_inits <- function(stan_fit, stan_init) {
-#     pars <- names(stan_init[[1]])
+# get_inits <- function(stan_fit, init_data) {
+#     pars <- names(init_data[[1]])
 #     init_param_ests <- extract(stan_fit_initial, permuted=TRUE, par=pars)
 #     # Convert arrays into numeric
 #     last_iter_num <- nrow(init_param_ests[[1]])
@@ -41,8 +41,8 @@ save(stan_fit_initial, file="stan_fit_initial.RData")
 #
 # # Extract the final values from this chain and use them to initialize the next
 # # chains.
-# stan_init_revised <- get_inits(stan_fit_initial, stan_init)
-# save(stan_init_revised, file="stan_init_revised.RData")
+# init_data_revised <- get_inits(stan_fit_initial, init_data)
+# save(init_data_revised, file="init_data_revised.RData")
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -50,10 +50,10 @@ cl <- makeCluster(n_chains)
 registerDoParallel(cl)
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
-    stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
-         iter=n_iter, chain_id=n+1, refresh=-1, init=stan_init)
-    # stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
-    #      iter=n_iter, chain_id=n+1, refresh=-1, init=stan_init_revised)
+    stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
+         iter=n_iter, chain_id=n+1, refresh=-1, init=init_data)
+    # stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
+    #      iter=n_iter, chain_id=n+1, refresh=-1, init=init_data_revised)
 }
 print("finished running stan models on cluster")
 stopCluster(cl)

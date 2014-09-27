@@ -63,8 +63,8 @@ transformed parameters {
 model {
     matrix[n_tree, max_obs_per_tree] log_growth_hat;
     matrix<lower=0>[n_tree, max_obs_per_tree] growth;
-    growth <- rep_matrix(0, n_tree, max_obs_per_tree);
-    log_growth_hat <- rep_matrix(0, n_tree, max_obs_per_tree);
+    //growth <- rep_matrix(0, n_tree, max_obs_per_tree);
+    //log_growth_hat <- rep_matrix(0, n_tree, max_obs_per_tree);
     for (tree_num in 1:n_tree) {
         // Make sure first latent dbh is also modeled
         log_dbh[tree_num, first_obs_period[tree_num]] ~ normal(log_dbh_latent[tree_num, first_obs_period[tree_num]], sigma_obs);
