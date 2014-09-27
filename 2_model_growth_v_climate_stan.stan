@@ -20,12 +20,18 @@ data {
     //int<lower=1, upper=n_period> period_ID;
     //int<lower=1, upper=n_genus> genus_ID;
     matrix[n_tree, max_obs_per_tree] log_dbh;
+    vector[n_tree] WD;
+    matrix[n_tree, max_obs_per_tree] spi;
 }
 
 parameters {
     matrix<lower=2, upper=5.6>[n_tree, max_obs_per_tree] log_dbh_latent;
-    real<lower=-3, upper=3> beta_0;
-    real<lower=-3, upper=3> beta_1;
+    real<lower=-3, upper=3> inter;
+    real<lower=-3, upper=3> slp_dbh;
+    real<lower=-3, upper=3> slp_WD;
+    real<lower=-3, upper=3> slp_WD_sq;
+    real<lower=-3, upper=3> slp_spi;
+    real<lower=-3, upper=3> slp_spi_sq;
     real<lower=0, upper=100> sigma_obs;
     real<lower=0, upper=100> sigma_proc;
     real<lower=0, upper=100> sigma_ijk;
@@ -67,8 +73,15 @@ model {
             log_dbh[tree_num, obs_num] ~ normal(log_dbh_latent[tree_num, obs_num], sigma_obs);
 
             // Growth model
-            growth[tree_num, obs_num] <- exp(log_dbh_latent[tree_num, obs_num]) - exp(log_dbh_latent[tree_num, obs_num - 1]);
-            log_growth_hat[tree_num, obs_num] <- beta_0 + beta_1 * exp(log_dbh_latent[tree_num, obs_num - 1]) + b_ijk[tree_num] + b_jk[plot_ID[tree_num]] + b_k[site_ID[tree_num]];
+            growth[tree_num, obs_num] <- exp(log_dbh_latent[tree_num, obs_num]) -
+                exp(log_dbh_latent[tree_num, obs_num - 1]);
+            log_growth_hat[tree_num, obs_num] <- inter +
+                slp_dbh * exp(log_dbh_latent[tree_num, obs_num - 1]) +
+                slp_WD * WD[tree_num] +
+                slp_WD_sq * pow(WD[tree_num], 2) +
+                slp_spi * spi[tree_num, obs_num] +
+                slp_spi_sq * pow(spi[tree_num, obs_num], 2) +
+                b_ijk[tree_num] + b_jk[plot_ID[tree_num]] + b_k[site_ID[tree_num]];
             log(growth[tree_num, obs_num]) ~ normal(log_growth_hat[tree_num, obs_num], sigma_proc);
 
             // Jacobian adjustment to account for log transform of latent growth 

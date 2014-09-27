@@ -1,13 +1,15 @@
 library(dplyr)
-library(rstan)
-library(foreach)
 library(reshape2)
-library(doParallel)
 library(zoo) # for na.approx
 
 load("growth_ctfsflagged_merged_detrended.RData")
 
 growth <- tbl_df(growth)
+
+table(growth$ctfs_accept)
+table(growth$n_days < 200)
+table(growth$n_days > 550)
+table(growth$n_days > 1000)
 
 growth <- filter(growth, ctfs_accept)
 growth <- filter(growth, n_days > 200)
@@ -20,7 +22,7 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 
 ###############################################################################
 ### TESTING ONLY
-#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
 n_chains <- 12
@@ -31,24 +33,23 @@ n_iter <- 1000
 
 model_file <- "2_model_growth_v_climate_stan.stan" 
 
-
+growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
+growth$ID_plot <- as.integer(factor(growth$plot_ID))
+growth$ID_site <- as.integer(factor(growth$sitecode))
+growth$ID_period <- as.integer(factor(growth$SamplingPeriodNumber))
 
 # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
 # first growth measurement can only be calculated from time 1 to time 2)
-growth_wide <- data.frame(ID_tree=as.integer(factor(growth$SamplingUnitName)),
-                          ID_plot=as.integer(factor(growth$plot_ID)),
-                          ID_site=as.integer(factor(growth$sitecode)),
-                          ID_period=as.integer(factor(growth$SamplingPeriodNumber)),
-                          dbh_st=growth$diameter_start,
-                          dbh_end=growth$diameter_end)
-dbh_ts <- arrange(growth_wide, ID_period) %>%
+dbh_ts <- arrange(growth, ID_period) %>%
     group_by(ID_tree) %>%
     do(data.frame(ID_tree=c(.$ID_tree[1], .$ID_tree),
                   ID_plot=c(.$ID_plot[1], .$ID_plot),
                   ID_site=c(.$ID_site[1], .$ID_site),
                   ID_period=c(1, .$ID_period + 1), # Start period IDs at 1
                   obs_num=seq(0, length(.$dbh_st)),
-                  dbh=c(.$dbh_st[1], .$dbh_end))) %>%
+                  spi=c(NA, .$spi_24),
+                  WD=c(NA, .$WD),
+                  dbh=c(.$diameter_start[1], .$diameter_end))) %>%
     arrange(ID_tree, ID_period)
 
 # Add latent growth inits
@@ -69,12 +70,16 @@ dbh_ts <- arrange(dbh_ts, ID_period) %>%
 # Setup wide format dbh and dbh_latent dataframes
 dbh <- dcast(dbh_ts, ID_tree + ID_plot + ID_site ~ ID_period, value.var="dbh")
 dbh_latent <- dcast(dbh_ts, ID_tree + ID_plot + ID_site ~ ID_period, value.var="dbh_latent")
+spi <- dcast(dbh_ts, ID_tree + ID_plot + ID_site ~ ID_period, value.var="spi")
 ID_tree <- dbh$ID_tree
 ID_plot <- dbh$ID_plot
 ID_site <- dbh$ID_site
 # Eliminate the ID columns
 dbh <- dbh[!grepl('^ID_', names(dbh))]
 dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
+spi <- spi[!grepl('^ID_', names(spi))]
+
+WD <- growth$WD[match(ID_tree, growth$ID_tree)]
 
 dbh_missing <- is.na(dbh)
 
@@ -107,6 +112,7 @@ dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 # to the matrix and not cause Stan to throw an error when they are read in.
 dbh[is.na(dbh)] <- 10
 dbh_latent[is.na(dbh_latent)] <- 10
+spi[is.na(spi)] <- 10
 
 # Setup data
 n_tree <- length(unique(dbh_ts$ID_tree))
@@ -125,14 +131,20 @@ stan_data <- list(n_tree=n_tree,
                   max_obs_per_tree=ncol(dbh),
                   plot_ID=as.integer(factor(ID_plot)),
                   site_ID=as.integer(factor(ID_site)),
-                  log_dbh=as.matrix(log(dbh)))
+                  log_dbh=as.matrix(log(dbh)),
+                  WD=WD,
+                  spi=spi)
 save(stan_data, file="stan_data.RData")
 
 #var(log(dbh_ts$dbh))
 # Setup inits
 stan_init <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
-                       beta_0=-1.7,
-                       beta_1=.008,
+                       inter=-1.7,
+                       slp_dbh=.008,
+                       slp_spi=.1,
+                       slp_spi_sq=-.1,
+                       slp_WD=.1,
+                       slp_WD_sq=-.1,
                        sigma_obs=.02, 
                        sigma_proc=.02, 
                        sigma_ijk=.06,
@@ -142,67 +154,3 @@ stan_init <- list(list(log_dbh_latent=as.matrix(log(dbh_latent)),
                        b_jk_std=rep(.3, n_plot),
                        b_k_std=rep(.2, n_site)))
 save(stan_init, file="stan_init.RData")
-
-seed <- 1638
-fit <- stan(model_file, data=stan_data, iter=n_iter, chains=1,
-            init=rep(stan_init, 1), refresh=1, seed=seed)
-
-# Fit initial model, on a single CPU. Run only one iteration.
-stan_fit_initial <- stan(model_file, data=stan_data, iter=0, chains=1,
-                         init=stan_init, chain_id=1)
-print("finished running initial stan model")
-save(stan_fit_initial, file="stan_fit_initial.RData")
-
-# # Function to extract the last parameter estimates from a chain in a stanfit 
-# # object to use as initialization values for a new chain.
-# get_inits <- function(stan_fit, stan_init) {
-#     pars <- names(stan_init[[1]])
-#     init_param_ests <- extract(stan_fit_initial, permuted=TRUE, par=pars)
-#     # Convert arrays into numeric
-#     last_iter_num <- nrow(init_param_ests[[1]])
-#     for (n in 1:length(init_param_ests)) {
-#         # Select the last estimate if the chain has more than one iteration:
-#         if (length(dim(init_param_ests[[n]])) > 1) {
-#             init_param_ests[[n]] <- as.numeric(init_param_ests[[n]][last_iter_num, ])
-#         } else {
-#             init_param_ests[[n]] <- as.numeric(init_param_ests[[n]])
-#         }
-#     }
-#     # Stan wants inits to be a list of lists:
-#     init_param_ests <- list(init_param_ests)
-#     return(init_param_ests)
-# }
-#
-# # Extract the final values from this chain and use them to initialize the next
-# # chains.
-# stan_init_revised <- get_inits(stan_fit_initial, stan_init)
-# save(stan_init_revised, file="stan_init_revised.RData")
-
-# Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
-# used by stan to properly seed each chain differently.
-cl <- makeCluster(n_chains)
-registerDoParallel(cl)
-sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
-    # Add 1 to n in order to ensure chain_id 1 is not reused
-    stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
-         iter=n_iter, chain_id=n+1, refresh=-1, init=stan_init)
-    # stan(fit=stan_fit_initial, data=stan_data, seed=seed, chains=1,
-    #      iter=n_iter, chain_id=n+1, refresh=-1, init=stan_init_revised)
-}
-print("finished running stan models on cluster")
-stopCluster(cl)
-
-stan_fit_allchains <- sflist2stanfit(sflist)
-save(stan_fit_allchains, file="stan_fit_allchains.RData")
-
-# model_params <- c("log_dbh_latent",
-#                   "beta_0",
-#                   "beta_1",
-#                   "sigma_obs",
-#                   "sigma_proc",
-#                   "sigma_ijk",
-#                   "sigma_jk",
-#                   "sigma_k",
-#                   "b_ijk",
-#                   "b_jk",
-#                   "b_k")
