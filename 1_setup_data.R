@@ -22,7 +22,7 @@ growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingP
 
 ###############################################################################
 ### TESTING ONLY
-growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
 growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
