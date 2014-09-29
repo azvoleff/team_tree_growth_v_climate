@@ -38,9 +38,8 @@ model_data <- model_data[!(names(model_data) %in% c("obs", "miss"))]
 set.seed(seed)
 jags_fit <- jags(data=model_data, inits=rep(init_data, 1),
                  parameters.to.save=jags_params, n.chains=1, 
-                 n.burnin=n_burnin, n.iter=n_iter, n.thin=n_thin, 
+                 n.burnin=1000, n.iter=1000, n.thin=n_thin, 
                  model.file=model_file)
-
 print("finished running single JAGS chain")
 save(jags_fit, file="jags_fit.RData")
 
