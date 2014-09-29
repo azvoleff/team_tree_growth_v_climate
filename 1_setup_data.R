@@ -58,6 +58,9 @@ growth$ID_period_char <- factor(growth$SamplingPeriodEnd)
 growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
 growth$ID_plot <- as.integer(factor(growth$plot_ID))
 growth$ID_site <- as.integer(factor(growth$sitecode))
+# The plus one below is to ensure that the first period (rbinded on below) will 
+# have period number equal to 1, which will allow period numbers to be used in 
+# JAGS and R with 1 based indexing.
 growth$ID_period <- as.integer(ordered(growth$SamplingPeriodEnd))
 
 # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
@@ -124,8 +127,8 @@ n_site <- length(unique(dbh_ts$ID_site))
 n_plot <- length(unique(dbh_ts$ID_plot))
 
 obs_per_tree <- group_by(dbh_ts, ID_tree) %>%
-    summarize(first_obs_period=min(ID_period),
-              last_obs_period=max(ID_period))
+    summarize(first_obs_period=min(which(!is.na(dbh))),
+              last_obs_period=max(which(!is.na(dbh))))
 
 # SPI observations are missing for periods when dbh observations are missing.  
 # Fill these observations using the mean SPI for the appropriate period.
@@ -181,14 +184,14 @@ stopifnot(is.null(calc_missings(spi)$miss))
 # Calculate indices of missing and observed data (using the function defined in 
 # calc_missings.cpp), so that observed and missing data can be modeled 
 # separately.
-missings <- calc_missings(dbh)
+
+missings <- calc_missings(as.matrix(dbh))
 
 model_data <- list(n_tree=n_tree,
                    n_plot=n_plot,
                    n_site=n_site,
                    first_obs_period=obs_per_tree$first_obs_period,
                    last_obs_period=obs_per_tree$last_obs_period,
-                   n_periods=ncol(dbh),
                    plot_ID=as.integer(factor(ID_plot)),
                    site_ID=as.integer(factor(ID_site)),
                    log_dbh=as.matrix(log(dbh)),
