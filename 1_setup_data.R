@@ -71,10 +71,20 @@ dbh <- dbh[!grepl('^ID_', names(dbh))]
 dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
 spi <- spi[!grepl('^ID_', names(spi))]
 
+# Fill in missing spi values with the period mean for that plot
+spi_means <- group_by(growth, sitecode, ID_plot, ID_period) %>%
+    summarize(spi_means=mean(spi_24, na.rm=TRUE))
+
 WD <- growth$WD[match(ID_tree, growth$ID_tree)]
 WD <- (WD - mean(WD)) / sd(WD)
 
 dbh_missing <- is.na(dbh)
+
+# Add a long format list of missings in two variables:
+
+#TODO:
+# miss_ID_tree
+# miss_period
 
 # Check how many trees have missing observations in the middle of their 
 # observation periods (with each tree's observation period defined by the 
