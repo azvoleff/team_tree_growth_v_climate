@@ -19,8 +19,8 @@ model {
 
             pred_growth[tree_num, obs_num] <- inter + slp_dbh * exp(log_dbh_latent[tree_num, obs_num - 1]) + slp_WD * WD[tree_num] + slp_WD_sq * WD_sq[tree_num] + slp_spi * spi[tree_num, obs_num] + slp_spi_sq * spi_sq[tree_num, obs_num] + b_ijk[tree_num] + b_jk[plot_ID[tree_num]] + b_k[site_ID[tree_num]];
 
-            zeros_hat <- log(growth[tree_num, obs_num]) - pred_growth[tree_num, obs_num]
-            zeros[tree_num, obs_num] ~ dnorm(zeros_hat, tau_proc);
+            zeros_hat[tree_num, obs_num] <- log(growth[tree_num, obs_num]) - pred_growth[tree_num, obs_num]
+            zeros[tree_num, obs_num] ~ dnorm(zeros_hat[tree_num, obs_num], tau_proc);
 
             # Jacobian adjustment to account for log transform of latent growth 
             # variables (log absolute determinant of transform):

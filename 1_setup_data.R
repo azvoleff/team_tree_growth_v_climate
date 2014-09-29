@@ -126,9 +126,11 @@ n_tree <- length(unique(dbh_ts$ID_tree))
 n_site <- length(unique(dbh_ts$ID_site))
 n_plot <- length(unique(dbh_ts$ID_plot))
 
+# Calculate the first and last observation for each tree. The +1's below are 
+# because the ID_period variable starts at zero.
 obs_per_tree <- group_by(dbh_ts, ID_tree) %>%
-    summarize(first_obs_period=min(which(!is.na(dbh))),
-              last_obs_period=max(which(!is.na(dbh))))
+    summarize(first_obs_period=(min(ID_period) + 1),
+              last_obs_period=(max(ID_period) + 1))
 
 # SPI observations are missing for periods when dbh observations are missing.  
 # Fill these observations using the mean SPI for the appropriate period.
