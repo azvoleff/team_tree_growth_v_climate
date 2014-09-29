@@ -1,51 +1,95 @@
 library(dplyr)
 library(reshape2)
 library(zoo) # for na.approx
+library(Rcpp)
+library(inline)
+
+sourceCpp('calc_missings.cpp')
 
 load("growth_ctfsflagged_merged_detrended.RData")
 
 growth <- tbl_df(growth)
 
-table(growth$ctfs_accept)
-table(growth$n_days < 200)
-table(growth$n_days > 550)
-table(growth$n_days > 1000)
+# table(growth$ctfs_accept)
+# table(growth$n_days < 200)
+# table(growth$n_days > 550)
+# table(growth$n_days > 1000)
 
 growth <- filter(growth, ctfs_accept)
-growth <- filter(growth, n_days > 200)
-growth <- filter(growth, n_days < 550)
+# growth <- filter(growth, n_days > 200)
+# growth <- filter(growth, n_days < 550)
 
 # Exclude NAK, CSN, and YAN - too little data at these sites
 #growth <- filter(growth, !(sitecode %in% c("NAK", "CSN", "YAN")))
 
-growth$SamplingPeriodID <- with(growth, factor(factor(sitecode):factor(SamplingPeriodNumber)))
+###############################################################################
+# Fix issue with having two periods in 2005 
+
+# Check how many trees were observed in both 2005.01 and 2005.02
+# table(growth$SamplingPeriodStart == "2005.01")
+# table(growth$SamplingPeriodEnd == "2005.02")
+# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2005.02")
+# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2006.01")
+# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2006.01")
+# Eliminate the 2005.01 sampling period end dbhs into the 2005.02 period start 
+# dbhs.
+# dbh_2005_01 <- growth$SamplingPeriodStart == "2005.01"
+# dbh_2005_02 <- growth$SamplingPeriodStart == "2005.02"
+# growth[dbh_2005_01, ]$diameter_end <- NA
+# growth[dbh_2005_01, ]$diameter_end <- growth[dbh_2005_02, ]$diameter_end[match(growth[dbh_2005_01, ]$SamplingUnitName,
+#                                                                                growth[dbh_2005_02, ]$SamplingUnitName)]
+# growth[dbh_2005_01, ]$SamplingPeriodEnd <- "2006.01"
+# # Now remove the no longer needed 2005.02 rows
+# growth <- filter(growth, SamplingPeriodStart != "2005.02")
+# growth <- filter(growth, SamplingPeriodEnd != "2005.02")
+#
+# stopifnot(sum(growth$SamplingPeriodStart == "2005.02") == 0)
+# stopifnot(sum(growth$SamplingPeriodEnd == "2005.02") == 0)
 
 ###############################################################################
 ### TESTING ONLY
 #growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
+growth$ID_tree_char <- factor(growth$SamplingUnitName)
+growth$ID_plot_char <- factor(growth$plot_ID)
+growth$ID_site_char <- factor(growth$sitecode)
+growth$ID_period_char <- factor(growth$SamplingPeriodEnd)
 growth$ID_tree <- as.integer(factor(growth$SamplingUnitName))
 growth$ID_plot <- as.integer(factor(growth$plot_ID))
 growth$ID_site <- as.integer(factor(growth$sitecode))
-growth$ID_period <- as.integer(factor(growth$SamplingPeriodNumber))
+growth$ID_period <- as.integer(ordered(growth$SamplingPeriodEnd))
 
 # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
 # first growth measurement can only be calculated from time 1 to time 2)
-dbh_ts <- arrange(growth, ID_period) %>%
+dbh_ts <- arrange(growth, ID_tree, ID_period) %>%
+    select(ID_tree, ID_site, ID_plot, ID_period, spi=spi_24, WD, 
+           dbh=diameter_end)
+
+# Setup an array of initial diameters for all the trees, by taking the dbh_st 
+# value from the first period with an available observation
+dbh_time_0 <- arrange(growth, ID_tree, ID_period) %>%
     group_by(ID_tree) %>%
-    do(data.frame(ID_tree=c(.$ID_tree[1], .$ID_tree),
-                  ID_plot=c(.$ID_plot[1], .$ID_plot),
-                  ID_site=c(.$ID_site[1], .$ID_site),
-                  ID_period=c(1, .$ID_period + 1), # Start period IDs at 1
-                  obs_num=seq(0, length(.$dbh_st)),
-                  spi=c(NA, .$spi_24),
-                  WD=c(NA, .$WD),
-                  dbh=c(.$diameter_start[1], .$diameter_end))) %>%
-    arrange(ID_tree, ID_period)
+    filter(ID_period==min(ID_period)) %>%
+    select(ID_tree, ID_site, ID_plot, ID_period, spi=spi_24, WD, 
+           dbh=diameter_start)
+dbh_time_0$spi <- NA
+dbh_time_0$ID_period <- dbh_time_0$ID_period - 1
+
+dbh_ts <- rbind(dbh_ts, dbh_time_0)
+dbh_ts <- arrange(dbh_ts, ID_tree, ID_period)
+
+# Interpolate missing values in dbh when calculating dbh_latent
+interp_dbh_obs <- function(x) {
+    first_obs <- min(which(!is.na(x)))
+    last_obs <- max(which(!is.na(x)))
+    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    return(x)
+}
 
 # Add latent growth inits
 calc_latent_dbh <- function(dbh) {
+    dbh <- interp_dbh_obs(dbh)
     dbh_latent <- rep(NA, length(dbh))
     dbh_latent[1] <- dbh[1]
     for (i in 2:length(dbh)) {
@@ -71,43 +115,8 @@ dbh <- dbh[!grepl('^ID_', names(dbh))]
 dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
 spi <- spi[!grepl('^ID_', names(spi))]
 
-# Fill in missing spi values with the period mean for that plot
-spi_means <- group_by(growth, sitecode, ID_plot, ID_period) %>%
-    summarize(spi_means=mean(spi_24, na.rm=TRUE))
-
 WD <- growth$WD[match(ID_tree, growth$ID_tree)]
 WD <- (WD - mean(WD)) / sd(WD)
-
-dbh_missing <- is.na(dbh)
-
-# Add a long format list of missings in two variables:
-
-#TODO:
-# miss_ID_tree
-# miss_period
-
-# Check how many trees have missing observations in the middle of their 
-# observation periods (with each tree's observation period defined by the 
-# periods with the first and last known diameter measurements).
-calc_n_missings <- function(x) {
-    first_obs <- min(which(!is.na(x)))
-    last_obs <- max(which(!is.na(x)))
-    sum(is.na(x[first_obs:last_obs]))
-}
-n_missing_periods <- t(apply(dbh, 1, calc_n_missings))
-table(n_missing_periods)
-
-# TEMPORARY: interpolate missing values in dbh (TODO: model NAs in Stan/JAGS)
-interp_dbh_obs <- function(x) {
-    first_obs <- min(which(!is.na(x)))
-    last_obs <- max(which(!is.na(x)))
-    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
-    return(x)
-}
-dbh <- t(apply(dbh, 1, interp_dbh_obs))
-
-# Interpolate missing values in dbh_latent
-dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
 # Setup data
 n_tree <- length(unique(dbh_ts$ID_tree))
@@ -117,6 +126,62 @@ n_plot <- length(unique(dbh_ts$ID_plot))
 obs_per_tree <- group_by(dbh_ts, ID_tree) %>%
     summarize(first_obs_period=min(ID_period),
               last_obs_period=max(ID_period))
+
+# SPI observations are missing for periods when dbh observations are missing.  
+# Fill these observations using the mean SPI for the appropriate period.
+spi_means <- group_by(growth, ID_plot, ID_period) %>%
+    summarize(spi_means=mean(spi_24, na.rm=TRUE))
+spi <- as.matrix(spi)
+spi_missings <- calc_missings(spi)$miss
+# Use linear indexing to replace NAs in SPIs
+spi_miss_linear_ind <- (spi_missings[, 2] - 1) * nrow(spi) + spi_missings[, 1] # From http://bit.ly/1rnKrC3
+spi[spi_miss_linear_ind] <- spi_means[match(paste(ID_plot[spi_missings[, 1]], spi_missings[, 2]),
+                                            paste(spi_means$ID_plot, spi_means$ID_period)), 3]
+stopifnot(is.null(calc_missings(spi)$miss))
+
+# # Some SPI measurements are still missing for period 3 (2005.01) from site 4 
+# # (CAX).  Fill these in with correct values.
+# table(growth[growth$sitecode == "CAX", ]$period_end_month, growth[growth$sitecode == "CAX", ]$SamplingPeriodEnd)
+# load('../CHIRPS/vg_plot_spis.RData')
+# spis$plot_ID <- as.character(spis$plot_ID)
+# spis$period_end_month <- spis$date
+#
+# spi_missings <- calc_missings(spi)$miss
+# ID_plot_char <- levels(growth$ID_plot_char)[ID_plot]
+# for (n in 1:nrow(spi_missings)) {
+#     this_tree_num <- spi_missings[n, 1]
+#     this_period <- spi_missings[n, 2]
+#     this_plot_ID_char <- ID_plot_char[this_tree_num]
+#     # Get most common period
+#     tmp <- table(growth[growth$ID_plot_char == this_plot_ID_char, ]$period_end_month)
+#     names(tmp)[tmp == max(tmp)]
+#     growth[(growth$ID_plot_char == this_plot_ID_char), ]$period_end_month
+# }
+#
+#
+# SPI_period_3_site_4 <- filter(spis, spi_period == 24, period_end_month == "2005-12-1") %>%
+#     select(plot_ID, spi)
+# SPI_period_3_site_4 <- match(levels(growth$ID_plot_char)
+#
+# spi_24 <- filter(spis, spi_period == 24, period_end_month > "2002-1-1") %>%
+#     select(plot_ID, period_end_month, spi)
+#
+# names(spi_24)[names(spi_24) == "spi"] <- "spi_24"
+#
+# levels(growth$sitecode)[ID_site[calc_missings(spi)$miss[1, 1]]]
+# levels(ordered(growth$SamplingPeriodStart))[3]
+# ID_plot[calc_missings(spi)$miss[1, 1]]
+# calc_missings(spi)$miss[1, 2]
+# # plot 21, period 3
+# spi_means[spi_means$ID_plot == 21, ]
+#
+# table(ID_plot[calc_missings(spi)$miss[, 1]])
+# table(calc_missings(spi)$miss[, 2])
+#
+# Calculate indices of missing and observed data (using the function defined in 
+# calc_missings.cpp), so that observed and missing data can be modeled 
+# separately.
+missings <- calc_missings(dbh)
 
 model_data <- list(n_tree=n_tree,
                    n_plot=n_plot,
@@ -128,7 +193,9 @@ model_data <- list(n_tree=n_tree,
                    site_ID=as.integer(factor(ID_site)),
                    log_dbh=as.matrix(log(dbh)),
                    WD=WD,
-                   spi=spi)
+                   spi=spi,
+                   obs=missings$obs,
+                   miss=missings$miss)
 save(model_data, file="model_data.RData")
 
 #var(log(dbh_ts$dbh))
