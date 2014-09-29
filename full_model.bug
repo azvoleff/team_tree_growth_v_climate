@@ -3,25 +3,15 @@
 #    2) include random effect for period
 #    3) include random effect for genus
 
-data {
-    for (tree_num in 1:n_tree) {
-        WD_sq[tree_num] <- pow(WD[n_tree], 2)
-        for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
-            spi_sq[tree_num, obs_num] <- pow(spi[tree_num, obs_num], 2)
-        }
-    }
-}
-
 model {
     for (tree_num in 1:n_tree) {
         # Make sure first latent dbh is also modeled
         log_dbh[tree_num, first_obs_period[tree_num]] ~ dnorm(log_dbh_latent[tree_num, first_obs_period[tree_num]], tau_obs);
-        log_dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(log_dbh[tree_num, first_obs_period[tree_num]], tau_obs);
-        log_dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(log_dbh_latent[tree_num, first_obs_period[tree_num]], tau_obs);
+        log_dbh_latent[tree_num, first_obs_period[tree_num]] ~ dunif(log(10), log(270));
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
             # Distribution of dbh, with  mean latent dbh
             log_dbh[tree_num, obs_num] ~ dnorm(log_dbh_latent[tree_num, obs_num], tau_obs);
-            log_dbh_latent[tree_num, obs_num] ~ dnorm(log_dbh[tree_num, obs_num], tau_obs);
+            log_dbh_latent[tree_num, obs_num] ~ dunif(log(10), log(270));
 
             # Growth model
             growth[tree_num, obs_num] <- exp(log_dbh_latent[tree_num, obs_num]) -
