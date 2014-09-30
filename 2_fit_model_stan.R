@@ -18,9 +18,9 @@ model_data$log_dbh[is.na(model_data$log_dbh)] <- 10
 model_data$spi[is.na(model_data$spi)] <- 10
 init_data$log_dbh_latent[is.na(init_data$log_dbh_latent)] <- 10
 
-init_data$b_ijk_std=rep(.5, n_tree)
-init_data$b_jk_std=rep(.3, n_plot)
-init_data$b_k_std=rep(.2, n_site)
+init_data$b_ijk_std=rep(.5, model_data$n_tree)
+init_data$b_jk_std=rep(.3, model_data$n_plot)
+init_data$b_k_std=rep(.2, model_data$n_site)
 
 
 seed <- 1638
