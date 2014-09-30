@@ -118,7 +118,7 @@ interp_dbh_obs <- function(x) {
 }
 dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
-WD <- growth$WD[match(ID_tree, growth$ID_tree)]
+WD <- dbh_time_0$WD[match(ID_tree, growth$ID_tree)]
 WD <- (WD - mean(WD)) / sd(WD)
 
 # Setup data
