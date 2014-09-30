@@ -3,7 +3,7 @@ library(foreach)
 library(doParallel)
 
 model_file <- "full_model.stan" 
-n_chains <- 12
+n_chains <- 8
 n_iter <- 1000
 
 load("model_data.RData")
