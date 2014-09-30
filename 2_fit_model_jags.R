@@ -35,6 +35,8 @@ jags_params <- c("log_dbh_latent",
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("obs", "miss"))]
 
+init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("log_dbh_latent")]
+
 set.seed(seed)
 jags_fit <- jags(data=model_data, inits=rep(init_data, 1),
                  parameters.to.save=jags_params, n.chains=1, 
