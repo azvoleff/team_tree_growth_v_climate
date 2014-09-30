@@ -82,17 +82,8 @@ dbh_time_0$ID_period <- dbh_time_0$ID_period - 1
 dbh_ts <- rbind(dbh_ts, dbh_time_0)
 dbh_ts <- arrange(dbh_ts, ID_tree, ID_period)
 
-# Interpolate missing values in dbh when calculating dbh_latent
-interp_dbh_obs <- function(x) {
-    first_obs <- min(which(!is.na(x)))
-    last_obs <- max(which(!is.na(x)))
-    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
-    return(x)
-}
-
 # Add latent growth inits
 calc_latent_dbh <- function(dbh) {
-    dbh <- interp_dbh_obs(dbh)
     dbh_latent <- rep(NA, length(dbh))
     dbh_latent[1] <- dbh[1]
     for (i in 2:length(dbh)) {
@@ -117,6 +108,15 @@ ID_site <- dbh$ID_site
 dbh <- dbh[!grepl('^ID_', names(dbh))]
 dbh_latent <- dbh_latent[!grepl('^ID_', names(dbh_latent))]
 spi <- spi[!grepl('^ID_', names(spi))]
+
+# Interpolate missing values in dbh_latent
+interp_dbh_obs <- function(x) {
+    first_obs <- min(which(!is.na(x)))
+    last_obs <- max(which(!is.na(x)))
+    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    return(x)
+}
+dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
 WD <- growth$WD[match(ID_tree, growth$ID_tree)]
 WD <- (WD - mean(WD)) / sd(WD)
