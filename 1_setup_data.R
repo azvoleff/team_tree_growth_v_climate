@@ -10,6 +10,9 @@ load("growth_ctfsflagged_merged_detrended.RData")
 
 growth <- tbl_df(growth)
 
+#TODO Fix WD data
+growth <- filter(growth, !is.na(WD))
+
 # table(growth$ctfs_accept)
 # table(growth$n_days < 200)
 # table(growth$n_days > 550)
@@ -118,7 +121,7 @@ interp_dbh_obs <- function(x) {
 }
 dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
-WD <- dbh_time_0$WD[match(ID_tree, growth$ID_tree)]
+WD <- dbh_time_0$WD
 WD <- (WD - mean(WD)) / sd(WD)
 
 # Setup data
