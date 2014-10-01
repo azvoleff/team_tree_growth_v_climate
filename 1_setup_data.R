@@ -8,8 +8,6 @@ sourceCpp('calc_missings.cpp')
 
 load("growth_ctfsflagged_merged_detrended.RData")
 
-lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_start^2))
-
 growth <- tbl_df(growth)
 
 #TODO Fix WD data
@@ -207,6 +205,8 @@ model_data <- list(n_tree=n_tree,
                    obs_indices=missings$obs,
                    miss_indices=missings$miss)
 save(model_data, file="model_data.RData")
+
+lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_start^2) + growth$WD + I(growth$WD^2) + growth$spi)
 
 # Setup inits
 init_data <- list(list(dbh_latent=as.matrix(dbh_latent),
