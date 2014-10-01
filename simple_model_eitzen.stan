@@ -29,7 +29,7 @@ transformed parameters {
     /* } */
     for (n in 1:n_miss) {
         dbh[miss_indices_tree[n], miss_indices_period[n]] <- dbh_miss[n];
-    tan
+    }
     for (n in 1:n_obs) {
         dbh[obs_indices_tree[n], obs_indices_period[n]] <- dbh_obs[n];
     }
