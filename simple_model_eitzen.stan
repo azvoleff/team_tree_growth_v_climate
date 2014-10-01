@@ -24,9 +24,6 @@ parameters {
 
 transformed parameters {
     matrix[n_tree, max_obs_per_tree] dbh;
-    /* for (n in 1:n_miss) { */
-    /*     dbh[miss_indices_tree[n], miss_indices_period[n]] ~ normal(miss_indices_tree[n], miss_indices_period[n] - 1, 10); */
-    /* } */
     for (n in 1:n_miss) {
         dbh[miss_indices_tree[n], miss_indices_period[n]] <- dbh_miss[n];
     }
@@ -47,9 +44,9 @@ model {
                 dbh_predicted <- inter + slp_dbh * dbh_latent[tree_num, obs_num - 1] + slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2);
                 dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
                 dbh_latent[tree_num, obs_num] ~ normal(dbh_predicted, sigma_proc);
-                /* print("dbh_predicted=", dbh_predicted[tree_num, obs_num], */
+                /* print("dbh_predicted=", dbh_predicted, */
                 /*       ", dbh_latent=", dbh_latent[tree_num, obs_num], */
-                /*       ", dbh=", dbh[tree_num, obs_num]) */
+                /*       ", dbh=", dbh[tree_num, obs_num]); */
             }
         }
     }
