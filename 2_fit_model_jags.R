@@ -23,10 +23,10 @@ jags_params <- c("intercept",
                  "sigma_jk",
                  "sigma_k")
 
-# Drop missing data indicators (not needed for JAGS)
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
 
 model_data$WD_sq <- model_data$WD^2
+# Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
 set.seed(seed)
