@@ -33,11 +33,11 @@ jags_fit <- jags(data=model_data, inits=rep(init_data, 1),
                  parameters.to.save=jags_params, n.chains=1, 
                  n.iter=1000, model.file=model_file)
 print("finished running single JAGS chain")
-save(jags_fit, file="jags_fit.RData")
+save(jags_fit, file="jags_fit_simple.RData")
 
 jags_fit_p <- jags.parallel(data=model_data, inits=rep(init_data, n_chains), 
                             parameters.to.save=jags_params, 
                             model.file=model_file, n.chains=n_chains, 
                             n.iter=n_iter, jags.seed=seed)
 print("finished running JAGS chains in parallel")
-save(jags_fit_p, file="jags_fit_parallel.RData")
+save(jags_fit_p, file="jags_fit_simple_parallel.RData")
