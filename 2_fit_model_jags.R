@@ -38,7 +38,7 @@ save(jags_fit, file="jags_fit_full.RData")
 
 jags_fit_p <- jags.parallel(data=model_data, inits=rep(init_data, n_chains), 
                             parameters.to.save=jags_params, 
-                            model.file=model_file, n.chains=n_chains, 
+                            model.file="full_model.bug", n.chains=n_chains, 
                             n.iter=n_iter, jags.seed=seed)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p, file="jags_fit_full_parallel.RData")

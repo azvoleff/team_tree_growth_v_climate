@@ -61,13 +61,24 @@ dbh_time_0$ID_period <- dbh_time_0$ID_period - 1
 dbh_ts <- rbind(dbh_ts, dbh_time_0)
 dbh_ts <- arrange(dbh_ts, ID_tree, ID_period)
 
+# Standardize outcome and predictors.
+dbh_mean <- mean(dbh_ts$dbh)
+dbh_sd <- sd(dbh_ts$dbh)
+WD_mean <- mean(dbh_ts$WD)
+WD_sd <- sd(dbh_ts$WD)
+# Save sd and means so the variables can be unstandardized later
+save(dbh_mean, dbh_sd, WD_mean, WD_sd, file="model_data_standardizing.RData")
+
+dbh_ts$dbh <- (dbh_ts$dbh - dbh_mean) / dbh_sd
+WD <- (dbh_ts$WD - WD_mean) / WD_sd
+
 # Add latent growth inits
 calc_latent_dbh <- function(dbh) {
     dbh_latent <- rep(NA, length(dbh))
     dbh_latent[1] <- dbh[1]
     for (i in 2:length(dbh)) {
         dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1],
-            dbh[i], dbh_latent[i - 1] + .01)
+            dbh[i], dbh_latent[i - 1] + .005)
     }
     return(dbh_latent)
 }
@@ -96,9 +107,6 @@ interp_dbh_obs <- function(x) {
     return(x)
 }
 dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
-
-WD <- dbh_time_0$WD
-WD <- (WD - mean(WD)) / sd(WD)
 
 # Setup data
 n_tree <- length(unique(dbh_ts$ID_tree))
