@@ -34,6 +34,7 @@ init_data[[1]]$dbh_miss <- init_data[[1]]$dbh_latent[miss_linear_ind]
 # Stan doesn't allow NAs in input, so store 10 in the NAs of dbh_latent (these 
 # cells will never be accessed anyways)
 init_data[[1]]$dbh_latent[is.na(init_data[[1]]$dbh_latent)] <- 10
+model_data$spi[is.na(model_data$spi)] <- 10
 
 seed <- 1638
 stan_fit_simple_eitzen_test <- stan(model_file, data=model_data, iter=10,
