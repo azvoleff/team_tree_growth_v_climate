@@ -30,7 +30,7 @@ fit <- stan(model_file, data=model_data, iter=n_iter, chains=1,
 #             init=rep(init_data, 1), refresh=1, seed=seed)
 
 # Fit initial model, on a single CPU. Run only one iteration.
-stan_fit_simple_initial <- stan(model_file, data=model_data, iter=0, chains=1,
+stan_fit_simple_initial <- stan(model_file, data=model_data, iter=1, chains=1,
                                 init=init_data, chain_id=1)
 print("finished running initial stan model")
 save(stan_fit_simple_initial, file="stan_fit_simple_initial.RData")
