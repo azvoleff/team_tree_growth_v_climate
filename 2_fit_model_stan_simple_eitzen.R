@@ -9,15 +9,10 @@ n_iter <- 1000
 load("model_data.RData")
 load("init_data.RData")
 
-# Stan doesn't support NAs - but these rows will be ignored in Stan regardless 
-# of their values since the indexing will be determined by "first_obs_period" 
-# and "last_obs_period". So set them to 10 so that they will fit the 
-# constraints applied to the matrix and not cause Stan to throw an error when 
-# they are read in.
 init_data[[1]] <- init_data[[1]][!(names(init_data[[1]]) %in% c("b_ijk", "b_jk", "b_k"))]
 model_data <- model_data[!(names(model_data) %in% c("n_plot", "n_site", 
                                                     "plot_ID", "site_ID", "WD", 
-                                                    "spi", "log_dbh"))]
+                                                    "spi"))]
 model_data$max_obs_per_tree <- ncol(model_data$dbh)
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
@@ -38,7 +33,7 @@ miss_linear_ind <- (model_data$miss_indices_period - 1) * nrow(init_data[[1]]$db
 init_data[[1]]$dbh_miss <- init_data[[1]]$dbh_latent[miss_linear_ind]
 
 # Stan doesn't allow NAs in input, so store 10 in the NAs of dbh_latent (these 
-# cells will never be accessed anyways
+# cells will never be accessed anyways)
 init_data[[1]]$dbh_latent[is.na(init_data[[1]]$dbh_latent)] <- 10
 
 seed <- 1638
