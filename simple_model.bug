@@ -1,0 +1,36 @@
+model {
+    for (tree_num in 1:n_tree) {
+        log_dbh[tree_num, first_obs_period[tree_num]] ~ dnorm(log_dbh_latent[tree_num, first_obs_period[tree_num]], tau_obs)
+        log_dbh_latent[tree_num, first_obs_period[tree_num]] ~ dunif(log(7), log(270))
+        for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
+            # Distribution of dbh, with  mean latent dbh
+            log_dbh[tree_num, obs_num] ~ dnorm(log_dbh_latent[tree_num, obs_num], tau_obs)
+            log_dbh_latent[tree_num, obs_num] ~ dunif(log_dbh_latent[tree_num, obs_num - 1], log(270))
+
+            # Growth model
+            log(growth[tree_num, obs_num]) <- log(exp(log_dbh_latent[tree_num, obs_num]) - exp(log_dbh_latent[tree_num, obs_num - 1]))
+
+            pred_growth[tree_num, obs_num] <- inter + slp_dbh * exp(log_dbh_latent[tree_num, obs_num - 1])
+
+            zeros_hat[tree_num, obs_num] <- log(growth[tree_num, obs_num]) - pred_growth[tree_num, obs_num]
+            zeros[tree_num, obs_num] ~ dnorm(zeros_hat[tree_num, obs_num], tau_proc)
+
+            # Need Jacobian adjustment to account for log transform of latent 
+            # growth variables. Log absolute determinant of transform is 
+            #-log(fabs(growth[tree_num, obs_num]))
+        }
+    }
+
+    inter ~ dnorm(0, .0001)
+    slp_dbh ~ dnorm(0, .0001)
+    slp_WD ~ dnorm(0, .0001)
+    slp_WD_sq ~ dnorm(0, .0001)
+    slp_spi ~ dnorm(0, .0001)
+    slp_spi_sq ~ dnorm(0, .0001)
+
+    tau_obs <- pow(sigma_obs, -2)
+    sigma_obs ~ dunif(0, 100)
+
+    tau_proc <- pow(sigma_proc, -2)
+    sigma_proc ~ dunif(0, 100)
+}
