@@ -190,7 +190,7 @@ test_m <- lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_sta
 
 # Setup inits
 init_data <- list(list(dbh_latent=as.matrix(dbh_latent),
-                       inter=-.33,
+                       intercept=-.33,
                        slp_dbh=1.05,
                        slp_dbh_sq=-.001,
                        slp_WD=-.37,

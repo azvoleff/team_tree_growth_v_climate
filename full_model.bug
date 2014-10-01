@@ -1,63 +1,38 @@
-# TODO:
-#    1) account for varying period length with a predictor
-#    2) include random effect for period
-#    3) include random effect for genus
-
 model {
     for (tree_num in 1:n_tree) {
-        # Make sure first latent dbh is also modeled
-        log_dbh[tree_num, first_obs_period[tree_num]] ~ dnorm(log_dbh_latent[tree_num, first_obs_period[tree_num]], tau_obs)
-        log_dbh_latent[tree_num, first_obs_period[tree_num]] ~ dunif(log(7), log(270))
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
-            # Distribution of dbh, with  mean latent dbh
-            log_dbh[tree_num, obs_num] ~ dnorm(log_dbh_latent[tree_num, obs_num], tau_obs)
-            log_dbh_latent[tree_num, obs_num] ~ dunif(log_dbh_latent[tree_num, obs_num - 1], log(270))
+            dbh_predicted[tree_num, obs_num] <- inter +
+                slp_dbh * dbh_latent[tree_num, obs_num - 1] +
+                slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2) +
+                slp_WD * WD[tree_num] +
+                slp_WD_sq * WD_sq[tree_num] +
+                slp_spi * spi[tree_num, obs_num] +
+                inter_spi_dbh * spi[tree_num, obs_num] * dbh_latent[tree_num, obs_num - 1] +
+                inter_spi_WD * spi[tree_num, obs_num] * WD[tree_num]
 
-            # Growth model
-            growth[tree_num, obs_num] <- exp(log_dbh_latent[tree_num, obs_num]) - exp(log_dbh_latent[tree_num, obs_num - 1])
-
-            pred_growth[tree_num, obs_num] <- inter + slp_dbh * exp(log_dbh_latent[tree_num, obs_num - 1]) + slp_WD * WD[tree_num] + slp_WD_sq * WD_sq[tree_num] + slp_spi * spi[tree_num, obs_num] + slp_spi_sq * spi_sq[tree_num, obs_num]
-           # + b_ijk[tree_num] + b_jk[plot_ID[tree_num]] + b_k[site_ID[tree_num]]
-
-            zeros_hat[tree_num, obs_num] <- log(growth[tree_num, obs_num]) - pred_growth[tree_num, obs_num]
-            zeros[tree_num, obs_num] ~ dnorm(zeros_hat[tree_num, obs_num], tau_proc)
-
-            # Jacobian adjustment to account for log transform of latent growth 
-            # variables (log absolute determinant of transform):
-            #increment_log_prob(-log(fabs(growth[tree_num, obs_num])))
+            dbh_latent[tree_num, obs_num] ~ dnorm(dbh_predicted[tree_num, obs_num], proc_prec)
         }
+
+        for (obs_num in (first_obs_period[tree_num]):last_obs_period[tree_num]) {
+            dbh[tree_num, obs_num] ~ dnorm(dbh_latent[tree_num, obs_num], obs_prec)
+        }
+        # Specially handle first latent dbh (following Eitzen, 2013):
+        dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(0, .000001)
+
     }
 
     inter ~ dnorm(0, .0001)
     slp_dbh ~ dnorm(0, .0001)
+    slp_dbh_sq ~ dnorm(0, .0001)
     slp_WD ~ dnorm(0, .0001)
     slp_WD_sq ~ dnorm(0, .0001)
     slp_spi ~ dnorm(0, .0001)
-    slp_spi_sq ~ dnorm(0, .0001)
+    inter_spi_dbh ~ dnorm(0, .0001)
+    inter_spi_WD ~ dnorm(0, .0001)
 
-    # TODO: Use half-cauchy instead of uniform on 0-100
-    tau_obs <- pow(sigma_obs, -2)
-    sigma_obs ~ dunif(0, 100)
+    obs_prec <- pow(obs_sigma, -2)
+    obs_sigma ~ dunif(0, 100)
 
-    tau_proc <- pow(sigma_proc, -2)
-    sigma_proc ~ dunif(0, 100)
-
-    /* # Random effects */
-    /* for (n in 1:n_tree) { */
-    /*     b_ijk[n] ~ dnorm(0, tau_ijk) */
-    /* } */
-    /* tau_ijk <- pow(sigma_ijk, -2) */
-    /* sigma_ijk ~ dunif(0, 100) */
-    /*  */
-    /* for (n in 1:n_plot) { */
-    /*     b_jk[n] ~ dnorm(0, tau_jk) */
-    /* } */
-    /* tau_jk <- pow(sigma_jk, -2) */
-    /* sigma_jk ~ dunif(0, 100) */
-    /*  */
-    /* for (n in 1:n_site) { */
-    /*     b_k[n] ~ dnorm(0, tau_k) */
-    /* } */
-    /* tau_k <- pow(sigma_k, -2) */
-    /* sigma_k ~ dunif(0, 100) */
+    proc_prec <- pow(proc_sigma, -2)
+    proc_sigma ~ dunif(0, 100)
 }
