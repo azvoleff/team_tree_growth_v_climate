@@ -2,7 +2,7 @@ library(rstan)
 library(foreach)
 library(doParallel)
 
-model_file <- "simple_model_eitzen.stan" 
+model_file <- "simple_model.stan" 
 n_chains <- 8
 n_iter <- 1000
 

@@ -2,6 +2,8 @@ data {
     int<lower=0> n_tree;
     int<lower=0> n_plot;
     int<lower=0> n_site;
+    vector<lower=0>[n_plot] plot_ID;
+    vector<lower=0>[n_plot] site_ID;
     int<lower=0> max_obs_per_tree;
     int<lower=0> first_obs_period[n_tree];
     int<lower=0> last_obs_period[n_tree];
