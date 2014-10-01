@@ -29,26 +29,28 @@ transformed parameters {
     /* } */
     for (n in 1:n_miss) {
         dbh[miss_indices_tree[n], miss_indices_period[n]] <- dbh_miss[n];
-    }
+    tan
     for (n in 1:n_obs) {
         dbh[obs_indices_tree[n], obs_indices_period[n]] <- dbh_obs[n];
     }
 }
 
 model {
-    matrix<lower=7.5, upper=300>[n_tree, max_obs_per_tree] dbh_predicted;
     for (tree_num in 1:n_tree) {
         # Specially handle first latent dbh (following Eitzen, 2013):
         dbh_latent[tree_num, first_obs_period[tree_num]] ~ normal(21, 100);
         # Make sure first dbh is modeled:
         dbh[tree_num, first_obs_period[tree_num]] ~ normal(dbh_latent[tree_num, first_obs_period[tree_num]], sigma_obs);
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
-            dbh_predicted[tree_num, obs_num] <- inter + slp_dbh * dbh_latent[tree_num, obs_num - 1] + slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2);
-            dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
-            dbh_latent[tree_num, obs_num] ~ normal(dbh_predicted[tree_num, obs_num], sigma_proc);
-            /* print("dbh_predicted=", dbh_predicted[tree_num, obs_num], */
-            /*       ", dbh_latent=", dbh_latent[tree_num, obs_num], */
-            /*       ", dbh=", dbh[tree_num, obs_num]) */
+            {
+                real dbh_predicted;
+                dbh_predicted <- inter + slp_dbh * dbh_latent[tree_num, obs_num - 1] + slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2);
+                dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
+                dbh_latent[tree_num, obs_num] ~ normal(dbh_predicted, sigma_proc);
+                /* print("dbh_predicted=", dbh_predicted[tree_num, obs_num], */
+                /*       ", dbh_latent=", dbh_latent[tree_num, obs_num], */
+                /*       ", dbh=", dbh[tree_num, obs_num]) */
+            }
         }
     }
     sigma_obs ~ cauchy(0, 10);
