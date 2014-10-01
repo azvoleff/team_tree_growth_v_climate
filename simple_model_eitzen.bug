@@ -1,19 +1,34 @@
 model {
     for (tree_num in 1:n_tree) {
-        # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(0, .000001)
-        # Make sure first dbh is modeled:
-        dbh[tree_num, first_obs_period[tree_num]] ~ dnorm(dbh_latent[tree_num, first_obs_period[tree_num]], obs_prec)
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
-            dbh_predicted[tree_num, obs_num] <- inter + slp_dbh * dbh_latent[tree_num, obs_num - 1] + slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2)
-            dbh_latent[tree_num, obs_num] <- dnorm(dbh_predicted[tree_num, obs_num], proc_prec)
+            dbh_predicted[tree_num, obs_num] <- inter +
+                slp_dbh * dbh_latent[tree_num, obs_num - 1] +
+                slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2) +
+                slp_WD * WD[tree_num] +
+                slp_WD_sq * WD_sq[tree_num] +
+                slp_spi * spi[tree_num, obs_num] +
+                inter_spi_dbh * spi[tree_num, obs_num] * dbh_latent[tree_num, obs_num - 1] +
+                inter_spi_WD * spi[tree_num, obs_num] * WD[tree_num]
+
+            dbh_latent[tree_num, obs_num] ~ dnorm(dbh_predicted[tree_num, obs_num], proc_prec)
+        }
+
+        for (obs_num in (first_obs_period[tree_num]):last_obs_period[tree_num]) {
             dbh[tree_num, obs_num] ~ dnorm(dbh_latent[tree_num, obs_num], obs_prec)
         }
+        # Specially handle first latent dbh (following Eitzen, 2013):
+        dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(0, .000001)
+
     }
 
     inter ~ dnorm(0, .0001)
     slp_dbh ~ dnorm(0, .0001)
     slp_dbh_sq ~ dnorm(0, .0001)
+    slp_WD ~ dnorm(0, .0001)
+    slp_WD_sq ~ dnorm(0, .0001)
+    slp_spi ~ dnorm(0, .0001)
+    inter_spi_dbh ~ dnorm(0, .0001)
+    inter_spi_WD ~ dnorm(0, .0001)
 
     obs_prec <- pow(obs_sigma, -2)
     obs_sigma ~ dunif(0, 100)

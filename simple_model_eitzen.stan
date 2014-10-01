@@ -45,10 +45,6 @@ transformed parameters {
 
 model {
     for (tree_num in 1:n_tree) {
-        # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[tree_num, first_obs_period[tree_num]] ~ normal(21, 100);
-        # Make sure first dbh is modeled:
-        dbh[tree_num, first_obs_period[tree_num]] ~ normal(dbh_latent[tree_num, first_obs_period[tree_num]], sigma_obs);
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
             {
                 real dbh_predicted;
@@ -61,13 +57,19 @@ model {
                     inter_spi_dbh * spi[tree_num, obs_num] * dbh_latent[tree_num, obs_num - 1] +
                     inter_spi_WD * spi[tree_num, obs_num] * WD[tree_num];
 
-                dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
                 dbh_latent[tree_num, obs_num] ~ normal(dbh_predicted, sigma_proc);
                 /* print("dbh_predicted=", dbh_predicted, */
                 /*       ", dbh_latent=", dbh_latent[tree_num, obs_num], */
                 /*       ", dbh=", dbh[tree_num, obs_num]); */
             }
         }
+
+        for (obs_num in (first_obs_period[tree_num]):last_obs_period[tree_num]) {
+            dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
+        }
+
+        # Specially handle first latent dbh (following Eitzen, 2013):
+        dbh_latent[tree_num, first_obs_period[tree_num]] ~ normal(0, 100);
     }
     sigma_obs ~ cauchy(0, 10);
     sigma_proc ~ cauchy(0, 10);
