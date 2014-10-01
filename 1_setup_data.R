@@ -26,32 +26,8 @@ growth <- filter(growth, ctfs_accept)
 #growth <- filter(growth, !(sitecode %in% c("NAK", "CSN", "YAN")))
 
 ###############################################################################
-# Fix issue with having two periods in 2005 
-
-# Check how many trees were observed in both 2005.01 and 2005.02
-# table(growth$SamplingPeriodStart == "2005.01")
-# table(growth$SamplingPeriodEnd == "2005.02")
-# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2005.02")
-# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2006.01")
-# table(growth$SamplingPeriodStart == "2005.01" & growth$SamplingPeriodEnd == "2006.01")
-# Eliminate the 2005.01 sampling period end dbhs into the 2005.02 period start 
-# dbhs.
-# dbh_2005_01 <- growth$SamplingPeriodStart == "2005.01"
-# dbh_2005_02 <- growth$SamplingPeriodStart == "2005.02"
-# growth[dbh_2005_01, ]$diameter_end <- NA
-# growth[dbh_2005_01, ]$diameter_end <- growth[dbh_2005_02, ]$diameter_end[match(growth[dbh_2005_01, ]$SamplingUnitName,
-#                                                                                growth[dbh_2005_02, ]$SamplingUnitName)]
-# growth[dbh_2005_01, ]$SamplingPeriodEnd <- "2006.01"
-# # Now remove the no longer needed 2005.02 rows
-# growth <- filter(growth, SamplingPeriodStart != "2005.02")
-# growth <- filter(growth, SamplingPeriodEnd != "2005.02")
-#
-# stopifnot(sum(growth$SamplingPeriodStart == "2005.02") == 0)
-# stopifnot(sum(growth$SamplingPeriodEnd == "2005.02") == 0)
-
-###############################################################################
 ### TESTING ONLY
-#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+growth <- filter(growth, sitecode %in% c("VB", "CAX"))
 ###############################################################################
 
 growth$ID_tree_char <- factor(growth$SamplingUnitName)
@@ -206,17 +182,23 @@ model_data <- list(n_tree=n_tree,
                    miss_indices=missings$miss)
 save(model_data, file="model_data.RData")
 
-lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_start^2) + growth$WD + I(growth$WD^2) + growth$spi)
+test_m <- lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_start^2) + 
+   growth$WD + I(growth$WD^2) + growth$spi_24 +
+   growth$diameter_start * growth$spi_24 +
+   growth$WD * growth$spi_24)
+#summary(test_m)
 
 # Setup inits
 init_data <- list(list(dbh_latent=as.matrix(dbh_latent),
-                       inter=-.27,
+                       inter=-.33,
                        slp_dbh=1.05,
                        slp_dbh_sq=-.001,
-                       slp_spi=.1,
+                       slp_WD=-.37,
+                       slp_WD_sq=.018,
+                       slp_spi=.002,
                        slp_spi_sq=-.1,
-                       slp_WD=.1,
-                       slp_WD_sq=-.1,
+                       inter_spi_dbh=.0002,
+                       inter_spi_WD=-.04,
                        sigma_obs=2, 
                        sigma_proc=10, 
                        sigma_ijk=2,

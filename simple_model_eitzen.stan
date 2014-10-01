@@ -10,6 +10,8 @@ data {
     int<lower=0> miss_indices_tree[n_miss];
     int<lower=0> miss_indices_period[n_miss];
     vector<lower=7.5, upper=300>[n_obs] dbh_obs;
+    vector[n_tree] WD;
+    matrix[n_tree, max_obs_per_tree] spi;
 }
 
 parameters {
@@ -18,17 +20,26 @@ parameters {
     real<lower=-100, upper=100> inter;
     real<lower=-100, upper=100> slp_dbh;
     real<lower=-100, upper=100> slp_dbh_sq;
+    real<lower=-100, upper=100> slp_WD;
+    real<lower=-100, upper=100> slp_WD_sq;
+    real<lower=-100, upper=100> slp_spi;
+    real<lower=-100, upper=100> inter_spi_WD;
+    real<lower=-100, upper=100> inter_spi_dbh;
     real<lower=0> sigma_obs;
     real<lower=0> sigma_proc;
 }
 
 transformed parameters {
+    vector[n_tree] WD_sq;
     matrix[n_tree, max_obs_per_tree] dbh;
     for (n in 1:n_miss) {
         dbh[miss_indices_tree[n], miss_indices_period[n]] <- dbh_miss[n];
     }
     for (n in 1:n_obs) {
         dbh[obs_indices_tree[n], obs_indices_period[n]] <- dbh_obs[n];
+    }
+    for (n in 1:n_tree) {
+        WD_sq[n] <- pow(WD[n], 2);
     }
 }
 
@@ -41,7 +52,15 @@ model {
         for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
             {
                 real dbh_predicted;
-                dbh_predicted <- inter + slp_dbh * dbh_latent[tree_num, obs_num - 1] + slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2);
+                dbh_predicted <- inter +
+                    slp_dbh * dbh_latent[tree_num, obs_num - 1] +
+                    slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2) +
+                    slp_WD * WD[tree_num] +
+                    slp_WD_sq * WD_sq[tree_num] +
+                    slp_spi * spi[tree_num, obs_num] +
+                    inter_spi_dbh * spi[tree_num, obs_num] * dbh_latent[tree_num, obs_num - 1] +
+                    inter_spi_WD * spi[tree_num, obs_num] * WD[tree_num];
+
                 dbh[tree_num, obs_num] ~ normal(dbh_latent[tree_num, obs_num], sigma_obs);
                 dbh_latent[tree_num, obs_num] ~ normal(dbh_predicted, sigma_proc);
                 /* print("dbh_predicted=", dbh_predicted, */

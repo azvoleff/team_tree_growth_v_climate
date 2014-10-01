@@ -11,8 +11,7 @@ load("init_data.RData")
 
 init_data[[1]] <- init_data[[1]][!(names(init_data[[1]]) %in% c("b_ijk", "b_jk", "b_k"))]
 model_data <- model_data[!(names(model_data) %in% c("n_plot", "n_site", 
-                                                    "plot_ID", "site_ID", "WD", 
-                                                    "spi"))]
+                                                    "plot_ID", "site_ID"))]
 model_data$max_obs_per_tree <- ncol(model_data$dbh)
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
