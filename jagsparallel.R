@@ -2,8 +2,8 @@ jagsparallel <- function(data, inits, parameters.to.save,
                          model.file = "model.bug", n.chains = 2, n.iter = 2000, 
                          n.burnin = floor(n.iter/2),
                          n.thin = max(1, floor((n.iter - n.burnin)/1000)), 
-                         n.cluster = n.chains, DIC = TRUE, working.directory = 
-                         NULL, jags.seed = 123, digits = 5,
+                         n.cluster = n.chains, DIC = TRUE,
+                         working.directory = NULL, jags.seed = 123, digits = 5,
                          RNGname = c("Wichmann-Hill", "Marsaglia-Multicarry", 
                                      "Super-Duper", "Mersenne-Twister"), 
                          jags.module = c("glm", "dic")) {
@@ -21,10 +21,20 @@ jagsparallel <- function(data, inits, parameters.to.save,
     jags.model <- model.file
     set.seed(jags.seed)
     res <- foreach (n=1:n.chains, .inorder=FALSE, .packages=c("R2jags")) %dorng% {
+        working.dir.temp <- paste0(c(tempdir(), sample(c(letters, 0:9), 15)), 
+                                   collapse='')
+        dir.create(working.dir.temp)
+        if (!is.null(working.directory)) {
+            file.copy(file.path(working.directory, model.file), 
+                      file.path(working.dir.temp, model.file))
+        } else {
+            file.copy(model.file,
+                      file.path(working.dir.temp, model.file))
+        }
         jags(data, inits, parameters.to.save=parameters.to.save, 
              model.file=model.file, n.chains=1, n.iter = n.iter,
              n.burnin = n.burnin, n.thin = n.thin, DIC = DIC,
-             working.directory = working.directory, jags.seed = jags.seed, 
+             working.directory = working.dir.temp, jags.seed = jags.seed, 
              progress.bar = "none", digits = digits, RNGname = RNGname, 
              jags.module = jags.module)
     }
