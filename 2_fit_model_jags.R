@@ -35,21 +35,10 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 # print("finished running single JAGS chain")
 # save(jags_fit, file="jags_fit_full.RData")
 
-# jags.parallel only works when it is pulling the data from the R environment
-n_tree <- model_data$n_tree
-n_plot <- model_data$n_plot
-n_site <- model_data$n_site
-first_obs_period <- model_data$first_obs_period
-last_obs_period <- model_data$last_obs_period
-plot_ID <- model_data$plot_ID
-site_ID <- model_data$site_ID
-dbh <- model_data$dbh
-WD <- model_data$WD
-spi <- model_data$spi
-WD_sq <- model_data$WD_sq
-jags_fit_p <- jags.parallel(names(model_data), init_data,
-                            parameters.to.save=jags_params, 
-                            model.file="full_model.bug", n.chains=12, 
-                            n.iter=100000, jags.seed=70276)
+source("jagsparallel.R")
+jags_fit_p <- jagsparallel(model_data, init_data,
+                           parameters.to.save=jags_params, 
+                           model.file="full_model.bug", n.chains=8, 
+                           n.iter=100000, jags.seed=70276, n.cluster=8)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p, file="jags_fit_full_parallel.RData")

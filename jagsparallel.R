@@ -11,7 +11,6 @@ jagsparallel <- function(data, inits, parameters.to.save,
     library(foreach)
     library(doParallel)
     library(doRNG)
-    library(abind)
     jags.inits <- if (missing(inits)) {
         NULL
     } else {
@@ -33,15 +32,16 @@ jagsparallel <- function(data, inits, parameters.to.save,
     result <- NULL
     model <- NULL
     for (ch in 1:n.chains) {
-        result <- abind(result, res[[ch]]$BUGSoutput$sims.array, along = 2)
+        result <- abind::abind(result, res[[ch]]$BUGSoutput$sims.array, along = 2)
         model[[ch]] <- res[[ch]]$model
     }
     if (is.function(model.file)) {
         model.file <- substitute(model.file)
     }
-    result <- as.bugs.array2(result, model.file = model.file, program = "jags", 
-                             DIC = DIC, n.iter = n.iter, n.burnin = n.burnin, 
-                             n.thin = n.thin)
+    result <- R2jags:::as.bugs.array2(result, model.file = model.file,
+                                      program = "jags", DIC = DIC,
+                                      n.iter = n.iter, n.burnin = n.burnin, 
+                                      n.thin = n.thin)
     out <- list(model = model, BUGSoutput = result, parameters.to.save = 
                 parameters.to.save, model.file = model.file, n.iter = n.iter, 
                 DIC = DIC)
