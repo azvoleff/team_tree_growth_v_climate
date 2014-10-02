@@ -1,4 +1,4 @@
-library(R2jags)
+library(runjags)
 
 model_file <- "full_model.bug" 
 
@@ -29,16 +29,16 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 
 # set.seed(seed)
 # seq_n_chains <- 10
-# jags_fit <- jags(data=model_data, inits=rep(init_data, seq_n_chains),
-#                  parameters.to.save=jags_params, n.chains=seq_n_chains, 
-#                  n.iter=10000, model.file=model_file)
+# jags_fit <- run.jags(model=model_file, monitor=jags_params, data=model_data, 
+#                      inits=rep(init_data, seq_n_chains),
+#                      n.chains=4, sample=10000, method="parallel")
 # print("finished running single JAGS chain")
 # save(jags_fit, file="jags_fit_full.RData")
 
-source("jagsparallel.R")
-jags_fit_p <- jagsparallel(model_data, init_data,
-                           parameters.to.save=jags_params, 
-                           model.file="full_model.bug", n.chains=8, 
-                           n.iter=100000, jags.seed=70276, n.cluster=8)
+set.seed(seed)
+jags_fit_p <- autorun.jags(model=model_file, monitor=jags_params, 
+                           data=model_data, inits=rep(init_data, 6),
+                           n.chains=6, method="parallel", jags.refresh=10, 
+                           startsample=10000)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p, file="jags_fit_full_parallel.RData")
