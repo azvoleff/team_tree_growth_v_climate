@@ -20,8 +20,10 @@ jags_params <- c("intercept",
                  "sigma_ijk",
                  "sigma_jk",
                  "sigma_k",
-                 "sigma_g",
-                 "sigma_t")
+                 "sigma_t",
+                 "sigma_slp_spi_g",
+                 "sigma_t",
+                 "rho")
 
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
 
@@ -30,7 +32,7 @@ model_data$WD_sq <- model_data$WD^2
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
 set.seed(seed)
-seq_n_chains <- 2
+seq_n_chains <- 1
 jags_fit <- run.jags(model=model_file, monitor=jags_params, data=model_data, 
                      inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
                      sample=100)
