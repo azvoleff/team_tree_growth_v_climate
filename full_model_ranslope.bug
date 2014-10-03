@@ -11,8 +11,12 @@ model {
                 slp_spi * spi[i, t] +
                 inter_spi_dbh * spi[i, t] * dbh_latent[i, t - 1] +
                 inter_spi_WD * spi[i, t] * WD[i] +
-                b_ijk[i] + b_jk[plot_ID[i]] + b_k[site_ID[i]] +
-                b_g[genus_ID[i]] + b_t[t]
+                b_ijk[i] +
+                b_jk[plot_ID[i]] +
+                b_k[site_ID[i]] +
+                b_g[genus_ID[i]] +
+                slp_spi_g[genus_ID[i]] * spi[i, t] +
+                b_t[t]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], proc_prec)
         }
