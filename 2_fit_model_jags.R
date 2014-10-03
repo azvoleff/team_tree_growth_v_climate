@@ -19,7 +19,9 @@ jags_params <- c("intercept",
                  "proc_sigma",
                  "sigma_ijk",
                  "sigma_jk",
-                 "sigma_k")
+                 "sigma_k",
+                 "sigma_g",
+                 "sigma_t")
 
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
 
@@ -27,13 +29,13 @@ model_data$WD_sq <- model_data$WD^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
-# set.seed(seed)
-# seq_n_chains <- 10
-# jags_fit <- run.jags(model=model_file, monitor=jags_params, data=model_data, 
-#                      inits=rep(init_data, seq_n_chains),
-#                      n.chains=4, sample=10000, method="parallel")
-# print("finished running single JAGS chain")
-# save(jags_fit, file="jags_fit_full.RData")
+set.seed(seed)
+seq_n_chains <- 10
+jags_fit <- run.jags(model=model_file, monitor=jags_params, data=model_data, 
+                     inits=rep(init_data, seq_n_chains),
+                     n.chains=3, sample=1000, method="parallel")
+print("finished running single JAGS chain")
+save(jags_fit, file="jags_fit_full.RData")
 
 set.seed(seed)
 jags_fit_p <- autorun.jags(model=model_file, monitor=jags_params, 
