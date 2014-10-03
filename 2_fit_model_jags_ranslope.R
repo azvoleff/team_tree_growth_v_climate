@@ -1,6 +1,6 @@
 library(runjags)
 
-model_file <- "full_model.bug" 
+model_file <- "full_model_ranslope.bug" 
 
 load("model_data.RData")
 load("init_data.RData")
@@ -35,11 +35,11 @@ jags_fit <- run.jags(model=model_file, monitor=jags_params, data=model_data,
                      inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
                      sample=100)
 print("finished running single JAGS chain")
-save(jags_fit, file="jags_fit_full.RData")
+save(jags_fit, file="jags_fit_ranslope.RData")
 
 set.seed(seed)
 jags_fit_p <- autorun.jags(model=model_file, monitor=jags_params, 
                            data=model_data, inits=rep(init_data, 6),
                            n.chains=6, method="parallel")
 print("finished running JAGS chains in parallel")
-save(jags_fit_p, file="jags_fit_full_parallel.RData")
+save(jags_fit_p, file="jags_fit_ranslope_parallel.RData")
