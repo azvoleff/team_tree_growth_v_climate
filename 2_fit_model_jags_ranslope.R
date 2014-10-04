@@ -22,7 +22,7 @@ jags_params <- c("intercept",
                  "sigma_k",
                  "sigma_t",
                  "sigma_slp_spi_g",
-                 "sigma_t",
+                 "sigma_g",
                  "rho")
 
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
