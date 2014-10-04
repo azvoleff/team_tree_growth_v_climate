@@ -28,6 +28,7 @@ growth <- filter(growth, ctfs_accept)
 ###############################################################################
 ### TESTING ONLY
 #growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+growth <- filter(growth, sitecode %in% c("RNF"))
 ###############################################################################
 
 growth$tree_ID_char <- factor(growth$SamplingUnitName)
