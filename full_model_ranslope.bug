@@ -76,7 +76,7 @@ model {
     for (g in 1:n_genus) {
         b_g[g] <- B[j, 1]
         slp_spi_g[g] <- B[j, 2]
-        B[j, 1:2 ~ dmnorm(B_hat[j, ], Tau_B[ , ])
+        B[j, 1:2] ~ dmnorm(B_hat[j, ], Tau_B[ , ])
         B_hat[j, 1] <- mu_g
         B_hat[j, 2] <- mu_slp_spi_g
     }
