@@ -83,7 +83,7 @@ model {
     mu_b_g ~ dnorm(0, .0001)
     mu_slp_spi_g ~ dnorm(0, .0001)
 
-    Tau_B[1;2, 1:2] <- inverse(Sigma_B[, ])
+    Tau_B[1:2, 1:2] <- inverse(Sigma_B[ , ])
     Sigma_B[1, 1] <- pow(sigma_b_g, 2)
     sigma_g ~ dunif(0, 100)
     Sigma_B[2, 2] <- pow(sigma_slp_spi_g, 2)
