@@ -34,15 +34,15 @@ model_data$WD_sq <- model_data$WD^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
-seq_n_chains <- 1
-jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-                     inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
-                     sample=100)
-print("finished running single JAGS chain")
-save(jags_fit, file="jags_fit_ranslope.RData")
+# seq_n_chains <- 1
+# jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
+#                      inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
+#                      sample=100)
+# print("finished running single JAGS chain")
+# save(jags_fit, file="jags_fit_ranslope.RData")
 
-# jags_fit_p <- autorun.jags(model=model_file, monitor=monitored, 
-# data=model_data, inits=rep(init_data, 6),
-#                            n.chains=6, method="parallel")
-# print("finished running JAGS chains in parallel")
-# save(jags_fit_p, file="jags_fit_ranslope_parallel.RData")
+jags_fit_p <- autorun.jags(model=model_file, monitor=monitored, 
+data=model_data, inits=rep(init_data, 6),
+                           n.chains=6, method="parallel")
+print("finished running JAGS chains in parallel")
+save(jags_fit_p, file="jags_fit_ranslope_parallel.RData")
