@@ -22,11 +22,13 @@ monitored <- c("intercept",
                "b_k",
                "sigma_t",
                "b_t",
-               "sigma_g",
                "b_g",
-               "sigma_slp_spi_g",
+               "mu_b_g",
+               "sigma_b_g",
                "slp_spi_g",
-               "rho")
+               "mu_slp_spi_g",
+               "sigma_slp_spi_g",
+               "rho_g")
 
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
 

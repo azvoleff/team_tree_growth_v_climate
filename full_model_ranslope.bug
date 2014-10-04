@@ -73,22 +73,23 @@ model {
     tau_t <- pow(sigma_t, -2)
     sigma_t ~ dunif(0, 100)
 
-    for (g in 1:n_genus) {
-        b_g[g] <- B[j, 1]
-        slp_spi_g[g] <- B[j, 2]
-        B[j, 1:2] ~ dmnorm(B_hat[j, ], Tau_B[ , ])
-        B_hat[j, 1] <- mu_g
-        B_hat[j, 2] <- mu_slp_spi_g
-    }
+    # Correlated random intercept slope on SPI by genus
     mu_b_g ~ dnorm(0, .0001)
     mu_slp_spi_g ~ dnorm(0, .0001)
+    sigma_b_g ~ dunif(0, 100)
+    sigma_slp_spi_g ~ dunif(0, 100)
+    for (g in 1:n_genus) {
+        B_hat[g, 1] <- mu_b_g
+        B_hat[g, 2] <- mu_slp_spi_g
+        B[g, 1:2] ~ dmnorm(B_hat[g, ], Tau_B[ , ])
+        b_g[g] <- B[g, 1]
+        slp_spi_g[g] <- B[g, 2]
+    }
 
     Tau_B[1:2, 1:2] <- inverse(Sigma_B[ , ])
     Sigma_B[1, 1] <- pow(sigma_b_g, 2)
-    sigma_g ~ dunif(0, 100)
     Sigma_B[2, 2] <- pow(sigma_slp_spi_g, 2)
-    sigma_slp_spi_g ~ dunif(0, 100)
-    Sigma_B[1, 2] <- rho * sigma_b_g * sigma_slp_spi_g
+    Sigma_B[1, 2] <- rho_g * sigma_b_g * sigma_slp_spi_g
     Sigma_B[2, 1] <- Sigma_B[1, 2]
-    rho ~ dunif(-1, 1)
+    rho_g ~ dunif(-1, 1)
 }
