@@ -31,10 +31,14 @@ jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data,
                      inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
                      sample=100)
 print("finished running single JAGS chain")
-save(jags_fit, file="jags_fit_simple.RData")
+save(jags_fit,
+     file=paste0("jags_fit_simple_",
+                 format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
                        inits=rep(init_data, 4), n.chains=4, method="parallel")
 print("finished running JAGS chains in parallel")
 print("finished running JAGS chains in parallel")
-save(jags_fit_p, file="jags_fit_simple_parallel.RData")
+save(jags_fit_p,
+     file=paste0("jags_fit_simple_parallel_",
+                 format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
