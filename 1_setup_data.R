@@ -64,16 +64,15 @@ dbh_ts <- arrange(dbh_ts, tree_ID, period_ID)
 # Standardize outcome and predictors.
 dbh_mean <- mean(dbh_ts$dbh)
 dbh_sd <- sd(dbh_ts$dbh)
+dbh_ts$dbh <- (dbh_ts$dbh - dbh_mean) / dbh_sd
 WD_mean <- mean(dbh_ts$WD)
 WD_sd <- sd(dbh_ts$WD)
+WD <- (dbh_time_0$WD - WD_mean) / WD_sd
 # Save sd and means so the variables can be unstandardized later
 save(dbh_mean, dbh_sd, WD_mean, WD_sd, file="model_data_standardizing.RData")
 
 genus_ID <- dbh_time_0$genus_ID
 sum(genus_ID == "Unknown") / length(genus_ID)
-
-dbh_time_0$dbh <- (dbh_time_0$dbh - dbh_mean) / dbh_sd
-WD <- (dbh_time_0$WD - WD_mean) / WD_sd
 
 # Add latent growth inits
 calc_latent_dbh <- function(dbh) {
