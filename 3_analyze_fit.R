@@ -15,23 +15,24 @@ load("jags_fit_full_parallel.RData")
 ### Plot fixed effects
 ###############################################################################
 
-fixed_names <- c("intercept",
-                   "slp_WD",
-                   "slp_WD_sq",
-                   "slp_dbh",
-                   "slp_dbh_sq",
-                   "'slp_spi'",
-                   "inter_spi_WD",
-                   "inter_spi_dbh")
-fixed_names_pretty <-c("Intercept",
-              "Density",
+# fixed_names <- c("intercept",
+#                  "slp_WD",
+fixed_names <- c("slp_WD",
+                 "slp_WD_sq",
+                 "slp_dbh",
+                 "slp_dbh_sq",
+                 "slp_spi",
+                 "inter_spi_WD",
+                 "inter_spi_dbh")
+# fixed_names_pretty <-c("Intercept",
+#               "Density",
+fixed_names_pretty <-c("Density",
               "Density^2",
               "Diameter",
               "Diameter^2",
               "SPI",
               "Density:SPI",
               "Diameter:SPI")
-
 # print(jags_fit_p, vars=fixed_names)
 # plot(jags_fit_p, vars=fixed_names, layout=c(4, 4))
 fixefs <- as.mcmc.list(jags_fit_p, fixed_names)
