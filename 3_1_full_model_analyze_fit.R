@@ -7,7 +7,7 @@ library(ggplot2)
 img_dpi <- 300
 
 load("jags_fit_full_parallel.RData")
-#load("jags_fit_ranslope.RData")
+#load("jags_fit.RData")
 plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=-1, xmax=1) {
     mcmc_ests <- melt(mcmc_ests)
     mcmc_ests <- group_by(mcmc_ests, variable) %>%
@@ -39,7 +39,7 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=-1, xmax=1) {
 ### Plot fixed effects
 ###############################################################################
 
-load("jags_fit_ranslope_parallel_fixefs.RData")
+load("jags_fit_parallel_fixefs.RData")
 
 fixef_names <- c("intercept",
                  "slp_WD",
@@ -64,14 +64,14 @@ fixefs <- window(fixefs, start=9001, end=15000, thin=50)
 fixefs_comb <- data.frame(combine.mcmc(fixefs))
 
 plot_estimates(fixefs_comb, fixef_names, fixef_names_pretty)
-ggsave("growth_model_ranslope_fixefs.png",
+ggsave("growth_model_fixefs.png",
        width=3, height=4, dpi=img_dpi)
 
 ###############################################################################
 ### Plot random effects
 ###############################################################################
 
-load("jags_fit_ranslope_parallel_ranefs.RData")
+load("jags_fit_parallel_ranefs.RData")
 
 ranef_names <- c("obs_sigma",
                  "proc_sigma",
@@ -99,5 +99,5 @@ ranefs <- window(ranefs, start=9001, end=15000, thin=50)
 ranefs_comb <- data.frame(combine.mcmc(ranefs))
 
 plot_estimates(ranefs_comb, ranef_names, ranef_names_pretty, xmin=0, xmax=3)
-ggsave("growth_model_ranslope_ranefs.png",
+ggsave("growth_model_ranefs.png",
        width=3, height=5, dpi=img_dpi)

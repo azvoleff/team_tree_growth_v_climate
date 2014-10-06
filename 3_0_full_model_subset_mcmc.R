@@ -1,7 +1,7 @@
 library(runjags)
 library(coda)
 
-load("jags_fit_ranslope_parallel.RData")
+load("jags_fit_parallel.RData")
 
 fixef_names <- c("intercept",
                  "slp_WD",
@@ -12,7 +12,7 @@ fixef_names <- c("intercept",
                  "inter_spi_WD",
                  "inter_spi_dbh")
 fixefs <- as.mcmc.list(jags_fit_p, fixef_names)
-save(fixefs, file="jags_fit_ranslope_parallel_fixefs.RData")
+save(fixefs, file="jags_fit_parallel_fixefs.RData")
 
 ranef_names <- c("obs_sigma",
                  "proc_sigma",
@@ -24,11 +24,11 @@ ranef_names <- c("obs_sigma",
                  "sigma_slp_spi_g",
                  "rho_g")
 ranefs <- as.mcmc.list(jags_fit_p, ranef_names)
-save(ranefs, file="jags_fit_ranslope_parallel_ranefs.RData")
+save(ranefs, file="jags_fit_parallel_ranefs.RData")
 
 genus_ranef_names <- c("slp_spi_g")
 genus_ranefs <- as.mcmc.list(jags_fit_p, genus_ranef_names)
-save(genus_ranefs, file="jags_fit_ranslope_parallel_genus_ranefs.RData")
+save(genus_ranefs, file="jags_fit_parallel_genus_ranefs.RData")
 
 # Calculate growth increment
 dbh_preds <- extend.jags(jags_fit_p,
