@@ -26,10 +26,10 @@ fixed_names <- c("slp_WD",
                  "inter_spi_dbh")
 # fixed_names_pretty <-c("Intercept",
 #               "Density",
-fixed_names_pretty <-c("Density",
-              "Density^2",
+fixed_names_pretty <- c("Density",
+              expression(Density^2),
               "Diameter",
-              "Diameter^2",
+              expression(Diameter^2),
               "SPI",
               "Density:SPI",
               "Diameter:SPI")
@@ -55,7 +55,9 @@ ggplot(fixefs, aes(median, variable)) +
     geom_errorbarh(aes(xmin=q2pt5, xmax=q97pt5), height=0.5) +
     geom_vline(aes(xintercept=0), color="grey") +
     #xlim(c(-1, 1)) +
-    xlab("") + ylab("")
+    xlab("") + ylab("") +
+    scale_y_discrete(breaks=fixed_names_pretty, labels=fixed_names_pretty)
+
 ggsave("growth_model_ranslope_fixedefs.png",
        width=img_width, height=img_height, dpi=img_dpi)
 
@@ -71,14 +73,14 @@ random_names <- c("obs_sigma",
                     "sigma_g",
                     "sigma_slp_spi_g",
                     "rho")
-random_names_pretty <- c("sigma_obs",
-                    "sigma_proc",
-                    "sigma_ijk",
-                    "sigma_jk",
-                    "sigma_k",
-                    "sigma_t",
-                    "sigma_g",
-                    "sigma_(SPI g)",
+random_names_pretty <- c(expression(sigma[obs]),
+                    expression(sigma[proc]),
+                    expression(sigma[tree]),
+                    expression(sigma[plot]),
+                    expression(sigma[site]),
+                    expression(sigma[period]),
+                    expression(sigma[genus]),
+                    expression(sigma[list(SPI,genus)]),
                     "rho")
 
 # print(jags_fit_p, vars=random_names)
@@ -103,6 +105,10 @@ ggplot(ranefs, aes(median, variable)) +
     geom_errorbarh(aes(xmin=q2pt5, xmax=q97pt5), height=0.5) +
     geom_vline(aes(xintercept=0), color="grey") +
     #xlim(c(-1, 1)) +
-    xlab("") + ylab("")
+    xlab("") + ylab("") +
+    scale_y_discrete(breaks=random_names_pretty, 
+                     labels=random_names_pretty)
+
+
 ggsave("growth_model_ranslope_randomefs.png",
        width=img_width, height=img_height, dpi=img_dpi)
