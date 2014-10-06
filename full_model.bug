@@ -11,8 +11,12 @@ model {
                 slp_spi * spi[i, t] +
                 inter_spi_dbh * spi[i, t] * dbh_latent[i, t - 1] +
                 inter_spi_WD * spi[i, t] * WD[i] +
-                b_ijk[i] + b_jk[plot_ID[i]] + b_k[site_ID[i]] +
-                b_g[genus_ID[i]] + b_t[t]
+                b_ijk[i] +
+                b_jk[plot_ID[i]] +
+                b_k[site_ID[i]] +
+                b_g[genus_ID[i]] +
+                slp_spi_g[genus_ID[i]] * spi[i, t] +
+                b_t[t]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], proc_prec)
         }
@@ -69,9 +73,23 @@ model {
     tau_t <- pow(sigma_t, -2)
     sigma_t ~ dunif(0, 100)
 
+    # Correlated random intercept slope on SPI by genus
+    mu_b_g ~ dnorm(0, .0001)
+    mu_slp_spi_g ~ dnorm(0, .0001)
+    sigma_b_g ~ dunif(0, 100)
+    sigma_slp_spi_g ~ dunif(0, 100)
     for (g in 1:n_genus) {
-        b_g[g] ~ dnorm(0, tau_g)
+        B_hat[g, 1] <- mu_b_g
+        B_hat[g, 2] <- mu_slp_spi_g
+        B[g, 1:2] ~ dmnorm(B_hat[g, ], Tau_B[ , ])
+        b_g[g] <- B[g, 1]
+        slp_spi_g[g] <- B[g, 2]
     }
-    tau_g <- pow(sigma_g, -2)
-    sigma_g ~ dunif(0, 100)
+
+    Tau_B[1:2, 1:2] <- inverse(Sigma_B[ , ])
+    Sigma_B[1, 1] <- pow(sigma_b_g, 2)
+    Sigma_B[2, 2] <- pow(sigma_slp_spi_g, 2)
+    Sigma_B[1, 2] <- rho_g * sigma_b_g * sigma_slp_spi_g
+    Sigma_B[2, 1] <- Sigma_B[1, 2]
+    rho_g ~ dunif(-1, 1)
 }

@@ -1,6 +1,6 @@
 library(runjags)
 
-model_file <- "full_model_ranslope_indicator.bug" 
+model_file <- "full_model_indicator.bug" 
 
 load("model_data.RData")
 load("init_data.RData")
@@ -48,7 +48,7 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 #                      sample=100)
 # print("finished running single JAGS chain")
 # save(jags_fit,
-#      file=paste0("jags_fit_ranslope_",
+#      file=paste0("jags_fit_indicator_",
 #                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
@@ -56,5 +56,5 @@ jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data,
                        burnin=10000, sample=20000, thin=4)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p,
-     file=paste0("jags_fit_ranslope_parallel_",
+     file=paste0("jags_fit_indicator_parallel_",
                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
