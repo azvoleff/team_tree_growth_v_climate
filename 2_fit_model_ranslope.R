@@ -17,7 +17,6 @@ monitored <- c("intercept",
                "proc_sigma",
                "sigma_ijk",
                "sigma_jk",
-               "b_jk",
                "sigma_k",
                "b_k",
                "sigma_t",
@@ -46,7 +45,8 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 #                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-                       inits=rep(init_data, 4), n.chains=4, method="parallel")
+                       inits=rep(init_data, 4), n.chains=4, method="parallel",
+                       burnin=10000, sample=20000, thin=4)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p,
      file=paste0("jags_fit_ranslope_parallel_",
