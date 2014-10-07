@@ -28,16 +28,15 @@ model {
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, .00001)
     }
 
-
     ##########################################################################
     # Indicator variables
-    z_slp_dbh ~ dbern(.5)
-    z_slp_dbh_sq ~ dbern(.5)
-    z_slp_WD ~ dbern(.5)
-    z_slp_WD_sq ~ dbern(.5)
-    z_slp_spi ~ dbern(.5)
-    z_inter_spi_dbh ~ dbern(.5)
-    z_inter_spi_WD ~ dbern(.5)
+    z_slp_dbh ~ dbern(0.5)
+    z_slp_dbh_sq ~ dbern(0.5)
+    z_slp_WD ~ dbern(0.5)
+    z_slp_WD_sq ~ dbern(0.5)
+    z_slp_spi ~ dbern(0.5)
+    z_inter_spi_dbh ~ dbern(0.5)
+    z_inter_spi_WD ~ dbern(0.5)
 
     ##########################################################################
     # Fixed effects
