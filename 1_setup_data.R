@@ -169,19 +169,5 @@ test_m <- lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_sta
 #summary(test_m)
 
 # Setup inits
-init_data <- list(list(dbh_latent=as.matrix(dbh_latent),
-                       intercept=-.33,
-                       slp_dbh=1.05,
-                       slp_dbh_sq=-.001,
-                       slp_WD=-.37,
-                       slp_WD_sq=.018,
-                       slp_spi=.002,
-                       slp_spi_sq=-.1,
-                       inter_spi_dbh=.0002,
-                       inter_spi_WD=-.04,
-                       sigma_obs=2, 
-                       sigma_proc=10, 
-                       sigma_ijk=2,
-                       sigma_jk=5,
-                       sigma_k=10))
+init_data <- list(dbh_latent=as.matrix(dbh_latent))
 save(init_data, file="init_data.RData")
