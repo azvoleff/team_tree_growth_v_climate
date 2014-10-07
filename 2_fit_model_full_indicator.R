@@ -53,7 +53,7 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
                        inits=rep(init_data, 4), n.chains=4, method="parallel",
-                       burnin=10000, sample=20000, thin=4)
+                       burnin=10000, sample=10000, thin=3)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p,
      file=paste0("jags_fit_indicator_parallel_",
