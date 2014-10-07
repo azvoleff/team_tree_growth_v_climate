@@ -25,22 +25,22 @@ model {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], obs_prec)
         }
         # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, .000001)
+        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-6)
     }
 
     ##########################################################################
     # Fixed effects
-    intercept ~ dnorm(0, .0001)
-    slp_dbh ~ dnorm(0, .0001)
-    slp_dbh_sq ~ dnorm(0, .0001)
-    slp_WD ~ dnorm(0, .0001)
-    slp_WD_sq ~ dnorm(0, .0001)
-    slp_spi ~ dnorm(0, .0001)
-    inter_spi_dbh ~ dnorm(0, .0001)
-    inter_spi_WD ~ dnorm(0, .0001)
+    intercept ~ dnorm(0, 1.0E-6)
+    slp_dbh ~ dnorm(0, 1.0E-6)
+    slp_dbh_sq ~ dnorm(0, 1.0E-6)
+    slp_WD ~ dnorm(0, 1.0E-6)
+    slp_WD_sq ~ dnorm(0, 1.0E-6)
+    slp_spi ~ dnorm(0, 1.0E-6)
+    inter_spi_dbh ~ dnorm(0, 1.0E-6)
+    inter_spi_WD ~ dnorm(0, 1.0E-6)
 
     obs_prec <- pow(obs_sigma, -2)
-    obs_sigma ~ dunif(0, 100)
+    obs_sigma ~ dunif(0.003566014, 100) # Based on Eitzel 2013
 
     proc_prec <- pow(proc_sigma, -2)
     proc_sigma ~ dunif(0, 100)
@@ -74,8 +74,8 @@ model {
     sigma_t ~ dunif(0, 100)
 
     # Correlated random intercept slope on SPI by genus
-    mu_b_g ~ dnorm(0, .0001)
-    mu_slp_spi_g ~ dnorm(0, .0001)
+    mu_b_g ~ dnorm(0, 1.0E-6)
+    mu_slp_spi_g ~ dnorm(0, 1.0E-6)
     sigma_b_g ~ dunif(0, 100)
     sigma_slp_spi_g ~ dunif(0, 100)
     for (g in 1:n_genus) {
