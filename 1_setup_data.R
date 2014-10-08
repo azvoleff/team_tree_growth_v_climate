@@ -27,8 +27,9 @@ growth <- filter(growth, ctfs_accept)
 
 ###############################################################################
 ### TESTING ONLY
-#growth <- filter(growth, sitecode %in% c("VB", "CAX"))
-#growth <- filter(growth, sitecode %in% c("RNF"))
+# growth <- filter(growth, sitecode %in% c("VB", "CAX"))
+# growth <- filter(growth, SamplingPeriodEnd %in% c("2011.01", "2012.01", "2013.01"))
+
 ###############################################################################
 
 growth$tree_ID_char <- factor(growth$SamplingUnitName)
@@ -70,6 +71,9 @@ WD_sd <- sd(dbh_ts$WD)
 WD <- (dbh_time_0$WD - WD_mean) / WD_sd
 # Save sd and means so the variables can be unstandardized later
 save(dbh_mean, dbh_sd, WD_mean, WD_sd, file="model_data_standardizing.RData")
+
+# Calculate precision of diameter tape (1 mm) in standardized units:
+.1 / dbh_sd
 
 genus_ID <- dbh_time_0$genus_ID
 sum(genus_ID == "Unknown") / length(genus_ID)
