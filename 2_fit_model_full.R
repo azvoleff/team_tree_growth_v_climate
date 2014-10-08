@@ -45,14 +45,14 @@ jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data,
                      n.chains=seq_n_chains, adapt=100, burnin=100, 
                      sample=100, thin=2)
 print("finished running single JAGS chain")
-save(jags_fit,
-     file=paste0("jags_fit_",
-                 format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
-#
-# jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                        inits=rep(list(init_data), 4), n.chains=4, method="parallel",
-#                        adapt=2000, burnin=10000, sample=5000, thin=2)
-# print("finished running JAGS chains in parallel")
-# save(jags_fit_p,
-#      file=paste0("jags_fit_parallel_",
-#                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
+save(jags_fit, file=paste0("full_model_fit_", run_id, ".RData"))
+
+jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
+                     inits=rep(list(init_data), 4), n.chains=4, 
+                     method="parallel", adapt=2000, burnin=10000, sample=5000, 
+                     thin=2)
+print("finished running JAGS chains in parallel")
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
+save(jags_fit, file=paste0("full_model_fit_parallel_", run_id, ".RData"))
+
