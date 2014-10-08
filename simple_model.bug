@@ -1,38 +1,81 @@
 model {
-    for (tree_num in 1:n_tree) {
-        for (obs_num in (first_obs_period[tree_num] + 1):last_obs_period[tree_num]) {
-            dbh_predicted[tree_num, obs_num] <- inter +
-                slp_dbh * dbh_latent[tree_num, obs_num - 1] +
-                slp_dbh_sq * pow(dbh_latent[tree_num, obs_num - 1], 2) +
-                slp_WD * WD[tree_num] +
-                slp_WD_sq * WD_sq[tree_num] +
-                slp_spi * spi[tree_num, obs_num] +
-                inter_spi_dbh * spi[tree_num, obs_num] * dbh_latent[tree_num, obs_num - 1] +
-                inter_spi_WD * spi[tree_num, obs_num] * WD[tree_num]
+    ##########################################################################
+    # Likelihood
+    for (i in 1:n_tree) {
+        for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
+            dbh_predicted[i, t] <- int +
+                slp_dbh * dbh_latent[i, t - 1] +
+                slp_dbh_sq * pow(dbh_latent[i, t - 1], 2) +
+                slp_WD * WD[i] +
+                slp_WD_sq * WD_sq[i] +
+                slp_spi * spi[i, t] +
+                int_ijk[i] +
+                int_jk[plot_ID[i]] +
+                int_k[site_ID[i]] +
+                int_g[genus_ID[i]] +
+                int_t[t]
 
-            dbh_latent[tree_num, obs_num] ~ dnorm(dbh_predicted[tree_num, obs_num], proc_prec)
+            dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], proc_prec)
         }
 
-        for (obs_num in (first_obs_period[tree_num]):last_obs_period[tree_num]) {
-            dbh[tree_num, obs_num] ~ dnorm(dbh_latent[tree_num, obs_num], obs_prec)
+        for (t in (first_obs_period[i]):last_obs_period[i]) {
+            dbh[i, t] ~ dnorm(dbh_latent[i, t], obs_prec)
         }
         # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[tree_num, first_obs_period[tree_num]] ~ dnorm(0, .000001)
-
+        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-6)
     }
 
-    inter ~ dnorm(0, .0001)
-    slp_dbh ~ dnorm(0, .0001)
-    slp_dbh_sq ~ dnorm(0, .0001)
-    slp_WD ~ dnorm(0, .0001)
-    slp_WD_sq ~ dnorm(0, .0001)
-    slp_spi ~ dnorm(0, .0001)
-    inter_spi_dbh ~ dnorm(0, .0001)
-    inter_spi_WD ~ dnorm(0, .0001)
+    ##########################################################################
+    # Fixed effects
+    int ~ dnorm(0, 1.0E-6)
+    slp_dbh ~ dnorm(0, 1.0E-6)
+    slp_dbh_sq ~ dnorm(0, 1.0E-6)
+    slp_WD ~ dnorm(0, 1.0E-6)
+    slp_WD_sq ~ dnorm(0, 1.0E-6)
+    slp_spi ~ dnorm(0, 1.0E-6)
+    inter_spi_dbh ~ dnorm(0, 1.0E-6)
+    inter_spi_WD ~ dnorm(0, 1.0E-6)
 
     obs_prec <- pow(obs_sigma, -2)
-    obs_sigma ~ dunif(0, 100)
+    # Base observation sigma on precision of diameter measurements, following 
+    # Eitzel 2013
+    obs_sigma ~ dunif(0.007034428, 100)
 
     proc_prec <- pow(proc_sigma, -2)
     proc_sigma ~ dunif(0, 100)
+
+    ##########################################################################
+    # Nested random effects
+    for (i in 1:n_tree) {
+        int_ijk[i] ~ dnorm(0, tau_ijk)
+    }
+    tau_ijk <- pow(sigma_ijk, -2)
+    sigma_ijk ~ dunif(0, 100)
+
+    for (j in 1:n_plot) {
+        int_jk[j] ~ dnorm(0, tau_jk)
+    }
+    tau_jk <- pow(sigma_jk, -2)
+    sigma_jk ~ dunif(0, 100)
+
+    for (k in 1:n_site) {
+        int_k[k] ~ dnorm(0, tau_k)
+    }
+    tau_k <- pow(sigma_k, -2)
+    sigma_k ~ dunif(0, 100)
+
+    ##########################################################################
+    # Crossed random effects
+    
+    for (t in 1:n_period) {
+        int_t[t] ~ dnorm(0, tau_t)
+    }
+    tau_t <- pow(sigma_t, -2)
+    sigma_t ~ dunif(0, 100)
+
+    for (g in 1:n_genus) {
+        int_g[g] ~ dnorm(0, tau_g)
+    }
+    tau_g <- pow(sigma_g, -2)
+    sigma_g ~ dunif(0, 100)
 }

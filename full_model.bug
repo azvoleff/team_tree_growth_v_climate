@@ -70,7 +70,6 @@ model {
     ##########################################################################
     # Crossed random effects
     
-    # Tree level
     for (t in 1:n_period) {
         int_t[t] ~ dnorm(0, tau_t)
     }
