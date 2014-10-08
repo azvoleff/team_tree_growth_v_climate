@@ -9,8 +9,6 @@ model {
                 slp_WD * WD[i] +
                 slp_WD_sq * WD_sq[i] +
                 slp_spi * spi[i, t] +
-                inter_spi_dbh * spi[i, t] * dbh_latent[i, t - 1] +
-                inter_spi_WD * spi[i, t] * WD[i] +
                 b_ijk[i] +
                 b_jk[plot_ID[i]] +
                 b_k[site_ID[i]] +
@@ -158,30 +156,4 @@ model {
     rho_slp_g_spi_slp_g_WD_prior <- rho_prior[2, 3]
     rho_slp_g_spi_slp_g_dbh_prior <- rho_prior[2, 4]
     rho_slp_g_WD_slp_g_dbh_prior <- rho_prior[3, 4]
-#    mu_b_g ~ dnorm(0, 1.0E-6)
-#    mu_slp_g_spi ~ dnorm(0, 1.0E-6)
-#    sigma_b_g ~ dunif(0, 100)
-#    sigma_slp_g_spi ~ dunif(0, 100)
-#    for (g in 1:n_genus) {
-#        B_hat[g, 1] <- mu_b_g
-#        B_hat[g, 2] <- mu_slp_g_spi
-#        B[g, 1:2] ~ dmnorm(B_hat[g, ], Tau_B[ , ])
-#        b_g[g] <- B[g, 1]
-#        slp_g_spi[g] <- B[g, 2]
-#        slp_g_dbh[g] <- ~ dnorm(0, tau_g_dbh)
-#        slp_g_WD[g] <- ~ dnorm(0, tau_g_WD)
-#    }
-#
-#    Tau_B[1:2, 1:2] <- inverse(Sigma_B[ , ])
-#    Sigma_B[1, 1] <- pow(sigma_b_g, 2)
-#    Sigma_B[2, 2] <- pow(sigma_slp_g_spi, 2)
-#    Sigma_B[1, 2] <- rho_g * sigma_b_g * sigma_slp_g_spi
-#    Sigma_B[2, 1] <- Sigma_B[1, 2]
-#    rho_g ~ dunif(-1, 1)
-#
-#    # Model slp_g_dbh and slp_g_WD as uncorrelated random effects
-#    tau_g_WD <- pow(sigma_g_WD, -2)
-#    sigma_g_WD ~ dunif(0, 100)
-#    tau_g_dbh <- pow(sigma_g_dbh, -2)
-#    sigma_g_dbh ~ dunif(0, 100)
 }

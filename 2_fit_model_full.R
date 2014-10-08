@@ -11,8 +11,6 @@ monitored <- c("intercept",
                "slp_WD",
                "slp_WD_sq",
                "slp_spi",
-               "inter_spi_dbh",
-               "inter_spi_WD",
                "obs_sigma",
                "proc_sigma",
                "sigma_ijk",
@@ -51,21 +49,22 @@ monitored <- c("intercept",
                "rho_slp_g_WD_slp_g_dbh_prior")
 
 
-init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
+init_data <- init_data[names(init_data) %in% c("dbh_latent")]
 
 model_data$W <- diag(4)
 model_data$WD_sq <- model_data$WD^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
-# seq_n_chains <- 1
-# jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                      inits=rep(list(init_data), seq_n_chains), 
-#                      n.chains=seq_n_chains, adapt=100, burnin=100, sample=100)
-# print("finished running single JAGS chain")
-# save(jags_fit,
-#      file=paste0("jags_fit_",
-#                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
+seq_n_chains <- 1
+jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
+                     inits=rep(list(init_data), seq_n_chains), 
+                     method="interruptible", n.chains=seq_n_chains, adapt=100, 
+                     burnin=100, sample=100)
+print("finished running single JAGS chain")
+save(jags_fit,
+     file=paste0("jags_fit_",
+                 format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
                        inits=rep(list(init_data), 4), n.chains=4, method="parallel",
