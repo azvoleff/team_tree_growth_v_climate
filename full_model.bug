@@ -18,11 +18,11 @@ model {
                 slp_g_dbh_sq[genus_ID[i]] * pow(dbh_latent[i, t - 1], 2) +
                 int_t[t]
 
-            dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], proc_prec)
+            dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
 
         for (t in (first_obs_period[i]):last_obs_period[i]) {
-            dbh[i, t] ~ dnorm(dbh_latent[i, t], obs_prec)
+            dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
         # Specially handle first latent dbh (following Eitzen, 2013):
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-6)
@@ -39,42 +39,42 @@ model {
     inter_spi_dbh ~ dnorm(0, 1.0E-6)
     inter_spi_WD ~ dnorm(0, 1.0E-6)
 
-    obs_prec <- pow(obs_sigma, -2)
+    prec_obs <- pow(sigma_obs, -2)
     # Base observation sigma on precision of diameter measurements, following 
     # Eitzel 2013
-    obs_sigma ~ dunif(0.007034428, 100)
+    sigma_obs ~ dunif(0.007034428, 100)
 
-    proc_prec <- pow(proc_sigma, -2)
-    proc_sigma ~ dunif(0, 100)
+    prec_proc <- pow(sigma_proc, -2)
+    sigma_proc ~ dunif(0, 100)
 
     ##########################################################################
     # Nested random effects
     for (i in 1:n_tree) {
-        int_ijk[i] ~ dnorm(0, tau_ijk)
+        int_ijk[i] ~ dnorm(0, tau_int_ijk)
     }
-    tau_ijk <- pow(sigma_ijk, -2)
-    sigma_ijk ~ dunif(0, 100)
+    tau_int_ijk <- pow(sigma_int_ijk, -2)
+    sigma_int_ijk ~ dunif(0, 100)
 
     for (j in 1:n_plot) {
-        int_jk[j] ~ dnorm(0, tau_jk)
+        int_jk[j] ~ dnorm(0, tau_int_jk)
     }
-    tau_jk <- pow(sigma_jk, -2)
-    sigma_jk ~ dunif(0, 100)
+    tau_int_jk <- pow(sigma_int_jk, -2)
+    sigma_int_jk ~ dunif(0, 100)
 
     for (k in 1:n_site) {
-        int_k[k] ~ dnorm(0, tau_k)
+        int_k[k] ~ dnorm(0, tau_int_k)
     }
-    tau_k <- pow(sigma_k, -2)
-    sigma_k ~ dunif(0, 100)
+    tau_int_k <- pow(sigma_int_k, -2)
+    sigma_int_k ~ dunif(0, 100)
 
     ##########################################################################
     # Crossed random effects
     
     for (t in 1:n_period) {
-        int_t[t] ~ dnorm(0, tau_t)
+        int_t[t] ~ dnorm(0, tau_int_t)
     }
-    tau_t <- pow(sigma_t, -2)
-    sigma_t ~ dunif(0, 100)
+    tau_int_t <- pow(sigma_int_t, -2)
+    sigma_int_t ~ dunif(0, 100)
 
     # Genus level
     #
