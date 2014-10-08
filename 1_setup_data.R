@@ -14,16 +14,7 @@ growth <- tbl_df(growth)
 growth <- filter(growth, !is.na(WD))
 
 # table(growth$ctfs_accept)
-# table(growth$n_days < 200)
-# table(growth$n_days > 550)
-# table(growth$n_days > 1000)
-
 growth <- filter(growth, ctfs_accept)
-# growth <- filter(growth, n_days > 200)
-# growth <- filter(growth, n_days < 550)
-
-# Exclude NAK, CSN, and YAN - too little data at these sites
-#growth <- filter(growth, !(sitecode %in% c("NAK", "CSN", "YAN")))
 
 ###############################################################################
 ### TESTING ONLY
