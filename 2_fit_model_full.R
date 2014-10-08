@@ -21,10 +21,6 @@ monitored <- c("int",
                "mu_slp_g_spi",
                "mu_slp_g_WD",
                "mu_slp_g_dbh",
-               "mu_int_g_prior",
-               "mu_slp_g_spi_prior",
-               "mu_slp_g_WD_prior",
-               "mu_slp_g_dbh_prior",
                "sigma_int_g",
                "sigma_slp_g_spi",
                "sigma_slp_g_WD",
@@ -34,18 +30,7 @@ monitored <- c("int",
                "rho_int_g_slp_g_dbh",
                "rho_slp_g_spi_slp_g_WD",
                "rho_slp_g_spi_slp_g_dbh",
-               "rho_slp_g_WD_slp_g_dbh",
-               "sigma_int_g_prior",
-               "sigma_slp_g_spi_prior",
-               "sigma_slp_g_WD_prior",
-               "sigma_slp_g_dbh_prior",
-               "rho_int_g_slp_g_spi_prior",
-               "rho_int_g_slp_g_WD_prior",
-               "rho_int_g_slp_g_dbh_prior",
-               "rho_slp_g_spi_slp_g_WD_prior",
-               "rho_slp_g_spi_slp_g_dbh_prior",
-               "rho_slp_g_WD_slp_g_dbh_prior")
-
+               "rho_slp_g_WD_slp_g_dbh")
 
 init_data <- init_data[names(init_data) %in% c("dbh_latent")]
 

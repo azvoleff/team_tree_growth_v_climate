@@ -131,29 +131,16 @@ model {
         mu_raw_prior[i] ~ dnorm(0, .0001)
         mu_prior[i] <- xi_prior[i]*mu_raw_prior[i]
     }
-    mu_int_g_prior <- mu_prior[1]
-    mu_slp_g_spi_prior <- mu_prior[2]
-    mu_slp_g_WD_prior <- mu_prior[3]
-    mu_slp_g_dbh_prior <- mu_prior[4]
+
     Tau_B_raw_prior[1:4, 1:4] ~ dwish(W[,], 5)
     Sigma_B_raw_prior[1:4, 1:4] <- inverse(Tau_B_raw_prior[,])
     for (i in 1:4) {
         sigma_prior[i] <- xi_prior[i]*sqrt(Sigma_B_raw_prior[i, i])
     }
-    sigma_int_g_prior <- sigma_prior[1]
-    sigma_slp_g_spi_prior <- sigma_prior[2]
-    sigma_slp_g_WD_prior <- sigma_prior[3]
-    sigma_slp_g_dbh_prior <- sigma_prior[4]
 
     for (i in 1:4) {
         for (j in 1:4) {
             rho_prior[i, j] <- Sigma_B_raw_prior[i, j]/sqrt(Sigma_B_raw_prior[i, i]*Sigma_B_raw_prior[j, j])
         }
     }
-    rho_int_g_slp_g_spi_prior <- rho_prior[1, 2]
-    rho_int_g_slp_g_WD_prior <- rho_prior[1, 3]
-    rho_int_g_slp_g_dbh_prior <- rho_prior[1, 4]
-    rho_slp_g_spi_slp_g_WD_prior <- rho_prior[2, 3]
-    rho_slp_g_spi_slp_g_dbh_prior <- rho_prior[2, 4]
-    rho_slp_g_WD_slp_g_dbh_prior <- rho_prior[3, 4]
 }
