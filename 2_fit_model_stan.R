@@ -65,34 +65,37 @@ get_inits <- function() {
 
 seed <- 1638
 
-# stan_fit_test <- stan(model_file, data=model_data, iter=100, chains=1, 
-#                       inits=get_inits)
-# print("finished running test stan model")
-# save(stan_fit_test, file="stan_fit_full_test.RData")
+stan_fit <- stan(model_file, data=model_data, iter=2000, chains=4, 
+                 inits=get_inits)
+print("finished running test stan model")
+save(stan_fit, file="stan_fit_full.RData")
 
-# Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
-# used by stan to properly seed each chain differently.
-# Fit initial model, on a single CPU. Run only one iteration.
-stan_fit_initial <- stan(model_file, data=model_data, chains=0, init=get_inits)
-print("finished running initial stan model")
-
-id_string <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
-n_chains <- 4
-n_iter <- 2000
-cl <- makeCluster(min(n_chains, detectCores()))
-registerDoParallel(cl)
-sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
-    # Add 1 to n in order to ensure chain_id 1 is not reused
-    sink(paste0("stan_", id_string, "_chain", n, ".txt"), append=TRUE)
-    stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
-         iter=n_iter, chain_id=n, init=get_inits)
-    sink()
-}
-print("finished running stan models on cluster")
-stopCluster(cl)
-
-stan_fit_p <- sflist2stanfit(sflist)
-save(stan_fit_p, file="stan_fit_full_parallel.RData")
+# # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
+# # used by stan to properly seed each chain differently.
+# # Fit initial model, on a single CPU. Run only one iteration.
+# stan_fit_initial <- stan(model_file, data=model_data, chains=0, init=get_inits)
+# print("finished running initial stan model")
+#
+# id_string <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
+# n_chains <- 4
+# n_iter <- 2000
+# #cl <- makeCluster(min(n_chains, detectCores()))
+# cl <- makeCluster(2)
+# registerDoParallel(cl)
+# sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
+#     # Add 1 to n in order to ensure chain_id 1 is not reused
+#     sink(paste0("stan_", id_string, "_chain", n, ".txt"), append=TRUE)
+#     stanfit <- stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
+#          iter=n_iter, chain_id=n, init=get_inits)
+#     save(stanfit, file=paste0("stan_", id_string, "_chain", n, ".RData"))
+#     sink()
+#     stanfit
+# }
+# print("finished running stan models on cluster")
+# stopCluster(cl)
+#
+# stan_fit_p <- sflist2stanfit(sflist)
+# save(stan_fit_p, file="stan_fit_full_parallel.RData")
 
 # model_params <- c("log_dbh_latent",
 #                   "inter",
