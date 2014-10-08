@@ -123,7 +123,7 @@ model {
         B_raw_hat[g, 4] <- mu_raw[4]
         B_raw[g, 1:4] ~ dmnorm(B_raw_hat[g, ], Tau_B_raw[, ])
         b_g[g] <- xi[1]*B_raw[g, 1]
-        slp_spi_g[g] <- xi[2]*B_raw[g, 2]
+        slp_g_spi[g] <- xi[2]*B_raw[g, 2]
         slp_g_WD[g] <- xi[3]*B_raw[g, 3]
         slp_g_dbh[g] <- xi[4]*B_raw[g, 4]
     }
