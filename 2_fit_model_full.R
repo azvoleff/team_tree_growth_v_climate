@@ -18,35 +18,58 @@ monitored <- c("intercept",
                "sigma_ijk",
                "sigma_jk",
                "sigma_k",
-               "b_k",
                "sigma_t",
-               "b_t",
-               "b_g",
                "mu_b_g",
                "sigma_b_g",
-               "slp_spi_g",
-               "mu_slp_spi_g",
-               "sigma_slp_spi_g",
-               "rho_g")
+               "mu_b_g",
+               "mu_slp_g_spi",
+               "mu_slp_g_WD",
+               "mu_slp_g_dbh",
+               "mu_b_g_prior",
+               "mu_slp_g_spi_prior",
+               "mu_slp_g_WD_prior",
+               "mu_slp_g_dbh_prior",
+               "sigma_b_g",
+               "sigma_slp_g_spi",
+               "sigma_slp_g_WD",
+               "sigma_slp_g_dbh",
+               "rho_int_slp_g_spi",
+               "rho_int_slp_g_WD",
+               "rho_int_slp_g_dbh",
+               "rho_slp_g_spi_slp_g_WD",
+               "rho_slp_g_spi_slp_g_dbh",
+               "rho_slp_g_WD_slp_g_dbh",
+               "sigma_int_prior",
+               "sigma_slp_g_spi_prior",
+               "sigma_slp_g_WD_prior",
+               "sigma_slp_g_dbh_prior",
+               "rho_int_slp_g_spi_prior",
+               "rho_int_slp_g_WD_prior",
+               "rho_int_slp_g_dbh_prior",
+               "rho_slp_g_spi_slp_g_WD_prior",
+               "rho_slp_g_spi_slp_g_dbh_prior",
+               "rho_slp_g_WD_slp_g_dbh_prior")
+
 
 init_data[[1]] <- init_data[[1]][names(init_data[[1]]) %in% c("dbh_latent")]
 
+model_data$W <- diag(4)
 model_data$WD_sq <- model_data$WD^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                      inits=rep(init_data, seq_n_chains), n.chains=seq_n_chains, 
-#                      sample=100)
+#                      inits=rep(list(init_data), seq_n_chains), 
+#                      n.chains=seq_n_chains, adapt=100, burnin=100, sample=100)
 # print("finished running single JAGS chain")
 # save(jags_fit,
 #      file=paste0("jags_fit_",
 #                  format(Sys.time(), "%Y%m%d-%H%M%S"), ".RData"))
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-                       inits=rep(init_data, 4), n.chains=4, method="parallel",
-                       burnin=10000, sample=20000, thin=4)
+                       inits=rep(list(init_data), 4), n.chains=4, method="parallel",
+                       burnin=10000, sample=10000, thin=2)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p,
      file=paste0("jags_fit_parallel_",
