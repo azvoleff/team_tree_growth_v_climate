@@ -19,18 +19,18 @@ monitored <- c("int",
                "sigma_t",
                "mu_int_g",
                "mu_slp_g_spi",
-               "mu_slp_g_WD",
                "mu_slp_g_dbh",
+               "mu_slp_g_dbh_sq",
                "sigma_int_g",
                "sigma_slp_g_spi",
-               "sigma_slp_g_WD",
                "sigma_slp_g_dbh",
+               "sigma_slp_g_dbh_sq",
                "rho_int_g_slp_g_spi",
-               "rho_int_g_slp_g_WD",
                "rho_int_g_slp_g_dbh",
-               "rho_slp_g_spi_slp_g_WD",
+               "rho_int_g_slp_g_dbh_sq",
                "rho_slp_g_spi_slp_g_dbh",
-               "rho_slp_g_WD_slp_g_dbh")
+               "rho_slp_g_spi_slp_g_dbh_sq",
+               "rho_slp_g_dbh_slp_g_dbh_sq")
 
 init_data <- init_data[names(init_data) %in% c("dbh_latent")]
 
