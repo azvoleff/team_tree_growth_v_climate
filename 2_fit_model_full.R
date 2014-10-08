@@ -59,7 +59,7 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 seq_n_chains <- 1
 jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
                      inits=rep(list(init_data), seq_n_chains), 
-                     n.chains=seq_n_chains, adaptation=2000, burnin=5000, 
+                     n.chains=seq_n_chains, adapt=2000, burnin=5000, 
                      sample=5000, thin=2)
 print("finished running single JAGS chain")
 save(jags_fit,
@@ -68,7 +68,7 @@ save(jags_fit,
 
 jags_fit_p <- run.jags(model=model_file, monitor=monitored, data=model_data, 
                        inits=rep(list(init_data), 4), n.chains=4, method="parallel",
-                       adaptation=2000, burnin=10000, sample=5000, thin=2)
+                       adapt=2000, burnin=10000, sample=5000, thin=2)
 print("finished running JAGS chains in parallel")
 save(jags_fit_p,
      file=paste0("jags_fit_parallel_",
