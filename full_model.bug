@@ -3,12 +3,12 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- int +
-                slp_dbh * dbh_latent[i, t - 1] +
-                slp_dbh_sq * pow(dbh_latent[i, t - 1], 2) +
-                slp_WD * WD[i] +
-                slp_WD_sq * WD_sq[i] +
-                slp_spi * spi[i, t] +
+            dbh_predicted[i, t] <- beta[1] +
+                beta[2] * dbh_latent[i, t - 1] +
+                beta[3] * pow(dbh_latent[i, t - 1], 2) +
+                beta[4] * WD[i] +
+                beta[5] * WD_sq[i] +
+                beta[6] * spi[i, t] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
@@ -25,19 +25,25 @@ model {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
         # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-6)
+        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
+
 
     ##########################################################################
     # Fixed effects
-    int ~ dnorm(0, 1.0E-6)
-    slp_dbh ~ dnorm(0, 1.0E-6)
-    slp_dbh_sq ~ dnorm(0, 1.0E-6)
-    slp_WD ~ dnorm(0, 1.0E-6)
-    slp_WD_sq ~ dnorm(0, 1.0E-6)
-    slp_spi ~ dnorm(0, 1.0E-6)
-    inter_spi_dbh ~ dnorm(0, 1.0E-6)
-    inter_spi_WD ~ dnorm(0, 1.0E-6)
+    beta[1] ~ dnorm(0, 1.0E-4)
+    beta[2] ~ dnorm(0, 1.0E-4)
+    beta[3] ~ dnorm(0, 1.0E-4)
+    beta[4] ~ dnorm(0, 1.0E-4)
+    beta[5] ~ dnorm(0, 1.0E-4)
+    beta[6] ~ dnorm(0, 1.0E-4)
+
+    int <- beta[1]
+    slp_dbh <- beta[2]
+    slp_dbh_sq <- beta[3]
+    slp_WD <- beta[4]
+    slp_WD_sq <- beta[5]
+    slp_spi <- beta[6]
 
     prec_obs <- pow(sigma_obs, -2)
     # Base observation sigma on precision of diameter measurements, following 

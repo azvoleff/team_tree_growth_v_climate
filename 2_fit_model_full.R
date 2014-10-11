@@ -1,4 +1,8 @@
 library(runjags)
+library(rjags)
+
+# Allow block-updating using glm module
+load.module("glm")
 
 model_file <- "full_model.bug" 
 
