@@ -2,7 +2,7 @@ library(runjags)
 
 model_file <- "simple_model.bug" 
 
-load("model_data.RData")
+load("model_data_wide.RData")
 load("init_data.RData")
 
 monitored <- c("int",

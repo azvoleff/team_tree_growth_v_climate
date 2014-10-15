@@ -69,41 +69,15 @@ save(dbh_mean, dbh_sd, WD_mean, WD_sd, file="model_data_standardizing.RData")
 genus_ID <- dbh_time_0$genus_ID
 sum(genus_ID == "Unknown") / length(genus_ID)
 
-# Add latent growth inits
-calc_latent_dbh <- function(dbh) {
-    dbh_latent <- rep(NA, length(dbh))
-    dbh_latent[1] <- dbh[1]
-    for (i in 2:length(dbh)) {
-        dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1],
-            dbh[i], dbh_latent[i - 1] + .005)
-    }
-    return(dbh_latent)
-}
-dbh_ts <- arrange(dbh_ts, period_ID) %>%
-    group_by(tree_ID) %>%
-    mutate(dbh_latent=calc_latent_dbh(dbh)) %>%
-    arrange(tree_ID, period_ID)
-
-# Setup wide format dbh and dbh_latent dataframes
+# Setup wide format dbh and spi dataframes
 dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
-dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh_latent")
 spi <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="spi")
 tree_ID <- dbh$tree_ID
 plot_ID <- dbh$plot_ID
 site_ID <- dbh$site_ID
 # Eliminate the ID columns
 dbh <- dbh[!grepl('_ID$', names(dbh))]
-dbh_latent <- dbh_latent[!grepl('_ID$', names(dbh_latent))]
 spi <- spi[!grepl('_ID$', names(spi))]
-
-# Interpolate missing values in dbh_latent
-interp_dbh_obs <- function(x) {
-    first_obs <- min(which(!is.na(x)))
-    last_obs <- max(which(!is.na(x)))
-    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
-    return(x)
-}
-dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
 
 # Setup data
 n_tree <- length(unique(dbh_ts$tree_ID))
@@ -122,6 +96,7 @@ obs_per_tree <- group_by(dbh_ts, tree_ID) %>%
 # Fill these observations using the mean SPI for the appropriate period.
 spi_means <- group_by(growth, plot_ID, period_ID) %>%
     summarize(spi_means=mean(spi_24, na.rm=TRUE))
+spi_means <- data.frame(spi_means) # Fix for indexing bug in dplyr 0.3.2
 spi <- as.matrix(spi)
 spi_missings <- calc_missings(spi)$miss
 # Use linear indexing to replace NAs in SPIs
@@ -140,6 +115,8 @@ stopifnot(length(genus_ID) == n_tree)
 stopifnot(length(plot_ID) == n_tree)
 stopifnot(length(site_ID) == n_tree)
 
+###############################################################################
+# Output wide format data
 model_data <- list(n_tree=n_tree,
                    n_plot=n_plot,
                    n_site=n_site,
@@ -155,14 +132,64 @@ model_data <- list(n_tree=n_tree,
                    spi=spi,
                    obs_indices=missings$obs,
                    miss_indices=missings$miss)
-save(model_data, file="model_data.RData")
+save(model_data, file="model_data_wide.RData")
 
-test_m <- lm(growth$diameter_end ~ growth$diameter_start + I(growth$diameter_start^2) + 
-   growth$WD + I(growth$WD^2) + growth$spi_24 +
-   growth$diameter_start * growth$spi_24 +
-   growth$WD * growth$spi_24)
-#summary(test_m)
+###############################################################################
+# Output long format data
+model_data_long <- data.frame(tree_ID=factor(tree_ID),
+                         plot_ID=factor(plot_ID),
+                         site_ID=factor(site_ID),
+                         genus_ID=factor(genus_ID),
+                         WD=WD)
+merge_data <- data.frame(growth$tree_ID,
+                         growth$growth_rgr,
+                         growth$diameter_start,
+                         growth$diameter_end,
+                         growth$n_days,
+                         growth$SamplingPeriodStart,
+                         growth$SamplingPeriodEnd,
+                         growth$spi_6,
+                         growth$spi_12,
+                         growth$spi_24)
+names(merge_data) <- gsub("growth\\.", "", names(merge_data))
+model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
+save(model_data_long, file="model_data_long.RData")
 
+###############################################################################
 # Setup inits
+
+# test_m <- lm(growth$diameter_end ~ growth$diameter_start + 
+# I(growth$diameter_start^2) + growth$WD + I(growth$WD^2) + growth$spi_24 +
+#    growth$diameter_start * growth$spi_24 +
+#    growth$WD * growth$spi_24)
+# #summary(test_m)
+
+# Add latent growth inits
+calc_latent_dbh <- function(dbh) {
+    dbh_latent <- rep(NA, length(dbh))
+    dbh_latent[1] <- dbh[1]
+    for (i in 2:length(dbh)) {
+        dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1],
+            dbh[i], dbh_latent[i - 1] + .005)
+    }
+    return(dbh_latent)
+}
+dbh_ts <- arrange(dbh_ts, period_ID) %>%
+    group_by(tree_ID) %>%
+    mutate(dbh_latent=calc_latent_dbh(dbh)) %>%
+    arrange(tree_ID, period_ID)
+
+# Setup wide format dbh_latent dataframes
+dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh_latent")
+dbh_latent <- dbh_latent[!grepl('_ID$', names(dbh_latent))]
+# Interpolate missing values in dbh_latent
+interp_dbh_obs <- function(x) {
+    first_obs <- min(which(!is.na(x)))
+    last_obs <- max(which(!is.na(x)))
+    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    return(x)
+}
+dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
+
 init_data <- list(dbh_latent=as.matrix(dbh_latent))
 save(init_data, file="init_data.RData")

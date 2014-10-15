@@ -2,7 +2,7 @@ library(runjags)
 
 model_file <- "full_model_indicator.bug" 
 
-load("model_data.RData")
+load("model_data_wide.RData")
 load("init_data.RData")
 
 monitored <- c("intercept",

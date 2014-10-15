@@ -4,7 +4,7 @@ library(doParallel)
 
 model_file <- "full_model.stan" 
 
-load("model_data.RData")
+load("model_data_wide.RData")
 load("init_data.RData")
 
 model_data$max_obs_per_tree <- ncol(model_data$dbh)
