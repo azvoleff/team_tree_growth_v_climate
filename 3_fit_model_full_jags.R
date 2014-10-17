@@ -26,12 +26,18 @@ monitored <- c("int",
                "sigma_B",
                "rho_B")
 
-model_data$K <- 5
+# n_B is number of fixed effects
+model_data$n_B <- 7
+# n_B_g is number of genus-level random effects
+model_data$n_B_g <- 5
+# W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$K)
 model_data$WD_sq <- model_data$WD^2
 model_data$mcwd_sq <- model_data$mcwd^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
+
+init_data$B <- rep(0, model_data$n_B)
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
@@ -41,14 +47,6 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 # save(jags_fit, file=paste0("full_model_fit_", run_id, ".RData"))
-
-init_data$int <- 0
-init_data$slp_dbh <- 0
-init_data$slp_dbh_sq <- 0
-init_data$slp_WD <- 0
-init_data$slp_WD_sq <- 0
-init_data$slp_mcwd <- 0
-init_data$slp_mcwd_sq <- 0
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 4),

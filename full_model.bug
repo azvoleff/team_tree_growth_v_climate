@@ -3,13 +3,13 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- int +
-                slp_dbh * dbh_latent[i, t - 1] +
-                slp_dbh_sq * pow(dbh_latent[i, t - 1], 2) +
-                slp_WD * WD[i] +
-                slp_WD_sq * WD_sq[i] +
-                slp_mcwd * mcwd[i, t] +
-                slp_mcwd_sq * mcwd_sq[i, t] +
+            dbh_predicted[i, t] <- B[1]+
+                B[2] * mcwd[i, t] +
+                B[3] * mcwd_sq[i, t] +
+                B[4] * dbh_latent[i, t - 1] +
+                B[5] * pow(dbh_latent[i, t - 1], 2) +
+                B[6] * WD[i] +
+                B[7] * WD_sq[i] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
@@ -33,13 +33,16 @@ model {
 
     ##########################################################################
     # Fixed effects
-    int ~ dnorm(0, 1.0E-4)
-    slp_dbh ~ dnorm(0, 1.0E-4)
-    slp_dbh_sq ~ dnorm(0, 1.0E-4)
-    slp_WD ~ dnorm(0, 1.0E-4)
-    slp_WD_sq ~ dnorm(0, 1.0E-4)
-    slp_mcwd ~ dnorm(0, 1.0E-4)
-    slp_mcwd_sq ~ dnorm(0, 1.0E-4)
+    for (k in 1:n_B) {
+        B[k] ~ dnorm(0, 1.0E-4)
+    }
+    int ~ B[1]
+    slp_mcwd ~ B[2]
+    slp_mcwd_sq ~ B[3]
+    slp_dbh ~ B[4]
+    slp_dbh_sq ~ B[5]
+    slp_WD ~ B[6]
+    slp_WD_sq ~ B[7]
 
     prec_obs <- pow(sigma_obs, -2)
     # Base observation sigma on precision of diameter measurements, following 
@@ -83,24 +86,24 @@ model {
     # Hill pg. 377-378.
  
     for (g in 1:n_genus) {
-        for (k in 1:k) {
+        for (k in 1:n_B_g) {
             B_g[g, k] <- xi[k]*B_raw[g, k]
         }
-        B_raw[g, 1:K] ~ dmnorm(mu_raw[], Tau_B_raw[ , ])
+        B_raw[g, 1:n_B_g] ~ dmnorm(mu_raw[], Tau_B_raw[ , ])
     }
 
     # Set up the means for the multivariate ranef distribution
-    for (k in 1:K) {
+    for (k in 1:n_B_g) {
         xi[k] ~ dunif(0, 100)
         mu_raw[k] ~ dnorm(0, 1.0E-4)
         mu[k] <- xi[k] * mu_raw[k]
     }
 
-    Tau_B_raw[1:K, 1:K] ~ dwish(W[ , ], df)
-    df <- K + 1
-    Sigma_B_raw[1:K, 1:K] <- inverse(Tau_B_raw[,])
-    for (k in 1:K) {
-        for (k_prime in 1:K) {
+    Tau_B_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
+    df <- n_B_g + 1
+    Sigma_B_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_raw[,])
+    for (k in 1:n_B_g) {
+        for (k_prime in 1:n_B_g) {
             rho_B[k, k_prime] <- Sigma_B_raw[k, k_prime]/sqrt(Sigma_B_raw[k, k] * Sigma_B_raw[k_prime, k_prime])
         }
         sigma_B[k] <- abs(xi[k]) * sqrt(Sigma_B_raw[k, k])
