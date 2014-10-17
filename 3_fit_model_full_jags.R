@@ -21,25 +21,16 @@ monitored <- c("int",
                "sigma_int_jk",
                "sigma_int_k",
                "sigma_int_t",
-               "mu_int_g",
-               "mu_slp_g_mcwd",
-               "mu_slp_g_dbh",
-               "mu_slp_g_dbh_sq",
-               "sigma_int_g",
-               "sigma_slp_g_mcwd",
-               "sigma_slp_g_dbh",
-               "sigma_slp_g_dbh_sq",
-               "rho_int_g_slp_g_mcwd",
-               "rho_int_g_slp_g_dbh",
-               "rho_int_g_slp_g_dbh_sq",
-               "rho_slp_g_mcwd_slp_g_dbh",
-               "rho_slp_g_mcwd_slp_g_dbh_sq",
-               "rho_slp_g_dbh_slp_g_dbh_sq")
+               "mu",
+               "sigma_B",
+               "rho_B")
 
 init_data <- init_data[names(init_data) %in% c("dbh_latent")]
 
-model_data$W <- diag(4)
+model_data$K <- 5
+model_data$W <- diag(model_data$K)
 model_data$WD_sq <- model_data$WD^2
+model_data$mcwd_sq <- model_data$mcwd^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 

@@ -181,18 +181,14 @@ model_data_long <- data.frame(tree_ID=factor(tree_ID),
                               site_ID=factor(site_ID),
                               genus_ID=factor(genus_ID),
                               WD=WD)
-merge_data <- data.frame(growth$tree_ID,
-                         growth$growth_rgr,
-                         growth$diameter_start,
-                         growth$diameter_end,
-                         growth$n_days,
-                         growth$SamplingPeriodStart,
-                         growth$SamplingPeriodEnd,
-                         growth$spi_6,
-                         growth$spi_12,
-                         growth$spi_24,
-                         growth$mcwd_run12)
-names(merge_data) <- gsub("growth\\.", "", names(merge_data))
+# Standardize the diameter variables and mcwd variable the same way they are 
+# standardized in the wide dataset
+merge_data <- data.frame(tree_ID=growth$tree_ID,
+                         growth_rgr=growth$growth_rgr,
+                         diameter_start=(growth$diameter_start - dbh_mean) / dbh_sd,
+                         diameter_end=(growth$diameter_end - dbh_mean) / dbh_sd,
+                         n_days=growth$n_days,
+                         mcwd=(growth$mcwd_run12 - mcwd_mean) / mcwd_sd)
 model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
 save(model_data_long, file="model_data_long.RData")
 
