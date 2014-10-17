@@ -48,12 +48,13 @@ test_model  <- lm(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
                    WD + I(WD^2)+ 
                    mcwd + I(mcwd^2), data=calib_data)
 
-calib_model  <- lmer(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
-                     WD + I(WD^2)+ 
-                     mcwd + I(mcwd^2) +
-                     (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                     (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
-#                     control=lmerControl(optCtrl=list(maxfun=20000)))
+load("calib_model.RData")
+# calib_model  <- lmer(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
+#                      WD + I(WD^2)+ 
+#                      mcwd + I(mcwd^2) +
+#                      (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+#                      (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
+# #                     control=lmerControl(optCtrl=list(maxfun=20000)))
 save(calib_model, file="calib_model.RData")
 
 relgrad <- with(calib_model@optinfo$derivs, solve(Hessian,gradient))

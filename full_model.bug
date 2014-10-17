@@ -92,7 +92,7 @@ model {
     # Set up the means for the multivariate ranef distribution
     for (k in 1:K) {
         xi[k] ~ dunif(0, 100)
-        mu_raw[k] ~ dnorm(0, .0001)
+        mu_raw[k] ~ dnorm(0, 1.0E-4)
         mu[k] <- xi[k] * mu_raw[k]
     }
 
