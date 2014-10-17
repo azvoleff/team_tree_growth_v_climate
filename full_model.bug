@@ -3,17 +3,17 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- beta[1] +
-                beta[2] * dbh_latent[i, t - 1] +
-                beta[3] * pow(dbh_latent[i, t - 1], 2) +
-                beta[4] * WD[i] +
-                beta[5] * WD_sq[i] +
-                beta[6] * spi[i, t] +
+            dbh_predicted[i, t] <- int +
+                slp_dbh * dbh_latent[i, t - 1] +
+                slp_dbh_sq * pow(dbh_latent[i, t - 1], 2) +
+                slp_WD * WD[i] +
+                slp_WD_sq * WD_sq[i] +
+                slp_mcwd * mcwd[i, t] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
                 int_g[genus_ID[i]] +
-                slp_g_spi[genus_ID[i]] * spi[i, t] +
+                slp_g_mcwd[genus_ID[i]] * mcwd[i, t] +
                 slp_g_dbh[genus_ID[i]] * dbh_latent[i, t - 1] +
                 slp_g_dbh_sq[genus_ID[i]] * pow(dbh_latent[i, t - 1], 2) +
                 int_t[t]
@@ -31,19 +31,12 @@ model {
 
     ##########################################################################
     # Fixed effects
-    beta[1] ~ dnorm(0, 1.0E-4)
-    beta[2] ~ dnorm(0, 1.0E-4)
-    beta[3] ~ dnorm(0, 1.0E-4)
-    beta[4] ~ dnorm(0, 1.0E-4)
-    beta[5] ~ dnorm(0, 1.0E-4)
-    beta[6] ~ dnorm(0, 1.0E-4)
-
-    int <- beta[1]
-    slp_dbh <- beta[2]
-    slp_dbh_sq <- beta[3]
-    slp_WD <- beta[4]
-    slp_WD_sq <- beta[5]
-    slp_spi <- beta[6]
+    int ~ dnorm(0, 1.0E-4)
+    slp_dbh ~ dnorm(0, 1.0E-4)
+    slp_dbh_sq ~ dnorm(0, 1.0E-4)
+    slp_WD ~ dnorm(0, 1.0E-4)
+    slp_WD_sq ~ dnorm(0, 1.0E-4)
+    slp_mcwd ~ dnorm(0, 1.0E-4)
 
     prec_obs <- pow(sigma_obs, -2)
     # Base observation sigma on precision of diameter measurements, following 
@@ -84,7 +77,7 @@ model {
 
     # Genus level
     #
-    #   Model int_spi, slp_g_dbh_sq, and slp_g_dbh as correlated random effects.
+    #   Model int_mcwd, slp_g_dbh_sq, and slp_g_dbh as correlated random effects.
  
     # Set up the means for the multivariate ranef distribution
     for (i in 1:4) {
@@ -93,7 +86,7 @@ model {
         mu[i] <- xi[i] * mu_raw[i]
     }
     mu_int_g <- mu[1]
-    mu_slp_g_spi <- mu[2]
+    mu_slp_g_mcwd <- mu[2]
     mu_slp_g_dbh <- mu[3]
     mu_slp_g_dbh_sq <- mu[4]
 
@@ -103,20 +96,21 @@ model {
         sigma[i] <- xi[i] * sqrt(Sigma_B_raw[i, i])
     }
     sigma_int_g <- sigma[1]
-    sigma_slp_g_spi <- sigma[2]
+    sigma_slp_g_mcwd <- sigma[2]
     sigma_slp_g_dbh <- sigma[3]
     sigma_slp_g_dbh_sq <- sigma[4]
 
+    # Calculate correlations
     for (i in 1:4) {
         for (j in 1:4) {
             rho[i, j] <- Sigma_B_raw[i, j]/sqrt(Sigma_B_raw[i, i]*Sigma_B_raw[j, j])
         }
     }
-    rho_int_g_slp_g_spi <- rho[1, 2]
+    rho_int_g_slp_g_mcwd <- rho[1, 2]
     rho_int_g_slp_g_dbh <- rho[1, 3]
     rho_int_g_slp_g_dbh_sq <- rho[1, 4]
-    rho_slp_g_spi_slp_g_dbh <- rho[2, 3]
-    rho_slp_g_spi_slp_g_dbh_sq <- rho[2, 4]
+    rho_slp_g_mcwd_slp_g_dbh <- rho[2, 3]
+    rho_slp_g_mcwd_slp_g_dbh_sq <- rho[2, 4]
     rho_slp_g_dbh_slp_g_dbh_sq <- rho[3, 4]
 
     for (g in 1:n_genus) {
@@ -126,7 +120,7 @@ model {
         B_raw_hat[g, 4] <- mu_raw[4]
         B_raw[g, 1:4] ~ dmnorm(B_raw_hat[g, ], Tau_B_raw[, ])
         int_g[g] <- xi[1]*B_raw[g, 1]
-        slp_g_spi[g] <- xi[2]*B_raw[g, 2]
+        slp_g_mcwd[g] <- xi[2]*B_raw[g, 2]
         slp_g_dbh[g] <- xi[3]*B_raw[g, 3]
         slp_g_dbh_sq[g] <- xi[4]*B_raw[g, 4]
     }

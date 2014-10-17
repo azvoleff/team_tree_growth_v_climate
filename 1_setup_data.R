@@ -16,6 +16,9 @@ growth <- filter(growth, !is.na(WD))
 # table(growth$ctfs_accept)
 growth <- filter(growth, ctfs_accept)
 
+# Exclude Pasoh until Pasoh plot coordinates are confirmed
+growth <- filter(growth, !(sitecode %in% c("PSH")))
+
 ###############################################################################
 ### TESTING ONLY
 # growth <- filter(growth, sitecode %in% c("VB", "CAX"))
@@ -34,34 +37,49 @@ growth$site_ID <- factor(growth$sitecode)
 growth$genus_ID <- factor(growth$Genus)
 growth$period_ID <- as.integer(ordered(growth$SamplingPeriodEnd))
 
+# Define maximum cumulative water deficit as a positive number to make 
+# interpretation easier
+growth$cwd <- abs(growth$cwd)
+growth$mcwd12 <- abs(growth$mcwd12)
+growth$cwd_run12 <- abs(growth$cwd_run12)
+growth$mcwd_run12 <- abs(growth$mcwd_run12)
+
 # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
 # first growth measurement can only be calculated from time 1 to time 2)
 dbh_ts <- arrange(growth, tree_ID, period_ID) %>%
-    select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, WD, 
-           dbh=diameter_end)
+    select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
+           mcwd=mcwd_run12, WD, dbh=diameter_end)
 
 # Setup an array of initial diameters for all the trees, by taking the dbh_st 
 # value from the first period with an available observation
 dbh_time_0 <- arrange(growth, tree_ID, period_ID) %>%
     group_by(tree_ID) %>%
     filter(period_ID==min(period_ID)) %>%
-    select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, WD, 
-           dbh=diameter_start)
+    select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
+           mcwd=mcwd_run12, WD, dbh=diameter_start)
 dbh_time_0$spi <- NA
+dbh_time_0$mcwd <- NA
 dbh_time_0$period_ID <- dbh_time_0$period_ID - 1
 
 dbh_ts <- rbind(dbh_ts, dbh_time_0)
 dbh_ts <- arrange(dbh_ts, tree_ID, period_ID)
 
+#dbh_ts$mcwd <- log(1 + dbh_ts$mcwd)
+
 # Standardize outcome and predictors.
 dbh_mean <- mean(dbh_ts$dbh)
 dbh_sd <- sd(dbh_ts$dbh)
 dbh_ts$dbh <- (dbh_ts$dbh - dbh_mean) / dbh_sd
+mcwd_mean <- mean(dbh_ts$mcwd, na.rm=TRUE)
+mcwd_sd <- sd(dbh_ts$mcwd, na.rm=TRUE)
+dbh_ts$mcwd <- (dbh_ts$mcwd - mcwd_mean) / mcwd_sd
 WD_mean <- mean(dbh_ts$WD)
 WD_sd <- sd(dbh_ts$WD)
 WD <- (dbh_time_0$WD - WD_mean) / WD_sd
+
 # Save sd and means so the variables can be unstandardized later
-save(dbh_mean, dbh_sd, WD_mean, WD_sd, file="model_data_standardizing.RData")
+save(dbh_mean, dbh_sd, WD_mean, WD_sd, mcwd_mean, mcwd_sd, 
+     file="model_data_standardizing.RData")
 
 # Calculate precision of diameter tape (1 mm) in standardized units:
 .1 / dbh_sd
@@ -72,12 +90,14 @@ sum(genus_ID == "Unknown") / length(genus_ID)
 # Setup wide format dbh and spi dataframes
 dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
 spi <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="spi")
+mcwd <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="mcwd")
 tree_ID <- dbh$tree_ID
 plot_ID <- dbh$plot_ID
 site_ID <- dbh$site_ID
 # Eliminate the ID columns
 dbh <- dbh[!grepl('_ID$', names(dbh))]
 spi <- spi[!grepl('_ID$', names(spi))]
+mcwd <- mcwd[!grepl('_ID$', names(mcwd))]
 
 # Setup data
 n_tree <- length(unique(dbh_ts$tree_ID))
@@ -91,6 +111,25 @@ n_genus <- length(unique(dbh_ts$genus_ID))
 obs_per_tree <- group_by(dbh_ts, tree_ID) %>%
     summarize(first_obs_period=(min(period_ID) + 1),
               last_obs_period=(max(period_ID) + 1))
+
+# mcwd observations are missing for periods when dbh observations are missing.  
+# Fill these observations using the mean mcwd for the appropriate period.
+#
+# Note that the same centering and scaling needs to be done here (and log) that 
+# was done for the other mcwd data.
+# mcwd_means <- group_by(growth, plot_ID, period_ID) %>%
+#     summarize(mcwd_means=mean((log(1 + mcwd_run12) - mcwd_mean) / mcwd_sd, 
+#     na.rm=TRUE))
+mcwd_means <- group_by(growth, plot_ID, period_ID) %>%
+     summarize(mcwd_means=mean((mcwd_run12 - mcwd_mean) / mcwd_sd, na.rm=TRUE))
+mcwd_means <- data.frame(mcwd_means) # Fix for indexing bug in dplyr 0.3.2
+mcwd <- as.matrix(mcwd)
+mcwd_missings <- calc_missings(mcwd)$miss
+# Use linear indexing to replace NAs in mcwds
+mcwd_miss_linear_ind <- (mcwd_missings[, 2] - 1) * nrow(mcwd) + mcwd_missings[, 1] # From http://bit.ly/1rnKrC3
+mcwd[mcwd_miss_linear_ind] <- mcwd_means[match(paste(plot_ID[mcwd_missings[, 1]], mcwd_missings[, 2]),
+                                            paste(mcwd_means$plot_ID, mcwd_means$period_ID)), 3]
+stopifnot(is.null(calc_missings(mcwd)$miss))
 
 # SPI observations are missing for periods when dbh observations are missing.  
 # Fill these observations using the mean SPI for the appropriate period.
@@ -130,6 +169,7 @@ model_data <- list(n_tree=n_tree,
                    dbh=as.matrix(dbh),
                    WD=WD,
                    spi=spi,
+                   mcwd=mcwd,
                    obs_indices=missings$obs,
                    miss_indices=missings$miss)
 save(model_data, file="model_data_wide.RData")
@@ -137,10 +177,10 @@ save(model_data, file="model_data_wide.RData")
 ###############################################################################
 # Output long format data
 model_data_long <- data.frame(tree_ID=factor(tree_ID),
-                         plot_ID=factor(plot_ID),
-                         site_ID=factor(site_ID),
-                         genus_ID=factor(genus_ID),
-                         WD=WD)
+                              plot_ID=factor(plot_ID),
+                              site_ID=factor(site_ID),
+                              genus_ID=factor(genus_ID),
+                              WD=WD)
 merge_data <- data.frame(growth$tree_ID,
                          growth$growth_rgr,
                          growth$diameter_start,
@@ -150,7 +190,8 @@ merge_data <- data.frame(growth$tree_ID,
                          growth$SamplingPeriodEnd,
                          growth$spi_6,
                          growth$spi_12,
-                         growth$spi_24)
+                         growth$spi_24,
+                         growth$mcwd_run12)
 names(merge_data) <- gsub("growth\\.", "", names(merge_data))
 model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
 save(model_data_long, file="model_data_long.RData")
@@ -164,32 +205,23 @@ save(model_data_long, file="model_data_long.RData")
 #    growth$WD * growth$spi_24)
 # #summary(test_m)
 
-# Add latent growth inits
-calc_latent_dbh <- function(dbh) {
-    dbh_latent <- rep(NA, length(dbh))
-    dbh_latent[1] <- dbh[1]
-    for (i in 2:length(dbh)) {
-        dbh_latent[i] <- ifelse(dbh[i] > dbh_latent[i - 1],
-            dbh[i], dbh_latent[i - 1] + .005)
-    }
-    return(dbh_latent)
-}
-dbh_ts <- arrange(dbh_ts, period_ID) %>%
-    group_by(tree_ID) %>%
-    mutate(dbh_latent=calc_latent_dbh(dbh)) %>%
-    arrange(tree_ID, period_ID)
-
 # Setup wide format dbh_latent dataframes
-dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh_latent")
+dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
 dbh_latent <- dbh_latent[!grepl('_ID$', names(dbh_latent))]
-# Interpolate missing values in dbh_latent
-interp_dbh_obs <- function(x) {
+# Smooth dbh observations with spline to calculate latent dbh
+smooth_dbh_obs <- function(x) {
     first_obs <- min(which(!is.na(x)))
     last_obs <- max(which(!is.na(x)))
-    x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    if (sum(!is.na(x)) >= 4) {
+        spline_smoother <- smooth.spline(x=c(1:length(x))[!is.na(x)], y=x[!is.na(x)])
+        preds <- predict(spline_smoother, c(1:length(x)))$y
+        x[first_obs:last_obs] <- preds[first_obs:last_obs]
+    } else {
+        x[first_obs:last_obs] <- na.approx(as.numeric(x[first_obs:last_obs]))
+    }
     return(x)
 }
-dbh_latent <- t(apply(dbh_latent, 1, interp_dbh_obs))
+dbh_latent <- t(apply(dbh_latent, 1, smooth_dbh_obs))
 
 init_data <- list(dbh_latent=as.matrix(dbh_latent))
 save(init_data, file="init_data.RData")

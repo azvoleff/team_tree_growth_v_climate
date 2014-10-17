@@ -14,7 +14,7 @@ monitored <- c("int",
                "slp_dbh_sq",
                "slp_WD",
                "slp_WD_sq",
-               "slp_spi",
+               "slp_mcwd",
                "sigma_obs",
                "sigma_proc",
                "sigma_int_ijk",
@@ -22,18 +22,18 @@ monitored <- c("int",
                "sigma_int_k",
                "sigma_int_t",
                "mu_int_g",
-               "mu_slp_g_spi",
+               "mu_slp_g_mcwd",
                "mu_slp_g_dbh",
                "mu_slp_g_dbh_sq",
                "sigma_int_g",
-               "sigma_slp_g_spi",
+               "sigma_slp_g_mcwd",
                "sigma_slp_g_dbh",
                "sigma_slp_g_dbh_sq",
-               "rho_int_g_slp_g_spi",
+               "rho_int_g_slp_g_mcwd",
                "rho_int_g_slp_g_dbh",
                "rho_int_g_slp_g_dbh_sq",
-               "rho_slp_g_spi_slp_g_dbh",
-               "rho_slp_g_spi_slp_g_dbh_sq",
+               "rho_slp_g_mcwd_slp_g_dbh",
+               "rho_slp_g_mcwd_slp_g_dbh_sq",
                "rho_slp_g_dbh_slp_g_dbh_sq")
 
 init_data <- init_data[names(init_data) %in% c("dbh_latent")]
@@ -57,7 +57,7 @@ init_data$slp_dbh <- 0
 init_data$slp_dbh_sq <- 0
 init_data$slp_WD <- 0
 init_data$slp_WD_sq <- 0
-init_data$slp_spi <- 0
+init_data$slp_mcwd <- 0
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 4),
