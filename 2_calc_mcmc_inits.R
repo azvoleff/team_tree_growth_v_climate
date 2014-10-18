@@ -1,20 +1,10 @@
 library(dplyr)
 library(reshape2)
-library(ggplot2)
 library(lme4)
 
 load("init_data.RData")
 load("model_data_wide.RData")
 load("model_data_long.RData")
-
-#sitecode_key <- read.csv('H:/Data/TEAM/Sitecode_Key/sitecode_key.csv')
-sitecode_key <- read.csv('C:/Users/azvoleff/Desktop/Sitecode_Key/sitecode_key.csv')
-sitecode_key <- select(sitecode_key, sitecode, sitetype, continent)
-model_data_long <- merge(model_data_long, sitecode_key, by.x="site_ID", by.y="sitecode")
-
-img_height <- 4
-img_width <- 3
-img_dpi <- 300
 
 mcwd_long <- melt(model_data$mcwd, varnames=c("tree_ID", "period_ID"), 
                   value.name="mcwd")
