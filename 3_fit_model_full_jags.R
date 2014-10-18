@@ -38,6 +38,8 @@ model_data$mcwd_sq <- model_data$mcwd^2
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
 init_data$B <- rep(0, model_data$n_B)
+init_data$xi <- rep(1, model_data$n_B_g)
+init_data$mu_raw <- rep(0, model_data$n_B_g)
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
