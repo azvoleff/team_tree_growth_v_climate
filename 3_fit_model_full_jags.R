@@ -31,7 +31,7 @@ model_data$n_B <- 7
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 5
 # W is prior scale for the inverse-Wishart
-model_data$W <- diag(model_data$K)
+model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
 model_data$mcwd_sq <- model_data$mcwd^2
 # Drop missing data indicators (not needed for JAGS)
