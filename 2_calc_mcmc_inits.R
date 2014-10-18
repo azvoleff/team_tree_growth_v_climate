@@ -92,6 +92,6 @@ genus_varcorr <- VarCorr(calib_model)$genus_ID
 # Drop the attributes
 genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
 # JAGS models the inverse variance-covariance matrix (Tau)
-init_data$Tau_B_raw <- genus_varcorr^-1
+init_data$Tau_B_g_raw <- genus_varcorr^-1
 
 save(init_data, file="init_data_with_ranefs.RData")

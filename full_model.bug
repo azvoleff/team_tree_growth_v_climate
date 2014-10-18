@@ -86,25 +86,25 @@ model {
  
     for (g in 1:n_genus) {
         for (k in 1:n_B_g) {
-            B_g[g, k] <- xi[k] * B_raw[g, k]
+            B_g[g, k] <- xi[k] * B_g_raw[g, k]
         }
-        B_raw[g, 1:n_B_g] ~ dmnorm(mu_raw[], Tau_B_raw[ , ])
+        B_g_raw[g, 1:n_B_g] ~ dmnorm(mu_B_g_raw[], Tau_B_g_raw[ , ])
     }
 
     # Set up the means for the multivariate ranef distribution
     for (k in 1:n_B_g) {
         xi[k] ~ dunif(0, 100)
-        mu_raw[k] ~ dnorm(0, 1.0E-4)
-        mu[k] <- xi[k] * mu_raw[k]
+        mu_B_g_raw[k] ~ dnorm(0, 1.0E-4)
+        mu_B_g[k] <- xi[k] * mu_B_g_raw[k]
     }
 
-    Tau_B_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
+    Tau_B_g_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
     df <- n_B_g + 1
-    Sigma_B_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_raw[,])
+    Sigma_B_g_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_g_raw[,])
     for (k in 1:n_B_g) {
         for (k_prime in 1:n_B_g) {
-            rho_B[k, k_prime] <- Sigma_B_raw[k, k_prime]/sqrt(Sigma_B_raw[k, k] * Sigma_B_raw[k_prime, k_prime])
+            rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime]/sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime])
         }
-        sigma_B[k] <- abs(xi[k]) * sqrt(Sigma_B_raw[k, k])
+        sigma_B_g[k] <- abs(xi[k]) * sqrt(Sigma_B_g_raw[k, k])
     }
 }
