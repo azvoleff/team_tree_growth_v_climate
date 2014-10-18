@@ -26,7 +26,7 @@ model {
         for (t in (first_obs_period[i]):last_obs_period[i]) {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
-        # Specially handle first latent dbh (following Eitzen, 2013):
+        # Specially handle first latent dbh (following Eitzel, 2013)
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
 
@@ -36,17 +36,16 @@ model {
     for (k in 1:n_B) {
         B[k] ~ dnorm(0, 1.0E-4)
     }
-    int ~ B[1]
-    slp_mcwd ~ B[2]
-    slp_mcwd_sq ~ B[3]
-    slp_dbh ~ B[4]
-    slp_dbh_sq ~ B[5]
-    slp_WD ~ B[6]
-    slp_WD_sq ~ B[7]
+    int <- B[1]
+    slp_mcwd <- B[2]
+    slp_mcwd_sq <- B[3]
+    slp_dbh <- B[4]
+    slp_dbh_sq <- B[5]
+    slp_WD <- B[6]
+    slp_WD_sq <- B[7]
 
     prec_obs <- pow(sigma_obs, -2)
-    # Base observation sigma on precision of diameter measurements, following 
-    # Eitzel 2013
+    # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
     sigma_obs ~ dunif(0.007034428, 100)
 
     prec_proc <- pow(sigma_proc, -2)
@@ -87,7 +86,7 @@ model {
  
     for (g in 1:n_genus) {
         for (k in 1:n_B_g) {
-            B_g[g, k] <- xi[k]*B_raw[g, k]
+            B_g[g, k] <- xi[k] * B_raw[g, k]
         }
         B_raw[g, 1:n_B_g] ~ dmnorm(mu_raw[], Tau_B_raw[ , ])
     }
