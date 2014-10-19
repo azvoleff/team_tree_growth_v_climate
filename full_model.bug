@@ -13,7 +13,7 @@ model {
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
-                int_t[t] +
+                int_t[t - 1] +
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * mcwd[i, t] +
                 B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
