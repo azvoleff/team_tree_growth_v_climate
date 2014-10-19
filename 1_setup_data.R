@@ -103,7 +103,9 @@ mcwd <- mcwd[!grepl('_ID$', names(mcwd))]
 n_tree <- length(unique(dbh_ts$tree_ID))
 n_site <- length(unique(dbh_ts$site_ID))
 n_plot <- length(unique(dbh_ts$plot_ID))
-n_period <- length(unique(dbh_ts$period_ID))
+# One less period than there are max number of observations (since n_period
+# relates to number of growth measurements).
+n_period <- length(unique(dbh_ts$period_ID)) - 1
 n_genus <- length(unique(dbh_ts$genus_ID))
 
 # Calculate the first and last observation for each tree. The +1's below are 
