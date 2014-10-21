@@ -1,7 +1,8 @@
 library(runjags)
 library(coda)
 
-load("full_model_fit_CC-4B-51-8F-CD_20141019-205136.RData")
+#load("full_model_fit_CC-4B-51-8F-CD_20141019-205136.RData")
+load("full_model_fit_parallel_vertica1.team.sdsc.edu_20141021-014706.RData")
 
 fixefs <- as.mcmc.list(jags_fit, c("^int", "slp_"))
 save(fixefs, file="jags_fit_full_model_fixefs.RData")
@@ -15,7 +16,7 @@ ranefs_g_rho <- as.mcmc.list(jags_fit, c("rho_B_g"))
 save(ranefs_g_rho, file="jags_fit_full_model_ranefs_g_rho.RData")
 plot(ranefs_g_rho, ask=TRUE)
 
-ranefs <- as.mcmc.list(jags_fit, c("sigma_int"))
+ranefs <- as.mcmc.list(jags_fit, c("sigma_obs", "sigma_proc", "sigma_int"))
 save(ranefs , file="jags_fit_full_model_ranefs.RData")
 plot(ranefs, ask=TRUE)
 
