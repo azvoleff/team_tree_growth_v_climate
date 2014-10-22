@@ -3,6 +3,7 @@ library(coda)
 
 #load("full_model_fit_CC-4B-51-8F-CD_20141019-205136.RData")
 load("full_model_fit_parallel_vertica1.team.sdsc.edu_20141021-014706.RData")
+load("full_model_fit_parallel_vertica1.team.sdsc.edu_20141022-jags_extended.RData")
 
 fixefs <- as.mcmc.list(jags_fit, c("^int", "slp_"))
 save(fixefs, file="jags_fit_full_model_fixefs.RData")
