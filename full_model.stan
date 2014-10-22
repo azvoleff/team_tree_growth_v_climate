@@ -54,6 +54,7 @@ transformed parameters {
     vector[n_period] int_t;
     real<lower=0> df;
 
+    // Handle missing data
     for (n in 1:n_miss) {
         dbh[miss_indices_tree[n], miss_indices_period[n]] <- dbh_miss[n];
     }
@@ -80,17 +81,17 @@ model {
     vector[n_B_g] mu_B_g;
     vector[n_B_g] sigma_B_g;
 
-    ##########################################################################
-    # Fixed effects
+    //########################################################################
+    // Fixed effects
     B ~ normal(0, 10);
 
-    ##########################################################################
-    # Observation and process error
+    //########################################################################
+    // Observation and process error
     sigma_obs ~ cauchy(0, 10);
     sigma_proc ~ cauchy(0, 10);
 
-    ##########################################################################
-    # Nested random effects
+    //########################################################################
+    // Nested random effects
     int_ijk_std ~ normal(0, 1); // Matt trick
     sigma_int_ijk ~ cauchy(0, 10);
 
@@ -100,14 +101,14 @@ model {
     sigma_int_k ~ cauchy(0, 10);
     int_k_std ~ normal(0, 1); // Matt trick
 
-    ##########################################################################
+    //########################################################################
     # Period random effects (crossed)
     int_t_std ~ normal(0, 1); // Matt trick
     sigma_int_t ~ cauchy(0, 10);
 
-    ##########################################################################
-    # Correlated random effects at genus level (crossed). Based on Gelman and 
-    # Hill pg. 377-378, and http://bit.ly/1pADacO
+    //########################################################################
+    // Correlated random effects at genus level (crossed). Based on Gelman and 
+    // Hill pg. 377-378, and http://bit.ly/1pADacO
     mu_B_g_raw ~ normal(0, 100);
     xi ~ uniform(0, 100);
 
@@ -131,12 +132,12 @@ model {
         sigma_B_g[k] <- fabs(xi[k]) * sqrt(Sigma_B_g_raw[k,k]);
     }
 
-    ##########################################################################
-    # Model missing data. Need to do this explicitly in Stan
+    //########################################################################
+    // Model missing data. Need to do this explicitly in Stan
     dbh_miss ~ normal(0, 10);
 
-    ##########################################################################
-    # Main likelihood
+    //########################################################################
+    // Main likelihood
     for (i in 1:n_tree) {
         //print("Starting tree ", i);
         # Specially handle first latent dbh (following Eitzen, 2013):

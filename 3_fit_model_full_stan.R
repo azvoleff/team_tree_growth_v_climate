@@ -43,10 +43,10 @@ init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
 model_data$mcwd[is.na(model_data$mcwd)] <- 0
 model_data$mcwd_sq[is.na(model_data$mcwd_sq)] <- 0
 
-#init_data$xi <- rep(1, model_data$n_B_g)
-#init_data$mu_B_g_raw <- rep(0, model_data$n_B_g)
-init_data$mu_B_g_raw <- rnorm(model_data$n_B_g, 0, 1)
-init_data$xi <- rnorm(model_data$n_B_g, 0, 1)
+init_data$xi <- rep(1, model_data$n_B_g)
+init_data$mu_B_g_raw <- rep(0, model_data$n_B_g)
+# init_data$mu_B_g_raw <- rnorm(model_data$n_B_g, 0, 1)
+# init_data$xi <- rnorm(model_data$n_B_g, 0, 1)
 init_data$B_g_raw_temp <- rnorm(model_data$n_B_g, 0, 1)
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
@@ -57,7 +57,7 @@ init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
-init_data <- init_data[names(init_data) != "B_g_raw"]
+#init_data <- init_data[names(init_data) != "B_g_raw"]
 #init_data <- init_data[names(init_data) != "Tau_B_g_raw"]
 
 get_inits <- function() {
@@ -75,10 +75,10 @@ get_inits <- function() {
 
 seed <- 1638
 
-# stan_fit <- stan(model_file, data=model_data, iter=2000, chains=4, 
-#                  inits=get_inits)
-# print("finished running test stan model")
-# save(stan_fit, file="stan_fit_full.RData")
+stan_fit <- stan(model_file, data=model_data, iter=20, chains=2, 
+                 inits=get_inits)
+print("finished running test stan model")
+save(stan_fit, file="stan_fit_full.RData")
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -86,7 +86,6 @@ seed <- 1638
 stan_fit_initial <- stan(model_file, data=model_data, chains=0, init=get_inits)
 print("finished setting up stan model")
 
-id_string <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 n_chains <- 3
 n_cpu <- n_chains
 n_iter <- 2000
@@ -95,9 +94,9 @@ registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
-    sink(paste0("stan_", id_string, "_chain", n, ".txt"), append=TRUE)
+    sink(paste0("stan_", run_id, "_chain", n, ".txt"), append=TRUE)
     stanfit <- stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
-         iter=n_iter, chain_id=n, init=get_inits)
+                    iter=n_iter, chain_id=n, init=get_inits)
     save(stanfit, file=paste0("full_model_fit_parallel_stan_chain_", n, "_", 
                               run_id, ".RData"))
     sink()
@@ -107,4 +106,4 @@ print("finished running stan models on cluster")
 stopCluster(cl)
 
 stan_fit <- sflist2stanfit(sflist)
-save(stan_fit, file=paste0("full_model_fit_parallel_stan_", run_id, ".RData"))
+save(stan_fit, file=paste0("stan_", run_id, "_fullfit.RData"))
