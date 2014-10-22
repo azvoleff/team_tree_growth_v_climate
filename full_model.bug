@@ -26,6 +26,7 @@ model {
         for (t in (first_obs_period[i]):last_obs_period[i]) {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
+
         # Specially handle first latent dbh (following Eitzel, 2013)
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
@@ -44,6 +45,8 @@ model {
     slp_WD <- B[6]
     slp_WD_sq <- B[7]
 
+    ##########################################################################
+    # Observation and process error
     prec_obs <- pow(sigma_obs, -2)
     # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
     sigma_obs ~ dunif(0.007034428, 100)
