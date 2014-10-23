@@ -43,22 +43,64 @@ init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
 model_data$mcwd[is.na(model_data$mcwd)] <- 0
 model_data$mcwd_sq[is.na(model_data$mcwd_sq)] <- 0
 
-init_data$xi <- rep(1, model_data$n_B_g)
-init_data$mu_B_g_raw <- rep(0, model_data$n_B_g)
-# init_data$mu_B_g_raw <- rnorm(model_data$n_B_g, 0, 1)
-# init_data$xi <- rnorm(model_data$n_B_g, 0, 1)
-init_data$B_g_raw_temp <- rnorm(model_data$n_B_g, 0, 1)
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
 init_data$int_k_std <- init_data$int_k / init_data$sigma_int_k
 init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
 
+# Compute covariance matrix (was converted to inverse for JAGS)
+sigma_B_g <- solve(init_data$Tau_B_g_raw)
+#sigma_B_g 
+
+# Convert vector of scalings (variances)
+sigma_B_g_sigma <- sqrt(diag(sigma_B_g))
+#sigma_B_g_sigma 
+
+# Compute correlation matrix:
+rho_B_g <- sigma_B_g / (sigma_B_g_sigma %*% t(sigma_B_g_sigma))
+
+# Compute cholesky factor of correlation matrix
+L_rho_B_g <- chol(rho_B_g)
+
+##
+## Below is just for checking my math
+##
+# Compute cholesky factor of final covariance matrix (equivalent to 
+# diag_pre_multiply line in JAGS code):
+#L_B_g_sigma <- diag(sigma_B_g_sigma) %*% t(L_rho_B_g)
+#
+# Verify original covariance matrix is equal to L_B_g_sigma %*% t(L_B_g_sigma) 
+# (with allowances for rounding error)
+#L_B_g_sigma %*% t(L_B_g_sigma)
+#table(abs(sigma_B_g - L_B_g_sigma %*% t(L_B_g_sigma)) < 1E-15)
+
+init_data$sigma_B_g_sigma <- sigma_B_g_sigma
+init_data$L_rho_B_g <- L_rho_B_g
+# Means of the genus-level random effects (essentially mean zero as the ranefs 
+# are relative to the population-level means)
+init_data$gamma_B_g <- apply(init_data$B_g_raw, 2, mean)
+init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$B_g_raw - init_data$gamma_B_g)
+
+# Below is to verify this line in Stan code:
+# B_g <- transpose(rep_matrix(gamma_B_g, n_B_g) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g * B_g_std));
+#
+# First redefine as:
+# B_g <- transpose(a + b);
+
+# Note that in below code the matrix has to be transposed to match the behavior 
+# of rep_mat in Stan
+# a <- matrix(rep(init_data$gamma_B_g, model_data$n_genus), 
+#             ncol=model_data$n_genus)
+# b <- (diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% init_data$B_g_std
+# B_g_check <- t(a + b)
+# head(B_g_check - init_data$B_g_raw)
+# table(abs(B_g - init_data$B_g_raw) < 1E-12)
+
 init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
-#init_data <- init_data[names(init_data) != "B_g_raw"]
-#init_data <- init_data[names(init_data) != "Tau_B_g_raw"]
+init_data <- init_data[names(init_data) != "B_g_raw"]
 
 get_inits <- function() {
     c(init_data, list(
@@ -74,6 +116,8 @@ get_inits <- function() {
 }
 
 seed <- 1638
+
+stan_fit <- stan(model_file, data=model_data, iter=20, chains=2)
 
 stan_fit <- stan(model_file, data=model_data, iter=20, chains=2, 
                  inits=get_inits)

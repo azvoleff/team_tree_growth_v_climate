@@ -18,7 +18,6 @@ data {
     int<lower=0> obs_indices_period[n_obs];
     int<lower=0> miss_indices_tree[n_miss];
     int<lower=0> miss_indices_period[n_miss];
-    matrix[n_B_g, n_B_g] W;
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] WD_sq;
@@ -28,17 +27,17 @@ data {
 
 parameters {
     matrix[n_tree, max_obs_per_tree] dbh_latent; 
-    vector[n_B_g] B_g_raw_temp;
     vector[n_miss] dbh_miss;
     vector[n_B] B;
-    vector[n_B_g] mu_B_g_raw;
-    vector[n_B_g] xi;
-    corr_matrix[n_B_g] Tau_B_g_raw;
+    matrix[n_B_g, n_genus] B_g_std;
+    vector[n_B_g] gamma_B_g;
+    cholesky_factor_corr[n_B_g] L_rho_B_g;
+    vector<lower=0>[n_B_g] sigma_B_g_sigma;
     vector[n_tree] int_ijk_std;
     vector[n_plot] int_jk_std;
     vector[n_site] int_k_std;
     vector[n_period] int_t_std;
-    real<lower=0.003566014> sigma_obs;
+    real<lower=0.0002537298> sigma_obs;
     real<lower=0> sigma_proc;
     real<lower=0> sigma_int_ijk;
     real<lower=0> sigma_int_jk;
@@ -52,7 +51,7 @@ transformed parameters {
     vector[n_plot] int_jk;
     vector[n_site] int_k;
     vector[n_period] int_t;
-    real<lower=0> df;
+    matrix[n_genus, n_B_g] B_g;
 
     // Handle missing data
     for (n in 1:n_miss) {
@@ -69,17 +68,11 @@ transformed parameters {
     int_k <- sigma_int_k * int_k_std; // int_k ~ normal(0, sigma_int_k)
     int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
 
-    df <- n_B_g + 1;
+    B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
 }
 
 model {
     matrix[n_tree, max_obs_per_tree] dbh_predicted;
-    matrix[n_genus, n_B_g] B_g;
-    matrix[n_genus, n_B_g] B_g_raw;
-    matrix[n_B_g, n_B_g] rho_B_g;
-    matrix[n_B_g, n_B_g] Sigma_B_g_raw;
-    vector[n_B_g] mu_B_g;
-    vector[n_B_g] sigma_B_g;
 
     //########################################################################
     // Fixed effects
@@ -87,50 +80,36 @@ model {
 
     //########################################################################
     // Observation and process error
-    sigma_obs ~ cauchy(0, 10);
-    sigma_proc ~ cauchy(0, 10);
+    sigma_obs ~ cauchy(0, 1);
+    sigma_proc ~ cauchy(0, 1);
 
     //########################################################################
     // Nested random effects
     int_ijk_std ~ normal(0, 1); // Matt trick
-    sigma_int_ijk ~ cauchy(0, 10);
+    sigma_int_ijk ~ cauchy(0, 1);
 
     int_jk_std ~ normal(0, 1); // Matt trick
-    sigma_int_jk ~ cauchy(0, 10);
+    sigma_int_jk ~ cauchy(0, 1);
 
-    sigma_int_k ~ cauchy(0, 10);
+    sigma_int_k ~ cauchy(0, 1);
     int_k_std ~ normal(0, 1); // Matt trick
 
     //########################################################################
     # Period random effects (crossed)
     int_t_std ~ normal(0, 1); // Matt trick
-    sigma_int_t ~ cauchy(0, 10);
+    sigma_int_t ~ cauchy(0, 1);
 
     //########################################################################
     // Correlated random effects at genus level (crossed). Based on Gelman and 
-    // Hill pg. 377-378, and http://bit.ly/1pADacO
-    mu_B_g_raw ~ normal(0, 100);
-    xi ~ uniform(0, 100);
+    // Hill pg. 377-378, and http://bit.ly/1pADacO, and http://bit.ly/1pEpXjo
+    
+    # Priors for random coefficients:
+    to_vector(B_g_std) ~ normal(0, 1); // implies: B_g ~ multi_normal(gamma_B_g, CovarianceMatrix);
 
-    mu_B_g <- xi .* mu_B_g_raw;
-
-    Tau_B_g_raw ~ wishart(df, W);
-    Sigma_B_g_raw <- inverse(Tau_B_g_raw);
-
-    for (j in 1:n_genus) {
-        B_g_raw_temp ~ multi_normal(mu_B_g_raw, Sigma_B_g_raw);
-        for (k in 1:n_B_g) {
-            B_g_raw[j, k] <- B_g_raw_temp[k];
-            B_g[j, k] <- xi[k] * B_g_raw[j, k];
-        }
-    }
-
-    for (k in 1:n_B_g) {
-        for (k_prime in 1:n_B_g) {
-            rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime] / sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime]);
-        }
-        sigma_B_g[k] <- fabs(xi[k]) * sqrt(Sigma_B_g_raw[k,k]);
-    }
+    # Hyperpriors
+    gamma_B_g ~ normal(0, 5);
+    sigma_B_g_sigma ~ cauchy(0, 2.5);
+    L_rho_B_g ~ lkj_corr_cholesky(3);
 
     //########################################################################
     // Model missing data. Need to do this explicitly in Stan
