@@ -41,7 +41,7 @@ model_data <- model_data[!(names(model_data) %in% c("spi"))]
 init_data$B <- rep(0, model_data$n_B)
 init_data$xi <- rep(1, model_data$n_B_g)
 init_data$mu_B_g_raw <- rep(0, model_data$n_B_g)
-init_data <- init_data[!(names(init_data) %in% c("Tau_B_g_raw"))]
+init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 

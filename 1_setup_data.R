@@ -82,7 +82,7 @@ save(dbh_mean, dbh_sd, WD_mean, WD_sd, mcwd_mean, mcwd_sd,
      file="model_data_standardizing.RData")
 
 # Calculate precision of diameter tape (1 mm) in standardized units:
-.1 / dbh_sd
+.0036 / dbh_sd
 
 genus_ID <- dbh_time_0$genus_ID
 sum(genus_ID == "Unknown") / length(genus_ID)

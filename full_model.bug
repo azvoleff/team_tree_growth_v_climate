@@ -49,10 +49,10 @@ model {
     # Observation and process error
     prec_obs <- pow(sigma_obs, -2)
     # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
-    sigma_obs ~ dunif(0.007034428, 100)
+    sigma_obs ~ dunif(0.0002537298, 1)
 
     prec_proc <- pow(sigma_proc, -2)
-    sigma_proc ~ dunif(0, 100)
+    sigma_proc ~ dunif(0, 10)
 
     ##########################################################################
     # Nested random effects
@@ -60,19 +60,19 @@ model {
         int_ijk[i] ~ dnorm(0, tau_int_ijk)
     }
     tau_int_ijk <- pow(sigma_int_ijk, -2)
-    sigma_int_ijk ~ dunif(0, 100)
+    sigma_int_ijk ~ dunif(0, 10)
 
     for (j in 1:n_plot) {
         int_jk[j] ~ dnorm(0, tau_int_jk)
     }
     tau_int_jk <- pow(sigma_int_jk, -2)
-    sigma_int_jk ~ dunif(0, 100)
+    sigma_int_jk ~ dunif(0, 10)
 
     for (k in 1:n_site) {
         int_k[k] ~ dnorm(0, tau_int_k)
     }
     tau_int_k <- pow(sigma_int_k, -2)
-    sigma_int_k ~ dunif(0, 100)
+    sigma_int_k ~ dunif(0, 10)
 
     ##########################################################################
     # Period random effects (crossed)
@@ -81,7 +81,7 @@ model {
         int_t[t] ~ dnorm(0, tau_int_t)
     }
     tau_int_t <- pow(sigma_int_t, -2)
-    sigma_int_t ~ dunif(0, 100)
+    sigma_int_t ~ dunif(0, 10)
 
     ##########################################################################
     # Correlated random effects at genus level (crossed). Based on Gelman and 

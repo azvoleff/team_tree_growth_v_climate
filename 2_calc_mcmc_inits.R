@@ -82,8 +82,7 @@ init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
 genus_varcorr <- VarCorr(calib_model)$genus_ID
 # Drop the attributes
 genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-# JAGS models the inverse variance-covariance matrix (Tau)
-init_data$Tau_B_g_raw <- solve(genus_varcorr)
+init_data$sigma_B_g <- genus_varcorr
 save(init_data, file="init_data_with_ranefs.RData")
 
 # # Inits without period random intercepts
@@ -106,7 +105,7 @@ save(init_data, file="init_data_with_ranefs.RData")
 # genus_varcorr <- VarCorr(calib_model)$genus_ID
 # # Drop the attributes
 # genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-# init_data$Tau_B_g_raw <- solve(genus_varcorr)
+# init_data$sigma_B_g <- genus_varcorr
 #
 # # JAGS models the inverse variance-covariance matrix (Tau)
 # save(init_data, file="init_data_with_ranefs_no_t_effects.RData")
