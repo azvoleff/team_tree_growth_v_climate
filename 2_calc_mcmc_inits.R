@@ -86,12 +86,12 @@ init_data$sigma_B_g <- genus_varcorr
 save(init_data, file="init_data_with_ranefs.RData")
 
 # Inits without period random intercepts
-calib_model_no_t  <- lmer(dbh_latent_end ~ dbh_latent_start +
-                     I(dbh_latent_start^2) +
-                     mcwd + I(mcwd^2) +
-                     WD + I(WD^2)+ 
-                     (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                     (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
+calib_model_no_t <- lmer(dbh_latent_end ~ dbh_latent_start +
+                         I(dbh_latent_start^2) +
+                         mcwd + I(mcwd^2) +
+                         WD + I(WD^2)+ 
+                         (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                         (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
 save(calib_model_no_t, file="calib_model_no_t.RData")
 load("calib_model_no_t.RData")
 
