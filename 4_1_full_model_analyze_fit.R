@@ -58,14 +58,13 @@ load("jags_fit_full_model_ranefs.RData")
 load("jags_fit_full_model_ranefs_g_sigma.RData")
 load("jags_fit_full_model_ranefs_g_rho.RData")
 
-start_val <- 10001
+start_val <- 20001
 thin_val <- 20
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
 ranefs <- window(ranefs, start=start_val, thin=thin_val)
 ranefs_g_sigma <- window(ranefs_g_sigma, start=start_val, thin=thin_val)
 ranefs_g_rho <- window(ranefs_g_rho, start=start_val, thin=thin_val)
-
 
 # gelman.diag(fixefs)
 # gelman.diag(ranefs)
