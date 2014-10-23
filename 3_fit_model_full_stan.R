@@ -31,6 +31,7 @@ model_data <- model_data[names(model_data) != "spi"]
 obs_linear_ind <- (model_data$obs_indices_period - 1) * nrow(model_data$dbh) + model_data$obs_indices_tree # From http://bit.ly/1rnKrC3
 model_data$dbh_obs <- model_data$dbh[obs_linear_ind]
 model_data <- model_data[names(model_data) != "dbh"]
+model_data <- model_data[names(model_data) != "n_period"]
 
 # Use linear indexing to select latent_dbhs as initialization values for 
 # missing dbhs:
@@ -46,7 +47,7 @@ model_data$mcwd_sq[is.na(model_data$mcwd_sq)] <- 0
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
 init_data$int_k_std <- init_data$int_k / init_data$sigma_int_k
-init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
+#init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
 
 # Compute covariance matrix (was converted to inverse for JAGS)
 sigma_B_g <- solve(init_data$Tau_B_g_raw)
@@ -100,6 +101,7 @@ init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
+init_data <- init_data[names(init_data) != "sigma_int_t"]
 init_data <- init_data[names(init_data) != "B_g_raw"]
 
 get_inits <- function() {
@@ -107,22 +109,17 @@ get_inits <- function() {
         # Fixed effects
         B=c(rnorm(model_data$n_B, 0, 1)),
         # Sigmas
-        sigma_obs=runif(1, .05, .2), 
+        sigma_obs=runif(1, .00026, .001), 
         sigma_proc=abs(rnorm(1, 0, 1))
-        # Tau_B_g_raw=matrix(rWishart(1, model_data$n_B_g+1, 
-        #                             diag(model_data$n_B_g)), 
-        #                    nrow=model_data$n_B_g)
     ))
 }
 
 seed <- 1638
 
-stan_fit <- stan(model_file, data=model_data, iter=20, chains=2)
-
-stan_fit <- stan(model_file, data=model_data, iter=20, chains=2, 
-                 inits=get_inits)
-print("finished running test stan model")
-save(stan_fit, file="stan_fit_full.RData")
+# stan_fit <- stan(model_file, data=model_data, iter=20, chains=2, 
+#                  inits=get_inits)
+# print("finished running test stan model")
+# save(stan_fit, file="stan_fit_full.RData")
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
