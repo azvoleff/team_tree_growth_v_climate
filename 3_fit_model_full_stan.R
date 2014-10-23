@@ -126,7 +126,7 @@ print("finished setting up stan model")
 
 n_chains <- 3
 n_cpu <- n_chains
-n_iter <- 2000
+n_iter <- 1000
 cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
