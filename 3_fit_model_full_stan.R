@@ -5,7 +5,8 @@ library(doParallel)
 model_file <- "full_model.stan" 
 
 load("model_data_wide.RData")
-load("init_data_with_ranefs.RData")
+#load("init_data_with_ranefs.RData")
+load("init_data_with_ranefs_no_t_effects.RData")
 
 # n_B is number of fixed effects
 model_data$n_B <- 7
@@ -49,16 +50,12 @@ init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
 init_data$int_k_std <- init_data$int_k / init_data$sigma_int_k
 #init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
 
-# Compute covariance matrix (was converted to inverse for JAGS)
-sigma_B_g <- solve(init_data$Tau_B_g_raw)
-#sigma_B_g 
-
 # Convert vector of scalings (variances)
-sigma_B_g_sigma <- sqrt(diag(sigma_B_g))
+sigma_B_g_sigma <- sqrt(diag(init_data$sigma_B_g))
 #sigma_B_g_sigma 
 
 # Compute correlation matrix:
-rho_B_g <- sigma_B_g / (sigma_B_g_sigma %*% t(sigma_B_g_sigma))
+rho_B_g <- init_data$sigma_B_g / (sigma_B_g_sigma %*% t(sigma_B_g_sigma))
 
 # Compute cholesky factor of correlation matrix
 L_rho_B_g <- chol(rho_B_g)
@@ -73,7 +70,7 @@ L_rho_B_g <- chol(rho_B_g)
 # Verify original covariance matrix is equal to L_B_g_sigma %*% t(L_B_g_sigma) 
 # (with allowances for rounding error)
 #L_B_g_sigma %*% t(L_B_g_sigma)
-#table(abs(sigma_B_g - L_B_g_sigma %*% t(L_B_g_sigma)) < 1E-15)
+#table(abs(init_data$sigma_B_g - L_B_g_sigma %*% t(L_B_g_sigma)) < 1E-15)
 
 init_data$sigma_B_g_sigma <- sigma_B_g_sigma
 init_data$L_rho_B_g <- L_rho_B_g
@@ -92,7 +89,7 @@ init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$
 # of rep_mat in Stan
 # a <- matrix(rep(init_data$gamma_B_g, model_data$n_genus), 
 #             ncol=model_data$n_genus)
-# b <- (diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% init_data$B_g_std
+# b <- (diag(init_data$sigma_B_g_sigma) %*% L_rho_B_g) %*% init_data$B_g_std
 # B_g_check <- t(a + b)
 # head(B_g_check - init_data$B_g_raw)
 # table(abs(B_g - init_data$B_g_raw) < 1E-12)

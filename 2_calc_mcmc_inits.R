@@ -85,27 +85,28 @@ genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
 init_data$sigma_B_g <- genus_varcorr
 save(init_data, file="init_data_with_ranefs.RData")
 
-# # Inits without period random intercepts
-# calib_model  <- lmer(dbh_latent_end ~ dbh_latent_start +
-#                      I(dbh_latent_start^2) +
-#                      WD + I(WD^2)+ 
-#                      mcwd + I(mcwd^2) +
-#                      (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-#                      (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
-#
-# init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
-# init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
-# init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
-# init_data$sigma_int_ijk <- sqrt(get_variance(calib_model, "tree_ID", "(Intercept)"))
-# init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
-# init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
-# # Extract genus-level random effects
-# init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
-# # Extract variance-covariance matrix for genus-level random effects
-# genus_varcorr <- VarCorr(calib_model)$genus_ID
-# # Drop the attributes
-# genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-# init_data$sigma_B_g <- genus_varcorr
-#
-# # JAGS models the inverse variance-covariance matrix (Tau)
-# save(init_data, file="init_data_with_ranefs_no_t_effects.RData")
+# Inits without period random intercepts
+calib_model_no_t  <- lmer(dbh_latent_end ~ dbh_latent_start +
+                     I(dbh_latent_start^2) +
+                     mcwd + I(mcwd^2) +
+                     WD + I(WD^2)+ 
+                     (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                     (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
+save(calib_model_no_t, file="calib_model_no_t.RData")
+load("calib_model_no_t.RData")
+
+init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t)$tree_ID))
+init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t)$plot_ID))
+init_data$int_k <- as.numeric(unlist(ranef(calib_model_no_t)$site_ID))
+init_data$sigma_int_ijk <- sqrt(get_variance(calib_model_no_t, "tree_ID", "(Intercept)"))
+init_data$sigma_int_jk <- sqrt(get_variance(calib_model_no_t, "plot_ID", "(Intercept)"))
+init_data$sigma_int_k <- sqrt(get_variance(calib_model_no_t, "site_ID", "(Intercept)"))
+# Extract genus-level random effects
+init_data$B_g_raw <- as.matrix(ranef(calib_model_no_t)$genus_ID)
+# Extract variance-covariance matrix for genus-level random effects
+genus_varcorr <- VarCorr(calib_model_no_t)$genus_ID
+# Drop the attributes
+genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+init_data$sigma_B_g <- genus_varcorr
+
+save(init_data, file="init_data_with_ranefs_no_t_effects.RData")
