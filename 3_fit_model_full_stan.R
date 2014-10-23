@@ -4,8 +4,13 @@ library(doParallel)
 
 model_file <- "full_model.stan" 
 
+# load("model_data_wide_testing.RData")
+# load("init_data_with_ranefs_no_t_effects_testing.RData")
+
+# load("model_data_wide.RData")
+# load("init_data_with_ranefs.RData")
+
 load("model_data_wide.RData")
-#load("init_data_with_ranefs.RData")
 load("init_data_with_ranefs_no_t_effects.RData")
 
 # n_B is number of fixed effects
