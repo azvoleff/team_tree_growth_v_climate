@@ -5,7 +5,6 @@ library(lme4)
 runmodels <- TRUE
 
 suffixes <- c("", "_testing")
-suffixes <- c("")
 
 for (suffix in suffixes) {
 
