@@ -68,10 +68,7 @@ for (suffix in suffixes) {
     #                    WD + I(WD^2)+ 
     #                    mcwd + I(mcwd^2), data=calib_data)
     if (runmodels) {
-        calib_model  <- lmer(dbh_latent_end ~ dbh_latent_start + 
-                             I(dbh_latent_start^2) +
-                             WD + I(WD^2)+ 
-                             mcwd + I(mcwd^2) +
+        calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2)+ 
                              (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
         save(calib_model, file=paste0("calib_model", suffix, ".RData"))
@@ -98,10 +95,7 @@ for (suffix in suffixes) {
     ###########################################################################
     # Inits without period random intercepts
     if (runmodels) {
-        calib_model_no_t <- lmer(dbh_latent_end ~ dbh_latent_start +
-                                 I(dbh_latent_start^2) +
-                                 mcwd + I(mcwd^2) +
-                                 WD + I(WD^2)+ 
+        calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2)+ 
                                  (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
         save(calib_model_no_t, file=paste0("calib_model_no_t", suffix, ".RData"))
