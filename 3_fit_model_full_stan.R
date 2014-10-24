@@ -17,7 +17,6 @@ model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
 model_data$mcwd_sq <- model_data$mcwd^2
 
-model_data$max_obs_per_tree <- ncol(model_data$dbh)
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
 # Stan can't hold matrices of ints, but can do lists of ints
@@ -32,7 +31,6 @@ model_data <- model_data[names(model_data) != "spi"]
 obs_linear_ind <- (model_data$obs_indices_period - 1) * nrow(model_data$dbh) + model_data$obs_indices_tree # From http://bit.ly/1rnKrC3
 model_data$dbh_obs <- model_data$dbh[obs_linear_ind]
 model_data <- model_data[names(model_data) != "dbh"]
-model_data <- model_data[names(model_data) != "n_period"]
 
 # Use linear indexing to select latent_dbhs as initialization values for 
 # missing dbhs:
@@ -126,7 +124,7 @@ print("finished setting up stan model")
 
 n_chains <- 3
 n_cpu <- n_chains
-n_iter <- 2000
+n_iter <- 500
 cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
@@ -138,7 +136,7 @@ sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     save(stanfit, file=paste0("full_model_fit_parallel_stan_chain_", n, "_", 
                               run_id, ".RData"))
     sink()
-    stanfit
+    return(stanfit)
 }
 print("finished running stan models on cluster")
 stopCluster(cl)

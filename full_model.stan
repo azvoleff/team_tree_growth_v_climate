@@ -3,13 +3,12 @@ data {
     int<lower=0> n_plot;
     int<lower=0> n_site;
     int<lower=0> n_genus;
-    //int<lower=0> n_period;
     int<lower=0> n_B;
     int<lower=0> n_B_g;
+    int<lower=0> n_period;
     int<lower=0> plot_ID[n_tree];
     int<lower=0> site_ID[n_tree];
     int<lower=0> genus_ID[n_tree];
-    int<lower=0> max_obs_per_tree;
     int<lower=0> first_obs_period[n_tree];
     int<lower=0> last_obs_period[n_tree];
     int<lower=0> n_miss;
@@ -21,12 +20,12 @@ data {
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] WD_sq;
-    matrix[n_tree, max_obs_per_tree] mcwd;
-    matrix[n_tree, max_obs_per_tree] mcwd_sq;
+    matrix[n_tree, n_period + 1] mcwd;
+    matrix[n_tree, n_period + 1] mcwd_sq;
 }
 
 parameters {
-    matrix[n_tree, max_obs_per_tree] dbh_latent; 
+    matrix[n_tree, n_period + 1] dbh_latent; 
     vector[n_miss] dbh_miss;
     vector[n_B] B;
     matrix[n_B_g, n_genus] B_g_std;
@@ -46,7 +45,7 @@ parameters {
 }
 
 transformed parameters {
-    matrix[n_tree, max_obs_per_tree] dbh;
+    matrix[n_tree, n_period + 1] dbh;
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
@@ -72,7 +71,8 @@ transformed parameters {
 }
 
 model {
-    matrix[n_tree, max_obs_per_tree] dbh_predicted;
+    //matrix[n_tree, n_period + 1] dbh_predicted;
+    real dbh_predicted;
 
     //########################################################################
     // Fixed effects
@@ -124,7 +124,7 @@ model {
 
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
             //print(i, ", ", t);
-            dbh_predicted[i, t] <- B[1] +
+            dbh_predicted <- B[1] +
                 B[2] * mcwd[i, t - 1] +
                 B[3] * mcwd_sq[i, t - 1] +
                 B[4] * dbh_latent[i, t - 1] +
@@ -140,7 +140,7 @@ model {
                 B_g[genus_ID[i], 4] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 5] * pow(dbh_latent[i, t - 1], 2);
                 //int_t[t - 1] +
-            dbh_latent[i, t] ~ normal(dbh_predicted[i, t], sigma_proc);
+            dbh_latent[i, t] ~ normal(dbh_predicted, sigma_proc);
             /* print("Latent dbh (t): ", dbh_latent[i, t]); */
             /* print("Latent dbh (t - 1): ", dbh_latent[i, t - 1]); */
             /* print("Predicted dbh (t): ", dbh_predicted); */
