@@ -2,11 +2,13 @@ library(dplyr)
 library(reshape2)
 library(lme4)
 
-runmodels <- FALSE
+runmodels <- TRUE
 
 suffixes <- c("", "_testing")
+suffixes <- c("")
 
 for (suffix in suffixes) {
+
     load(paste0("init_data", suffix, ".RData"))
     load(paste0("model_data_wide", suffix, ".RData"))
     load(paste0("model_data_long", suffix, ".RData"))
@@ -68,7 +70,7 @@ for (suffix in suffixes) {
     #                    WD + I(WD^2)+ 
     #                    mcwd + I(mcwd^2), data=calib_data)
     if (runmodels) {
-        calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2)+ 
+        calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                              (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
         save(calib_model, file=paste0("calib_model", suffix, ".RData"))
@@ -95,7 +97,7 @@ for (suffix in suffixes) {
     ###########################################################################
     # Inits without period random intercepts
     if (runmodels) {
-        calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2)+ 
+        calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                                  (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
         save(calib_model_no_t, file=paste0("calib_model_no_t", suffix, ".RData"))
@@ -117,4 +119,5 @@ for (suffix in suffixes) {
     init_data$sigma_B_g <- genus_varcorr
 
     save(init_data, file=paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData"))
+
 }
