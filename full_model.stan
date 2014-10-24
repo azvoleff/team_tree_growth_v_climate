@@ -124,7 +124,7 @@ model {
 
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
             //print(i, ", ", t);
-            dbh_predicted[i, t] <- B[1] * WD[i] +
+            dbh_predicted <- B[1] * WD[i] +
                 B[2] * WD_sq[i] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
