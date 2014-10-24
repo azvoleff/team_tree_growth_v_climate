@@ -58,7 +58,7 @@ load("jags_fit_full_model_ranefs.RData")
 load("jags_fit_full_model_ranefs_g_sigma.RData")
 load("jags_fit_full_model_ranefs_g_rho.RData")
 
-start_val <- 20001
+start_val <- 30001
 thin_val <- 20
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
