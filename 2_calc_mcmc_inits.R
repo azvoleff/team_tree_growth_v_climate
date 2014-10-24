@@ -2,12 +2,17 @@ library(dplyr)
 library(reshape2)
 library(lme4)
 
+library(foreach)
+library(doParallel)
+
+cl <- makeCluster(2)
+registerDoParallel(2)
+
 runmodels <- TRUE
 
 suffixes <- c("", "_testing")
 
-for (suffix in suffixes) {
-
+foreach (suffix=suffixes) %dopar% {
     load(paste0("init_data", suffix, ".RData"))
     load(paste0("model_data_wide", suffix, ".RData"))
     load(paste0("model_data_long", suffix, ".RData"))
@@ -120,3 +125,5 @@ for (suffix in suffixes) {
     save(init_data, file=paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData"))
 
 }
+
+stopCluster(cl)
