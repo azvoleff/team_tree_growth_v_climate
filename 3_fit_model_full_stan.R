@@ -4,8 +4,13 @@ library(doParallel)
 
 model_file <- "full_model.stan" 
 
+# load("model_data_wide_testing.RData")
+# load("init_data_with_ranefs_no_t_effects_testing.RData")
+
+# load("model_data_wide.RData")
+# load("init_data_with_ranefs.RData")
+
 load("model_data_wide.RData")
-#load("init_data_with_ranefs.RData")
 load("init_data_with_ranefs_no_t_effects.RData")
 
 # n_B is number of fixed effects
@@ -124,7 +129,7 @@ print("finished setting up stan model")
 
 n_chains <- 3
 n_cpu <- n_chains
-n_iter <- 500
+n_iter <- 1000
 cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
