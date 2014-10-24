@@ -3,13 +3,8 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- B[1]+
-                B[2] * mcwd[i, t] +
-                B[3] * mcwd_sq[i, t] +
-                B[4] * dbh_latent[i, t - 1] +
-                B[5] * pow(dbh_latent[i, t - 1], 2) +
-                B[6] * WD[i] +
-                B[7] * WD_sq[i] +
+            dbh_predicted[i, t] <- B[1] * WD[i] +
+                B[2] * WD_sq[i] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
@@ -31,19 +26,11 @@ model {
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
 
-
     ##########################################################################
     # Fixed effects
     for (k in 1:n_B) {
         B[k] ~ dnorm(0, 1.0E-4)
     }
-    int <- B[1]
-    slp_mcwd <- B[2]
-    slp_mcwd_sq <- B[3]
-    slp_dbh <- B[4]
-    slp_dbh_sq <- B[5]
-    slp_WD <- B[6]
-    slp_WD_sq <- B[7]
 
     ##########################################################################
     # Observation and process error

@@ -9,13 +9,7 @@ model_file <- "full_model.bug"
 load("model_data_wide.RData")
 load("init_data_with_ranefs.RData")
 
-monitored <- c("int",
-               "slp_dbh",
-               "slp_dbh_sq",
-               "slp_WD",
-               "slp_WD_sq",
-               "slp_mcwd",
-               "slp_mcwd_sq",
+monitored <- c("B",
                "sigma_obs",
                "sigma_proc",
                "sigma_int_ijk",
@@ -27,7 +21,7 @@ monitored <- c("int",
                "rho_B_g")
 
 # n_B is number of fixed effects
-model_data$n_B <- 7
+model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 5
 # W is prior scale for the inverse-Wishart
@@ -40,7 +34,7 @@ model_data <- model_data[!(names(model_data) %in% c("spi"))]
 
 init_data$B <- rep(0, model_data$n_B)
 init_data$xi <- rep(1, model_data$n_B_g)
-init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean)
+init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
 # Jags uses the inverse of the variance-covariance matrix to parameterize the 
 # wishart.
 init_data$Tau_B_g_raw <- solve(init_data$sigma_B_g)
@@ -58,7 +52,7 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
-                     burnin=2000, sample=2000, thin=5)
+                     burnin=1250, sample=2500, thin=4)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 save(jags_fit, file=paste0("full_model_fit_parallel_", run_id, ".RData"))

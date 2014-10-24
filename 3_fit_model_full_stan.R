@@ -16,7 +16,7 @@ load("init_data_with_ranefs_no_t_effects.RData")
 # n_B is number of fixed effects
 model_data$n_B <- 7
 # n_B_g is number of genus-level random effects
-model_data$n_B_g <- 5
+model_data$n_B_g <- 2
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2

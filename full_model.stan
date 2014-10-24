@@ -35,13 +35,13 @@ parameters {
     vector[n_tree] int_ijk_std;
     vector[n_plot] int_jk_std;
     vector[n_site] int_k_std;
-    //vector[n_period] int_t_std;
+    vector[n_period] int_t_std;
     real<lower=0.0002537298> sigma_obs;
     real<lower=0> sigma_proc;
     real<lower=0> sigma_int_ijk;
     real<lower=0> sigma_int_jk;
     real<lower=0> sigma_int_k;
-    //real<lower=0> sigma_int_t;
+    real<lower=0> sigma_int_t;
 }
 
 transformed parameters {
@@ -49,7 +49,7 @@ transformed parameters {
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
-    //vector[n_period] int_t;
+    vector[n_period] int_t;
     matrix[n_genus, n_B_g] B_g;
 
     // Handle missing data
@@ -65,7 +65,7 @@ transformed parameters {
     int_ijk <- sigma_int_ijk * int_ijk_std; // int_ijk ~ normal(0, sigma_int_ijk)
     int_jk <- sigma_int_jk * int_jk_std; // int_jk ~ normal(0, sigma_int_jk)
     int_k <- sigma_int_k * int_k_std; // int_k ~ normal(0, sigma_int_k)
-    //int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
+    int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
 
     B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
 }
@@ -96,8 +96,8 @@ model {
 
     //########################################################################
     # Period random effects (crossed)
-    //int_t_std ~ normal(0, 1); // Matt trick
-    //sigma_int_t ~ cauchy(0, 1);
+    int_t_std ~ normal(0, 1); // Matt trick
+    sigma_int_t ~ cauchy(0, 1);
 
     //########################################################################
     // Correlated random effects at genus level (crossed). Based on Gelman and 
@@ -124,22 +124,17 @@ model {
 
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
             //print(i, ", ", t);
-            dbh_predicted <- B[1] +
-                B[2] * mcwd[i, t - 1] +
-                B[3] * mcwd_sq[i, t - 1] +
-                B[4] * dbh_latent[i, t - 1] +
-                B[5] * pow(dbh_latent[i, t - 1], 2) +
-                B[6] * WD[i] +
-                B[7] * WD_sq[i] +
+            dbh_predicted[i, t] <- B[1] * WD[i] +
+                B[2] * WD_sq[i] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
+                int_t[t - 1] +
                 B_g[genus_ID[i], 1] +
-                B_g[genus_ID[i], 2] * mcwd[i, t - 1] +
-                B_g[genus_ID[i], 3] * mcwd_sq[i, t - 1] +
+                B_g[genus_ID[i], 2] * mcwd[i, t] +
+                B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
                 B_g[genus_ID[i], 4] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 5] * pow(dbh_latent[i, t - 1], 2);
-                //int_t[t - 1] +
             dbh_latent[i, t] ~ normal(dbh_predicted, sigma_proc);
             /* print("Latent dbh (t): ", dbh_latent[i, t]); */
             /* print("Latent dbh (t - 1): ", dbh_latent[i, t - 1]); */
