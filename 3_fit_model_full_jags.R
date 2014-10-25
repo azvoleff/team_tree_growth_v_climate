@@ -35,6 +35,9 @@ model_data <- model_data[!(names(model_data) %in% c("spi"))]
 init_data$B <- rep(0, model_data$n_B)
 init_data$xi <- rep(1, model_data$n_B_g)
 init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
+# Center the B_g_raw estimates
+init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, model_data$n_genus), ncol=model_data$n_B_g, byrow=TRUE)
+
 # Jags uses the inverse of the variance-covariance matrix to parameterize the 
 # wishart.
 init_data$Tau_B_g_raw <- solve(init_data$sigma_B_g)
