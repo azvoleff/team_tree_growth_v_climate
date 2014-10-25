@@ -52,7 +52,7 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
-                     burnin=1250, sample=2500, thin=4)
+                     burnin=1250, sample=2000, thin=3)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 save(jags_fit, file=paste0("full_model_fit_parallel_", run_id, ".RData"))
