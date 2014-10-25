@@ -1,0 +1,90 @@
+model {
+    ##########################################################################
+    # Likelihood
+    for (i in 1:n_tree) {
+        for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
+            dbh_predicted[i, t] <- B[1] * WD[i] +
+                B[2] * WD_sq[i] +
+                int_ijk[i] +
+                int_jk[plot_ID[i]] +
+                int_k[site_ID[i]] +
+                B_g[genus_ID[i], 1] +
+                B_g[genus_ID[i], 2] * mcwd[i, t] +
+                B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
+                B_g[genus_ID[i], 4] * dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 5] * pow(dbh_latent[i, t - 1], 2)
+
+            dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
+        }
+
+        for (t in (first_obs_period[i]):last_obs_period[i]) {
+            dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
+        }
+
+        # Specially handle first latent dbh (following Eitzel, 2013)
+        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
+    }
+
+    ##########################################################################
+    # Fixed effects
+    for (k in 1:n_B) {
+        B[k] ~ dnorm(0, 1.0E-4)
+    }
+
+    ##########################################################################
+    # Observation and process error
+    prec_obs <- pow(sigma_obs, -2)
+    # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
+    sigma_obs ~ dunif(0.0002537298, 1)
+
+    prec_proc <- pow(sigma_proc, -2)
+    sigma_proc ~ dunif(0, 10)
+
+    ##########################################################################
+    # Nested random effects
+    for (i in 1:n_tree) {
+        int_ijk[i] ~ dnorm(0, tau_int_ijk)
+    }
+    tau_int_ijk <- pow(sigma_int_ijk, -2)
+    sigma_int_ijk ~ dunif(0, 10)
+
+    for (j in 1:n_plot) {
+        int_jk[j] ~ dnorm(0, tau_int_jk)
+    }
+    tau_int_jk <- pow(sigma_int_jk, -2)
+    sigma_int_jk ~ dunif(0, 10)
+
+    for (k in 1:n_site) {
+        int_k[k] ~ dnorm(0, tau_int_k)
+    }
+    tau_int_k <- pow(sigma_int_k, -2)
+    sigma_int_k ~ dunif(0, 10)
+
+    ##########################################################################
+    # Correlated random effects at genus level (crossed). Based on Gelman and 
+    # Hill pg. 377-378.
+ 
+    for (g in 1:n_genus) {
+        for (k in 1:n_B_g) {
+            B_g[g, k] <- xi[k] * B_g_raw[g, k]
+        }
+        B_g_raw[g, 1:n_B_g] ~ dmnorm(mu_B_g_raw[], Tau_B_g_raw[ , ])
+    }
+
+    # Set up the means for the multivariate ranef distribution
+    for (k in 1:n_B_g) {
+        xi[k] ~ dunif(0, 100)
+        mu_B_g_raw[k] ~ dnorm(0, 1.0E-4)
+        mu_B_g[k] <- xi[k] * mu_B_g_raw[k]
+    }
+
+    Tau_B_g_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
+    df <- n_B_g + 1
+    Sigma_B_g_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_g_raw[,])
+    for (k in 1:n_B_g) {
+        for (k_prime in 1:n_B_g) {
+            rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime]/sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime])
+        }
+        sigma_B_g[k] <- abs(xi[k]) * sqrt(Sigma_B_g_raw[k, k])
+    }
+}
