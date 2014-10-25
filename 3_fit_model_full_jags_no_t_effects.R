@@ -4,7 +4,7 @@ library(rjags)
 # Allow block-updating using glm module
 #load.module("glm")
 
-model_file <- "full_model.bug" 
+model_file <- "full_model_no_t_effects.bug" 
 
 load("model_data_wide.RData")
 load("init_data_with_ranefs_no_t_effects.RData")
