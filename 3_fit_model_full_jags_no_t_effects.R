@@ -30,6 +30,7 @@ model_data$mcwd_sq <- model_data$mcwd^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
+model_data <- model_data[!(names(model_data) %in% c("n_period"))]
 
 init_data$B <- rep(0, model_data$n_B)
 init_data$xi <- rep(1, model_data$n_B_g)
