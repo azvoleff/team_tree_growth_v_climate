@@ -208,14 +208,14 @@ ranefs_rho_B_g_names <- c("rho_B_g[1,2]",
                           "rho_B_g[4,5]")
 ranefs_rho_B_g_names_pretty <- c(expression(rho[list(int,MCWD)]),
                                  expression(rho[list(int,MCWD^2)]),
-                                 expression(rho[list(int,DBH[t-1])]),
-                                 expression(rho[list(int,DBH[t-1]^2)]),
+                                 expression(rho[list(int,DBH)]),
+                                 expression(rho[list(int,DBH^2)]),
                                  expression(rho[list(MCWD,MCWD^2)]),
-                                 expression(rho[list(MCWD,DBH[t-1])]),
-                                 expression(rho[list(MCWD,DBH[t-1]^2)]),
-                                 expression(rho[list(MCWD^2,DBH[t-1])]),
-                                 expression(rho[list(MCWD^2,DBH[t-1]^2)]),
-                                 expression(rho[list(DBH[t-1],DBH[t-1]^2)]))
+                                 expression(rho[list(MCWD,DBH)]),
+                                 expression(rho[list(MCWD,DBH^2)]),
+                                 expression(rho[list(MCWD^2,DBH)]),
+                                 expression(rho[list(MCWD^2,DBH^2)]),
+                                 expression(rho[list(DBH,DBH^2)]))
 
 ranefs_rho_B_g_comb <- data.frame(combine.mcmc(ranefs_rho_B_g))
 
