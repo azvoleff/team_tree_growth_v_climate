@@ -223,8 +223,7 @@ plot_estimates(ranefs_rho_B_g_comb, ranefs_rho_B_g_names,
                ranefs_rho_B_g_names_pretty, xmin=-1, xmax=1)
 ggsave("growth_model_ranefs_rho_B_g.png", width=4, height=5, dpi=img_dpi)
 
-corr_matrix_names <- c("sigma[int,g]", "sigma[MCWD,g]", "sigma[MCWD^2,g]", 
-                       "sigma[DBH,g]", "sigma[DBH^2,g]")
+corr_matrix_names <- c("Intercept", "MCWD", "MCWD^2", "DBH", "DBH^2")
 
 corr_matrix <- matrix(apply(ranefs_rho_B_g_comb, 2, mean), nrow=5)
 
@@ -269,8 +268,8 @@ corrplot <- function(corr_mat, labels=NULL, signif=NULL, base_size=10,
               axis.ticks.length=unit(0,"null"),
               axis.ticks.margin=unit(0,"null"),
               legend.direction="horizontal") +
-        geom_text(aes(label=label, x=xpos, y=ypos, hjust=.5, vjust=.5), parse=TRUE, 
-                  data=corr_labels)
+        geom_text(aes(label=label, x=xpos, y=ypos, hjust=.5, vjust=.3), parse=TRUE, 
+                  data=corr_labels, size=4/12*base_size)
     if (is.null(signif_mat)) {
         geom_text(aes(label=round(value, 2), x=Var1, y=Var2, hjust=.5, vjust=.5), 
                   parse=TRUE, data=corr_matrix_long[corr_matrix_long$value != 0, ])

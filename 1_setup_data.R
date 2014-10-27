@@ -72,17 +72,25 @@ for (suffix in suffixes) {
 
     # Standardize outcome and predictors.
     dbh_mean <- mean(dbh_ts$dbh)
+    dbh_min <- min(dbh_ts$dbh)
+    dbh_max <- max(dbh_ts$dbh)
     dbh_sd <- sd(dbh_ts$dbh)
     dbh_ts$dbh <- (dbh_ts$dbh - dbh_mean) / dbh_sd
     mcwd_mean <- mean(dbh_ts$mcwd, na.rm=TRUE)
+    mcwd_min <- min(dbh_ts$mcwd, na.rm=TRUE)
+    mcwd_max <- max(dbh_ts$mcwd, na.rm=TRUE)
     mcwd_sd <- sd(dbh_ts$mcwd, na.rm=TRUE)
     dbh_ts$mcwd <- (dbh_ts$mcwd - mcwd_mean) / mcwd_sd
     WD_mean <- mean(dbh_ts$WD)
+    WD_min <- min(dbh_ts$WD)
+    WD_max <- max(dbh_ts$WD)
     WD_sd <- sd(dbh_ts$WD)
     WD <- (dbh_time_0$WD - WD_mean) / WD_sd
 
     # Save sd and means so the variables can be unstandardized later
-    save(dbh_mean, dbh_sd, WD_mean, WD_sd, mcwd_mean, mcwd_sd, 
+    save(dbh_mean, dbh_sd, dbh_min, dbh_max,
+         WD_mean, WD_sd, WD_min, WD_max,
+         mcwd_mean, mcwd_min, mcwd_max, mcwd_sd, 
          file=paste0("model_data_standardizing", suffix, ".RData"))
 
     # Calculate precision of diameter tape (1 mm) in standardized units:
@@ -197,6 +205,24 @@ for (suffix in suffixes) {
                              mcwd=(growth$mcwd_run12 - mcwd_mean) / mcwd_sd)
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
     save(model_data_long, file=paste0("model_data_long", suffix, ".RData"))
+
+    site_ID_factor_levels <- levels(factor(site_ID))
+    site_ID_factor_key <- cbind(site_ID_char=as.character(site_ID_factor_levels), 
+                                site_ID_numeric=seq(1:length(site_ID_factor_levels)))
+    write.csv(site_ID_factor_key, file=paste0("site_ID_factor_key", suffix, 
+                                              ".csv"), row.names=FALSE)
+
+    period_ID_factor_levels <- levels(ordered(growth$SamplingPeriodEnd))
+    period_ID_factor_key <- data.frame(period_ID_char=as.character(period_ID_factor_levels), 
+                                       period_ID_numeric=seq(1:length(period_ID_factor_levels)),
+                                       stringsAsFactors=FALSE)
+    # Add in initial period (coded as zero, but not in the SamplingPeriodEnd 
+    # vector)
+    initial_period <- paste0(as.numeric(substr(period_ID_factor_key$period_ID_char[1], 1, 4)) - 1, ".01")
+    period_ID_factor_key <- rbind(c(initial_period, 0), period_ID_factor_key)
+    write.csv(period_ID_factor_key,
+              file=paste0("period_ID_factor_key", suffix, ".csv"), 
+              row.names=FALSE)
 
     ###############################################################################
     # Setup inits
