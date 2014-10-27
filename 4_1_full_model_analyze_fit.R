@@ -9,8 +9,8 @@ img_dpi <- 300
 
 load("model_data_standardizing.RData")
 
-plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL, xmax=NULL, 
-                           scaling=NULL) {
+plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL, 
+                           xmax=NULL, scaling=NULL) {
     stopifnot(length(pars) == length(pars_pretty))
     suppressMessages(mcmc_ests <- melt(mcmc_ests))
     # Melt will convert the variable names to be syntactically valid R variable 
@@ -44,7 +44,7 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL, xmax=NU
     if (is.null(xmax)) xmax <- max(mcmc_ests$q97pt5)
     p <- ggplot(mcmc_ests, aes(median, variable)) +
         theme_bw(base_size=10) +
-        geom_point() + 
+        geom_point(size=1.5) + 
         geom_errorbarh(aes(xmin=q2pt5, xmax=q97pt5), height=0.25) +
         geom_vline(aes(xintercept=0), color="grey") +
         xlim(c(xmin, xmax)) +
@@ -55,69 +55,65 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL, xmax=NU
 
 load("jags_fit_full_model_fixefs.RData")
 load("jags_fit_full_model_ranefs.RData")
-load("jags_fit_full_model_ranefs_g_sigma.RData")
-load("jags_fit_full_model_ranefs_g_rho.RData")
+load("jags_fit_full_model_ranefs_mu_B_g.RData")
+load("jags_fit_full_model_ranefs_sigma_B_g.RData")
+load("jags_fit_full_model_ranefs_rho_B_g.RData")
 
-start_val <- 30001
-thin_val <- 20
+start_val <- 12000
+thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
 ranefs <- window(ranefs, start=start_val, thin=thin_val)
-ranefs_g_sigma <- window(ranefs_g_sigma, start=start_val, thin=thin_val)
-ranefs_g_rho <- window(ranefs_g_rho, start=start_val, thin=thin_val)
+ranefs_mu_B_g <- window(ranefs_mu_B_g, start=start_val, thin=thin_val)
+ranefs_sigma_B_g <- window(ranefs_sigma_B_g, start=start_val, thin=thin_val)
+ranefs_rho_B_g <- window(ranefs_rho_B_g, start=start_val, thin=thin_val)
 
 # gelman.diag(fixefs)
 # gelman.diag(ranefs)
-# gelman.diag(ranefs_g_sigma)
-# gelman.diag(ranefs_g_rho)
+# gelman.diag(ranefs_sigma_B_g)
+# gelman.diag(ranefs_mu_B_g)
+# gelman.diag(ranefs_rho_B_g)
 
 # plot(fixefs, ask=TRUE)
 # plot(ranefs, ask=TRUE)
-# plot(ranefs_g_sigma, ask=TRUE)
-# plot(ranefs_g_rho, ask=TRUE)
+# plot(ranefs_sigma_B_g, ask=TRUE)
+# plot(ranefs_mu_B_g, ask=TRUE)
+# plot(ranefs_rho_B_g, ask=TRUE)
+
+# gelman.plot(fixefs)
+# gelman.plot(ranefs)
+# gelman.plot(ranefs_sigma_B_g)
+# gelman.plot(ranefs_mu_B_g)
+
+# HPDinterval(fixefs)
+# HPDinterval(ranefs)
 
 # autocorr.plot(fixefs)
 # autocorr.plot(ranefs)
-# autocorr.plot(ranefs_g_sigma)
-# autocorr.plot(ranefs_g_rho)
+# autocorr.plot(ranefs_mu_B_g)
+# autocorr.plot(ranefs_sigma_B_g)
+# autocorr.plot(ranefs_rho_B_g)
 
 ###############################################################################
 ### Plot fixed effects
 ###############################################################################
 
-
-fixefs_names <- c("int",
-                  "slp_mcwd",
-                  "slp_mcwd_sq",
-                  "slp_dbh",
-                  "slp_dbh_sq",
-                  "slp_WD",
-                  "slp_WD_sq")
-fixefs_names_pretty <- c("Intercept",
-                         "MCWD",
-                         expression(MCWD^2),
-                         "Diameter",
-                         expression(Diameter^2),
-                         "Density",
+fixefs_names <- c("B[1]",
+                  "B[2]")
+fixefs_names_pretty <- c("Density",
                          expression(Density^2))
-fixefs_scaling <- c(dbh_sd,
-                    (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
-                    (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
-                    dbh_sd/dbh_sd,
-                    dbh_sd/dbh_sd,
-                    dbh_sd/WD_sd,
+fixefs_scaling <- c(dbh_sd/WD_sd,
                     dbh_sd/WD_sd)
 
 fixefs_comb <- data.frame(combine.mcmc(fixefs))
 
 plot_estimates(fixefs_comb, fixefs_names, fixefs_names_pretty,
                scaling=fixefs_scaling)
-ggsave("growth_model_fixefs.png", width=3, height=3.75, dpi=img_dpi)
+ggsave("growth_model_fixefs.png", width=3, height=1.5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot random intercepts and process and observation error
 ###############################################################################
-
 
 ranef_names <- c("sigma_obs",
                  "sigma_proc",
@@ -131,73 +127,109 @@ ranef_names_pretty <- c(expression(sigma[obs]),
                         expression(sigma[plot]),
                         expression(sigma[site]),
                         expression(sigma[period]))
+ranefs_scaling <- c(dbh_sd,
+                    dbh_sd,
+                    dbh_sd,
+                    dbh_sd,
+                    dbh_sd,
+                    dbh_sd)
 
 ranefs_comb <- data.frame(combine.mcmc(ranefs))
 
-plot_estimates(ranefs_comb, ranef_names, ranef_names_pretty)
+plot_estimates(ranefs_comb, ranef_names, ranef_names_pretty, 
+               scaling=ranefs_scaling)
 ggsave("growth_model_ranefs.png", width=3, height=3.5, dpi=img_dpi)
+
+###############################################################################
+### Plot genus-level random effects means
+###############################################################################
+
+ranefs_mu_B_g_names <- c("mu_B_g[1]",
+                         "mu_B_g[2]",
+                         "mu_B_g[3]",
+                         "mu_B_g[4]",
+                         "mu_B_g[5]")
+ranefs_mu_B_g_names_pretty <- c(expression(mu[int,g]),
+                                 expression(mu[MCWD,g]),
+                                 expression(mu[MCWD^2,g]),
+                                 expression(mu[DBH,g]),
+                                 expression(mu[DBH^2,g]))
+ranef_mu_b_g_scaling <- c(dbh_sd,
+                          (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
+                          (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
+                          dbh_sd/dbh_sd,
+                          dbh_sd/dbh_sd)
+
+ranefs_mu_B_g_comb <- data.frame(combine.mcmc(ranefs_mu_B_g))
+
+plot_estimates(ranefs_mu_B_g_comb, ranefs_mu_B_g_names,
+               ranefs_mu_B_g_names_pretty, scaling=ranef_mu_b_g_scaling)
+ggsave("growth_model_ranefs_mu_B_g.png", width=3, height=3, dpi=img_dpi)
 
 ###############################################################################
 ### Plot genus-level random effects variances
 ###############################################################################
 
-ranefs_g_sigma_names <- c("sigma_B_g[1]",
-                          "sigma_B_g[2]",
-                          "sigma_B_g[3]",
-                          "sigma_B_g[4]",
-                          "sigma_B_g[5]")
-ranefs_g_sigma_names_pretty <- c(expression(sigma[int,g]),
-                                 expression(sigma[MCWD,g]),
-                                 expression(sigma[MCWD^2,g]),
-                                 expression(sigma[DBH,g]),
-                                 expression(sigma[DBH^2,g]))
+ranefs_sigma_B_g_names <- c("sigma_B_g[1]",
+                            "sigma_B_g[2]",
+                            "sigma_B_g[3]",
+                            "sigma_B_g[4]",
+                            "sigma_B_g[5]")
+ranefs_sigma_B_g_names_pretty <- c(expression(sigma[int,g]),
+                                   expression(sigma[MCWD,g]),
+                                   expression(sigma[MCWD^2,g]),
+                                   expression(sigma[DBH,g]),
+                                   expression(sigma[DBH^2,g]))
+ranefs_sigma_B_g_scaling <- c(dbh_sd,
+                             (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
+                             (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
+                             dbh_sd/dbh_sd,
+                             dbh_sd/dbh_sd)
 
+ranefs_sigma_B_g_comb <- data.frame(combine.mcmc(ranefs_sigma_B_g))
 
-ranefs_g_sigma_comb <- data.frame(combine.mcmc(ranefs_g_sigma))
-
-plot_estimates(ranefs_g_sigma_comb, ranefs_g_sigma_names,
-               ranefs_g_sigma_names_pretty)
-ggsave("growth_model_ranefs_g_sigma.png", width=3, height=3, dpi=img_dpi)
+plot_estimates(ranefs_sigma_B_g_comb, ranefs_sigma_B_g_names,
+               ranefs_sigma_B_g_names_pretty, scaling=ranefs_sigma_B_g_scaling)
+ggsave("growth_model_ranefs_sigma_B_g.png", width=3, height=3, dpi=img_dpi)
 
 ###############################################################################
 ### Plot correlation matrix for genus-level random effects
 ###############################################################################
 
-ranefs_g_rho_names <- c("rho_B_g[1,2]",
-                        "rho_B_g[1,3]",
-                        "rho_B_g[1,4]",
-                        "rho_B_g[1,5]",
-                        "rho_B_g[2,3]",
-                        "rho_B_g[2,4]",
-                        "rho_B_g[2,5]",
-                        "rho_B_g[3,4]",
-                        "rho_B_g[3,5]",
-                        "rho_B_g[4,5]")
-ranefs_g_rho_names_pretty <- c(expression(rho[list(int,MCWD)]),
-                               expression(rho[list(int,MCWD^2)]),
-                               expression(rho[list(int,DBH[t-1])]),
-                               expression(rho[list(int,DBH[t-1]^2)]),
-                               expression(rho[list(MCWD,MCWD^2)]),
-                               expression(rho[list(MCWD,DBH[t-1])]),
-                               expression(rho[list(MCWD,DBH[t-1]^2)]),
-                               expression(rho[list(MCWD^2,DBH[t-1])]),
-                               expression(rho[list(MCWD^2,DBH[t-1]^2)]),
-                               expression(rho[list(DBH[t-1],DBH[t-1]^2)]))
+ranefs_rho_B_g_names <- c("rho_B_g[1,2]",
+                          "rho_B_g[1,3]",
+                          "rho_B_g[1,4]",
+                          "rho_B_g[1,5]",
+                          "rho_B_g[2,3]",
+                          "rho_B_g[2,4]",
+                          "rho_B_g[2,5]",
+                          "rho_B_g[3,4]",
+                          "rho_B_g[3,5]",
+                          "rho_B_g[4,5]")
+ranefs_rho_B_g_names_pretty <- c(expression(rho[list(int,MCWD)]),
+                                 expression(rho[list(int,MCWD^2)]),
+                                 expression(rho[list(int,DBH[t-1])]),
+                                 expression(rho[list(int,DBH[t-1]^2)]),
+                                 expression(rho[list(MCWD,MCWD^2)]),
+                                 expression(rho[list(MCWD,DBH[t-1])]),
+                                 expression(rho[list(MCWD,DBH[t-1]^2)]),
+                                 expression(rho[list(MCWD^2,DBH[t-1])]),
+                                 expression(rho[list(MCWD^2,DBH[t-1]^2)]),
+                                 expression(rho[list(DBH[t-1],DBH[t-1]^2)]))
 
-ranefs_g_rho_comb <- data.frame(combine.mcmc(ranefs_g_rho))
+ranefs_rho_B_g_comb <- data.frame(combine.mcmc(ranefs_rho_B_g))
 
-plot_estimates(ranefs_g_rho_comb, ranefs_g_rho_names,
-               ranefs_g_rho_names_pretty, xmin=-1, xmax=1)
-ggsave("growth_model_ranefs_g_rho.png", width=4, height=5, dpi=img_dpi)
+plot_estimates(ranefs_rho_B_g_comb, ranefs_rho_B_g_names,
+               ranefs_rho_B_g_names_pretty, xmin=-1, xmax=1)
+ggsave("growth_model_ranefs_rho_B_g.png", width=4, height=5, dpi=img_dpi)
 
-corr_matrix_names <- c("sigma[int,g]", "sigma[MCWD,g]", 
-                 "sigma[MCWD^2,g]", "sigma[DBH,g]", 
-                 "sigma[DBH^2,g]")
+corr_matrix_names <- c("sigma[int,g]", "sigma[MCWD,g]", "sigma[MCWD^2,g]", 
+                       "sigma[DBH,g]", "sigma[DBH^2,g]")
 
-corr_matrix <- matrix(apply(ranefs_g_rho_comb, 2, mean), nrow=5)
+corr_matrix <- matrix(apply(ranefs_rho_B_g_comb, 2, mean), nrow=5)
 
-corr_matrix_q2pt5 <- matrix(apply(ranefs_g_rho_comb, 2, quantile, .025), nrow=5)
-corr_matrix_q97pt5 <- matrix(apply(ranefs_g_rho_comb, 2, quantile, .975), nrow=5)
+corr_matrix_q2pt5 <- matrix(apply(ranefs_rho_B_g_comb, 2, quantile, .025), nrow=5)
+corr_matrix_q97pt5 <- matrix(apply(ranefs_rho_B_g_comb, 2, quantile, .975), nrow=5)
 signif_mat <- (corr_matrix_q2pt5 > 0) | (corr_matrix_q97pt5 < 0)
 
 corrplot <- function(corr_mat, labels=NULL, signif=NULL, base_size=10, 
@@ -260,4 +292,4 @@ corrplot <- function(corr_mat, labels=NULL, signif=NULL, base_size=10,
 }
 
 corrplot(corr_matrix, corr_matrix_names, base_size=10)
-ggsave("growth_model_ranefs_g_rho_corrplot.png", width=3, height=3, dpi=img_dpi)
+ggsave("growth_model_ranefs_rho_B_g_corrplot.png", width=3, height=3, dpi=img_dpi)
