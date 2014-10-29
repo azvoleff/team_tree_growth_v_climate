@@ -54,39 +54,39 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL,
 }
 
 load("jags_fit_full_model_fixefs.RData")
-load("jags_fit_full_model_ranefs.RData")
+load("jags_fit_full_model_ranefs_sigmas.RData")
 load("jags_fit_full_model_ranefs_mu_B_g.RData")
 load("jags_fit_full_model_ranefs_sigma_B_g.RData")
 load("jags_fit_full_model_ranefs_rho_B_g.RData")
 
-start_val <- 12000
+start_val <- 22000
 thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
-ranefs <- window(ranefs, start=start_val, thin=thin_val)
+ranefs_sigmas <- window(ranefs_sigmas, start=start_val, thin=thin_val)
 ranefs_mu_B_g <- window(ranefs_mu_B_g, start=start_val, thin=thin_val)
 ranefs_sigma_B_g <- window(ranefs_sigma_B_g, start=start_val, thin=thin_val)
 ranefs_rho_B_g <- window(ranefs_rho_B_g, start=start_val, thin=thin_val)
 
 # gelman.diag(fixefs)
-# gelman.diag(ranefs)
+# gelman.diag(ranefs_sigmas)
 # gelman.diag(ranefs_sigma_B_g)
 # gelman.diag(ranefs_mu_B_g)
 # gelman.diag(ranefs_rho_B_g)
 
 # plot(fixefs, ask=TRUE)
-# plot(ranefs, ask=TRUE)
+# plot(ranefs_sigmas, ask=TRUE)
 # plot(ranefs_sigma_B_g, ask=TRUE)
 # plot(ranefs_mu_B_g, ask=TRUE)
 # plot(ranefs_rho_B_g, ask=TRUE)
 
 # gelman.plot(fixefs)
-# gelman.plot(ranefs)
+# gelman.plot(ranefs_sigmas)
 # gelman.plot(ranefs_sigma_B_g)
 # gelman.plot(ranefs_mu_B_g)
 
 # HPDinterval(fixefs)
-# HPDinterval(ranefs)
+# HPDinterval(ranefs_sigmas)
 
 # autocorr.plot(fixefs)
 # autocorr.plot(ranefs)
@@ -115,30 +115,30 @@ ggsave("growth_model_fixefs.png", width=3, height=1.5, dpi=img_dpi)
 ### Plot random intercepts and process and observation error
 ###############################################################################
 
-ranef_names <- c("sigma_obs",
+ranef_sigmas_names <- c("sigma_obs",
                  "sigma_proc",
                  "sigma_int_ijk",
                  "sigma_int_jk",
                  "sigma_int_k",
                  "sigma_int_t")
-ranef_names_pretty <- c(expression(sigma[obs]),
+ranef_sigmas_names_pretty <- c(expression(sigma[obs]),
                         expression(sigma[proc]),
                         expression(sigma[tree]),
                         expression(sigma[plot]),
                         expression(sigma[site]),
                         expression(sigma[period]))
-ranefs_scaling <- c(dbh_sd,
-                    dbh_sd,
-                    dbh_sd,
-                    dbh_sd,
-                    dbh_sd,
-                    dbh_sd)
+ranefs_sigmas_scaling <- c(dbh_sd,
+                        dbh_sd,
+                        dbh_sd,
+                        dbh_sd,
+                        dbh_sd,
+                        dbh_sd)
 
-ranefs_comb <- data.frame(combine.mcmc(ranefs))
+ranefs_sigmas_comb <- data.frame(combine.mcmc(ranefs_sigmas))
 
-plot_estimates(ranefs_comb, ranef_names, ranef_names_pretty, 
-               scaling=ranefs_scaling)
-ggsave("growth_model_ranefs.png", width=3, height=3.5, dpi=img_dpi)
+plot_estimates(ranefs_sigmas_comb, ranef_sigmas_names, ranef_sigmas_names_pretty, 
+               scaling=ranefs_sigmas_scaling)
+ggsave("growth_model_ranefs_sigmas.png", width=3, height=3.5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot genus-level random effects means
