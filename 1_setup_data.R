@@ -206,6 +206,12 @@ for (suffix in suffixes) {
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
     save(model_data_long, file=paste0("model_data_long", suffix, ".RData"))
 
+    genus_ID_factor_levels <- levels(factor(genus_ID))
+    genus_ID_factor_key <- cbind(genus_ID_char=as.character(genus_ID_factor_levels), 
+                                 genus_ID_numeric=seq(1:length(genus_ID_factor_levels)))
+    write.csv(genus_ID_factor_key, file=paste0("genus_ID_factor_key", suffix, 
+                                              ".csv"), row.names=FALSE)
+
     site_ID_factor_levels <- levels(factor(site_ID))
     site_ID_factor_key <- cbind(site_ID_char=as.character(site_ID_factor_levels), 
                                 site_ID_numeric=seq(1:length(site_ID_factor_levels)))
