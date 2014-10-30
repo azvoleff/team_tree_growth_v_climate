@@ -6,7 +6,6 @@ img_dpi <- 300
 
 sites <- read.csv('H:/Data/TEAM/Sitecode_Key/sitecode_key.csv')
 
-
 load("init_data.RData")
 load("model_data_wide.RData")
 load("model_data_standardizing.RData")

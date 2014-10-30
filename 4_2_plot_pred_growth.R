@@ -24,11 +24,15 @@ merged <- with(model_data, data.frame(site_ID=site_ID,
                                       genus_ID=as.integer(genus_ID),
                                       WD=WD,
                                       dbh=apply(dbh, 1, mean, na.rm=TRUE)))
-d_dbh <- 5
-dbhs <- seq(10, 150, d_dbh)
+dbhs <- c(10, 20, 30, 40, 50, 75, 100, 150)
 dbhs_std <- (dbhs - dbh_mean)/dbh_sd
 dbh_class_midpoints <- diff(dbhs_std)/2 + dbhs_std[-length(dbhs_std)]
 merged$dbh_class_ID <- as.numeric(cut(merged$dbh, dbhs_std, include.lowest=TRUE))
+
+d_dbh <- 10
+dbhs_smalld <- seq(10, 150, d_dbh)
+dbhs_smalld_std <- (dbhs_smalld - dbh_mean)/dbh_sd
+dbh_smalld_class_midpoints <- diff(dbhs_smalld_std)/2 + dbhs_smalld_std[-length(dbhs_smalld_std)]
 
 # Check overlap of genera between sites
 genera_overlap <- group_by(merged, genus_ID) %>%
@@ -137,7 +141,8 @@ B <- array(B, dim=c(n_genus, n_B, n_mcmc))
 
 # Below function predictions the growth by genus for each of a set of MCMC 
 # samples
-pred_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints, mcwd=0) {
+pred_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
+                        mcwd=0) {
     n_genus <- length(genera_IDs)
     # Make predictions into a genus x dbh x n_mcmc array.
     growth_preds <- array(NA, dim=c(n_genus, length(dbhs), n_mcmc))
@@ -161,14 +166,15 @@ pred_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints, mcwd=0) 
 
 # Below function takes output of pred_growth to calculate a genus-level mean 
 # growth with quantiles
-genus_mean_growth <- function(genera_IDs=1:n_genus, mcwds=0) {
+genus_mean_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints, 
+                              mcwds=0) {
     n_genus <- length(genera_IDs)
     growths <- foreach (mcwd=mcwds, .combine=rbind,
                         .export=c("pred_growth", "n_genus", "n_mcmc", "B", 
                                   "B_g", "x_all", "n_B", "n_B_g", 
                                   "dbh_class_midpoints", "dbh_sd"),
                         .packages=c("reshape2", "dplyr")) %dopar% {
-        growth_preds <- pred_growth(mcwd=mcwd)
+        growth_preds <- pred_growth(dbhs=dbhs, mcwd=mcwd)
         # Return to original units
         growth_preds <- growth_preds * dbh_sd
         growth_means <- apply(growth_preds, c(1, 2), mean)
@@ -186,19 +192,18 @@ genus_mean_growth <- function(genera_IDs=1:n_genus, mcwds=0) {
     return(growths)
 }
 
-mcwds <- c(0, 100, 200, 500)
-mcwds <- (mcwds - mcwd_mean)/mcwd_sd
-growth <- genus_mean_growth(mcwds=mcwds)
+growth <- genus_mean_growth(mcwds=(c(0, 100, 200, 500)- mcwd_mean)/mcwd_sd, 
+                            dbhs=dbh_smalld_class_midpoints)
 
 genus_ID_factor_key <- read.csv("genus_ID_factor_key.csv")
 growth <- merge(growth, genus_ID_factor_key, by.x="genus_ID", by.y="genus_ID_numeric")
-growth$dbh <- dbh_class_midpoints[growth$dbh_class_ID]*dbh_sd + dbh_mean
+growth$dbh <- dbh_smalld_class_midpoints[growth$dbh_class_ID]*dbh_sd + dbh_mean
 growth$mcwd <- (growth$mcwd*mcwd_sd) + mcwd_mean
 growth <- tbl_df(growth)
 growth <- arrange(growth, genus_ID, dbh_class_ID, mcwd)
 
 # Plot subset of growth curves
-ggplot(filter(growth, genus_ID %in% c(833, 566, 784), mcwd == 0)) +
+ggplot(filter(growth, genus_ID %in% c(833, 566, 784, 261), mcwd == 0)) +
     geom_line(aes(x=dbh, y=mean, colour=genus_ID_char))+
     geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=genus_ID_char), alpha=.25)+
     coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
@@ -207,26 +212,29 @@ ggplot(filter(growth, genus_ID %in% c(833, 566, 784), mcwd == 0)) +
     xlab("Initial diameter (cm)") +
     ylab("Growth (cm/yr)") +
     theme(legend.text=element_text(face="italic"))
+ggsave("growth_genus_level_subset.png", width=4, height=2, dpi=300)
 
 # Plot ALL growth curves
 ggplot(filter(growth, mcwd == 0)) +
-    geom_line(aes(x=dbh, y=mean, group=genus_ID), alpha=.2)+
+    geom_line(aes(x=dbh, y=mean, group=genus_ID), alpha=.2, size=.25)+
     #geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, group=genus_ID), 
     #alpha=.05)+
     coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
     xlab("Initial diameter (cm)") +
     ylab("Growth (cm/yr)")
+ggsave("growth_genus_level_all.png", width=6, height=4, dpi=300)
 
 # Plot specific curve versus MCWD
 ggplot(filter(growth, genus_ID %in% c(784))) +
     geom_line(aes(x=dbh, y=mean, colour=factor(mcwd)))+
     geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
     coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
-    scale_fill_discrete("Genus") +
-    scale_colour_discrete("Genus") +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
     xlab("Initial diameter (cm)") +
     ylab("Growth (cm/yr)") +
     theme(legend.text=element_text(face="italic"))
+ggsave("growth_genus_level_Syzygium.png", width=4, height=2, dpi=300)
 
 ###############################################################################
 # Predict site-level mean growth based on observed frequencies of each genus at 
@@ -243,20 +251,27 @@ genus_freq <- group_by(merged, site_ID, dbh_class_ID, genus_ID) %>%
 this_site_ID <- 1
 this_dbh <- dbh_class_midpoints[1]
 
-site_means <- foreach (site_ID=c(1:n_site), .combine=rbind) %:% 
-        foreach (mcwd=c(0, 100, 200, 400),
+site_means <- foreach (this_site_ID=c(1:n_site), .combine=rbind) %:% 
+        foreach (mcwd=c(0, 100, 200, 500),
                  .packages=c("reshape2", "dplyr"),
-                 .export=c("n_genus","dbh_sd"),
-                 .combine=rbind) %dopar% {
-
+                 .export=c("n_genus"),
+                 .combine=rbind) %do% {
+    # Need to standardize mcwd before using it as a predictor
+    mcwd_std <- (mcwd - mcwd_mean)/mcwd_sd
     # Figure out the genera present at this site, and their frequencies
     this_genus_set <- filter(genus_freq, site_ID == this_site_ID)
-    # Plot mean curves for the site
-    growth_preds <- pred_growth(unique(this_genus_set$genus_ID), dbhs=this_dbh, mcwd=mcwd)
     # Calculate predictions for all genera present at this site for all MCMC 
     # samples
-    this_growth_preds <- pred_growth(unique(this_genus_set$genus_ID), dbhs=dbh_class_midpoints, mcwd=mcwd)
+    this_growth_preds <- pred_growth(unique(this_genus_set$genus_ID), dbhs=dbh_class_midpoints, mcwd=mcwd_std)
     this_growth_preds <- this_growth_preds * dbh_sd
+
+    # Apply site-level intercept
+    this_int_k <- array(rep(int_k[, this_site_ID]*dbh_sd, 
+                            each=dim(this_growth_preds)[1] *
+                                 dim(this_growth_preds)[2]), 
+                        dim=dim(this_growth_preds))
+    this_growth_preds <- this_growth_preds + this_int_k
+
     # Now weight each growth prediction by the frequency of each genus within 
     # each dbh class
     weight_matrix <- matrix(0, ncol=ncol(this_growth_preds), nrow=nrow(this_growth_preds))
@@ -266,7 +281,8 @@ site_means <- foreach (site_ID=c(1:n_site), .combine=rbind) %:%
         col_num <- this_genus_set$dbh_class_ID[i]
         weight_matrix[row_num, col_num] <- this_genus_set$freq[i]
     }
-    stopifnot(all(apply(weight_matrix, 2, sum) %in% c(0, 1)))
+    stopifnot(all((apply(weight_matrix, 2, sum) == 0) |
+                  (apply(weight_matrix, 2, sum) - 1 < 1e-10)))
 
     # Repeat weight_matrix in z direction to match this_growth_preds
     weight_matrix <- array(rep(weight_matrix, dim(this_growth_preds)[3]), dim=dim(this_growth_preds))
@@ -278,18 +294,147 @@ site_means <- foreach (site_ID=c(1:n_site), .combine=rbind) %:%
     growth_means <- apply(this_growth_preds, 2, mean)
     growth_q2pt5 <- apply(this_growth_preds, 2, quantile, .025)
     growth_q97pt5 <- apply(this_growth_preds, 2, quantile, .975)
-    data.frame(cbind(site=site_ID, mcwd=mcwd, dbh=dbh_class_midpoints, 
+    data.frame(cbind(site_ID=this_site_ID, mcwd=mcwd, 
+                     dbh=dbh_class_midpoints*dbh_sd+dbh_mean, 
                      growth=growth_means, q2pt5=growth_q2pt5, 
                      q97pt5=growth_q97pt5))
-
 }
 
-ggplot(site_means) +
-    geom_line(aes(x=dbh*dbh_sd+dbh_mean, y=growth, colour=factor(mcwd))) +
-    geom_ribbon(aes(x=dbh*dbh_sd+dbh_mean, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
-    coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
-    facet_wrap(~site) +
+site_ID_factor_key <- read.csv("site_ID_factor_key.csv")
+site_means <- merge(site_means, site_ID_factor_key, by.x="site_ID", by.y="site_ID_numeric")
+
+sitecode_key <- read.csv('H:/Data/TEAM/Sitecode_Key/sitecode_key.csv')
+site_means <- merge(site_means, sitecode_key, by.x="site_ID_char", by.y="sitecode")
+
+ggplot(filter(site_means, mcwd == 0)) +
+    geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+    geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    scale_colour_discrete("Site") +
+    scale_fill_discrete("Site") +
+    scale_shape_manual("Site", values=rep(1:4, 4)) +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_0.png", width=8, height=6, dpi=300)
+
+ggplot(filter(site_means, mcwd == 0)) +
+    geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+    geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    facet_grid(continent~.) +
+    scale_colour_discrete("Site") +
+    scale_fill_discrete("Site") +
+    scale_shape_manual("Site", values=rep(1:4, 4)) +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_0_continent.png", width=8, height=6, dpi=300)
+
+color_values <- c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3")
+ggplot(filter(site_means, mcwd == 0)) +
+    geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+    geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    # scale_colour_discrete("Site") +
+    # scale_fill_discrete("Site") +
+    # scale_shape_discrete("Site") +
+    scale_colour_manual("Site", values=rep(color_values, each=4)) +
+    scale_fill_manual("Site", values=rep(color_values, each=4)) +
+    scale_shape_manual("Site", values=rep(1:4, 4)) +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_0_v1.png", width=8, height=6, dpi=300)
+
+ggplot(filter(site_means)) +
+    geom_line(aes(x=dbh, y=growth, colour=factor(mcwd))) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    facet_wrap(~site_ID_char) +
     scale_fill_discrete("MCWD") +
     scale_colour_discrete("MCWD") +
     xlab("Initial diameter (cm)") +
     ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_all.png", width=8, height=6, dpi=300)
+
+ggplot(filter(site_means)) +
+    geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+    geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    facet_grid(continent~mcwd) +
+    scale_colour_discrete("Site") +
+    scale_fill_discrete("Site") +
+    scale_shape_manual("Site", values=rep(1:4, 4)) +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_all_continent.png", width=8, height=6, dpi=300)
+
+# ggplot(filter(site_means, !(sitecode %in%)) +
+#     geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+#     geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+#     geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+#     coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+#     facet_grid(continent~mcwd) +
+#     scale_colour_discrete("Site") +
+#     scale_fill_discrete("Site") +
+#     scale_shape_manual("Site", values=rep(1:4, 4)) +
+#     xlab("Initial diameter (cm)") +
+#     ylab("Growth (cm/yr)")
+# ggsave("growth_site_level_mcwd_all_continent_sites_without_shortrecords.png", width=8, height=6, dpi=300)
+
+###############################################################################
+# Plot variation in MCWD slope versus wood density
+
+B_g_scaling <- c(dbh_sd,
+                 (dbh_sd/mcwd_sd) * 100, # Convert from mm to 100s of mm
+                 (dbh_sd/mcwd_sd) * 100, # Convert from mm to 100s of mm
+                 dbh_sd/dbh_sd,
+                 dbh_sd/dbh_sd)
+
+B_g_scaling <- matrix(rep(B_g_scaling, each=nrow(B_g)), ncol=ncol(B_g))
+B_g_scaling <- array(rep(B_g_scaling, dim(B_g)[3]), dim=dim(B_g))
+B_g_rescaled <- B_g * B_g_scaling
+
+B_g_means <- data.frame(apply(B_g_rescaled, c(1, 2), mean))
+B_g_means <- cbind(1:nrow(B_g_means), B_g_means)
+names(B_g_means) <- c("genus_ID", "int", "MCWD", "MCWD^2", "DBH", "DBH^2")
+B_g_means <- melt(B_g_means, id.vars="genus_ID", value.name="mean")
+
+B_g_q2pt5 <- data.frame(apply(B_g_rescaled, c(1, 2), quantile, .025))
+B_g_q2pt5 <- cbind(1:nrow(B_g_q2pt5), B_g_q2pt5)
+names(B_g_q2pt5) <- c("genus_ID", "int", "MCWD", "MCWD^2", "DBH", "DBH^2")
+B_g_q2pt5 <- melt(B_g_q2pt5, id.vars="genus_ID", value.name="q2pt5")
+
+B_g_q97pt5 <- data.frame(apply(B_g_rescaled, c(1, 2), quantile, .975))
+B_g_q97pt5 <- cbind(1:nrow(B_g_q97pt5), B_g_q97pt5)
+names(B_g_q97pt5) <- c("genus_ID", "int", "MCWD", "MCWD^2", "DBH", "DBH^2")
+B_g_q97pt5 <- melt(B_g_q97pt5, id.vars="genus_ID", value.name="q97pt5")
+
+B_g_means <- merge(B_g_means, B_g_q2pt5)
+B_g_means <- merge(B_g_means, B_g_q97pt5)
+B_g_means <- merge(B_g_means, WD)
+B_g_means$WD <- B_g_means$WD*WD_sd + WD_mean
+
+cor(B_g_means$mean, B_g_means$WD)
+
+B_g_means$WD_class <- cut(B_g_means$WD, c(0, .4, .7, 1.5), include.lowest=TRUE)
+min(B_g_means$WD)
+max(B_g_means$WD)
+table(B_g_means$WD_class)
+table(is.na(B_g_means$WD_class))
+
+ggplot(filter(B_g_means, variable %in% c("MCWD", "MCWD^2")),
+       aes(x=WD, y=mean)) +
+    geom_point() + facet_wrap(~variable, scales="free") +
+    geom_smooth()
+ggsave("growth_MCWD_slope_vs_WD_points.png", width=6, height=6, dpi=300)
+
+ggplot(filter(B_g_means, variable %in% c("MCWD", "MCWD^2"))) +
+    geom_density(aes(mean, fill=WD_class), alpha=.3) + facet_grid(~variable)
+ggsave("growth_MCWD_slope_vs_WD_densities.png", width=6, height=6, dpi=300)
+
+# Plot five dominant genera in each site
+# Plot by region
+# Plot mean global growth
