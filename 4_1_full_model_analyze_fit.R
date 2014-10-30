@@ -27,9 +27,9 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL,
         }
     }
     mcmc_ests <- group_by(mcmc_ests, variable) %>%
-    summarize(median=median(value),
-              q2pt5=quantile(value, .025),
-              q97pt5=quantile(value, .975))
+        summarize(median=median(value),
+                  q2pt5=quantile(value, .025),
+                  q97pt5=quantile(value, .975))
 
     if (is.null(pars_pretty)) {
         mcmc_ests$variable <- ordered(mcmc_ests$variable, 
