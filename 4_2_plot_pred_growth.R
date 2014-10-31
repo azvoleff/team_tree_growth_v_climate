@@ -1,4 +1,5 @@
 library(ggplot2)
+library(grid)
 library(runjags)
 library(coda)
 library(dplyr)
@@ -10,15 +11,12 @@ cl <- makeCluster(4)
 registerDoParallel(cl)
 
 load("jags_fit_full_model_fixefs.RData")
-load("jags_fit_full_model_ranefs_mu_B_g.RData")
 
 load("model_data_wide.RData")
 load("model_data_standardizing.RData")
 
 n_site <- model_data$n_site
 n_genus <- model_data$n_genus
-n_B <- 2
-n_B_g <- 5
 
 merged <- with(model_data, data.frame(site_ID=site_ID, 
                                       genus_ID=as.integer(genus_ID),
@@ -74,6 +72,7 @@ n_mcmc <- nrow(fixefs)
 B <- fixefs[grepl('^B\\[', names(fixefs))]
 B <- B[order(names(B))]
 B <- as.matrix(B)
+n_B <- ncol(B)
 
 # Random intercepts at plot, site, and period levels
 load("jags_fit_full_model_ranefs.RData")
@@ -90,6 +89,8 @@ int_t <- int_t[order(names(int_t))]
 # Random effects at genus-level
 load("jags_fit_full_model_ranefs_B_g.RData")
 B_g <- combine.mcmc(ranefs_B_g)
+n_B_g <- ncol(B_g)/n_genus
+
 # Make a series of vectors to check that the array conversion is done 
 # correctly.
 # 
@@ -100,12 +101,12 @@ B_g_set2 <- B_g[5, c(0:(n_B_g - 1)) * n_genus + 7]
 # Now convert to a 3D array, with genera in rows, coefficients in columns, and 
 # separate MCMC samples in third dimension
 dim(B_g)
-B_g <- t(matrix(t(B_g), byrow=TRUE, ncol=n_genus))
-dim(B_g)
-B_g <- array(B_g, dim=c(n_genus, n_B_g, n_mcmc))
-dim(B_g)
-stopifnot(all(B_g[1, , 1] == B_g_set1))
-stopifnot(all(B_g[7, , 5] == B_g_set2))
+B_g_rep <- t(matrix(t(B_g), byrow=TRUE, ncol=n_genus))
+dim(B_g_rep)
+B_g_rep <- array(B_g_rep, dim=c(n_genus, n_B_g, n_mcmc))
+dim(B_g_rep)
+stopifnot(all(B_g_rep[1, , 1] == B_g_set1))
+stopifnot(all(B_g_rep[7, , 5] == B_g_set2))
 
 ###############################################################################
 # Make predictions of mean genus-level growth
@@ -125,8 +126,8 @@ x_all <- cbind(x, x_g)
 
 # Convert B into a n_genus x n_beta x n_mcmc array. (This repeats the same B 
 # for each genus row since B is a fixed effect).
-B <- matrix(rep(B, each=n_genus), ncol=2)
-B <- array(B, dim=c(n_genus, n_B, n_mcmc))
+B_rep <- matrix(rep(B, each=n_genus), ncol=2)
+B_rep <- array(B_rep, dim=c(n_genus, n_B, n_mcmc))
 
 ###############################################################################
 # Now make growth curves for each genus
@@ -150,8 +151,8 @@ pred_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
         genus_ID <- genera_IDs[n]
         # Collapse betas for this genus into flat matrices (temporarily eliminating 
         # third dimension for efficient matrix multiplication)
-        B_flat <- matrix(B[genus_ID, , ], nrow=dim(B)[3])
-        B_g_flat <- matrix(B_g[genus_ID, , ], nrow=dim(B_g)[3], byrow=TRUE)
+        B_flat <- matrix(B_rep[genus_ID, , ], nrow=dim(B_rep)[3])
+        B_g_flat <- matrix(B_g_rep[genus_ID, , ], nrow=dim(B_g_rep)[3], byrow=TRUE)
         B_all <- cbind(B_flat, B_g_flat)
         this_x_all <- matrix(rep(x_all[genus_ID, ], length(dbhs)), ncol=n_B + n_B_g, byrow=TRUE)
         this_x_all[, 4] <- mcwd 
@@ -170,8 +171,8 @@ genus_mean_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
                               mcwds=0) {
     n_genus <- length(genera_IDs)
     growths <- foreach (mcwd=mcwds, .combine=rbind,
-                        .export=c("pred_growth", "n_genus", "n_mcmc", "B", 
-                                  "B_g", "x_all", "n_B", "n_B_g", 
+                        .export=c("pred_growth", "n_genus", "n_mcmc", "B_rep", 
+                                  "B_g_rep", "x_all", "n_B", "n_B_g", 
                                   "dbh_class_midpoints", "dbh_sd"),
                         .packages=c("reshape2", "dplyr")) %dopar% {
         growth_preds <- pred_growth(dbhs=dbhs, mcwd=mcwd)
@@ -192,7 +193,9 @@ genus_mean_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
     return(growths)
 }
 
-growth <- genus_mean_growth(mcwds=(c(0, 100, 200, 500)- mcwd_mean)/mcwd_sd, 
+# Calculate growth for 0, the mean, and the mean plus 2 and plus 3 SD
+growth <- genus_mean_growth(mcwds=(c(0, 185, 185+(150*2), 185+(150*3))- 
+                                   mcwd_mean)/mcwd_sd, 
                             dbhs=dbh_smalld_class_midpoints)
 
 genus_ID_factor_key <- read.csv("genus_ID_factor_key.csv")
@@ -236,6 +239,42 @@ ggplot(filter(growth, genus_ID %in% c(784))) +
     theme(legend.text=element_text(face="italic"))
 ggsave("growth_genus_level_Syzygium.png", width=4, height=2, dpi=300)
 
+# Plot specific curve versus MCWD
+ggplot(filter(growth, genus_ID %in% c(261))) +
+    geom_line(aes(x=dbh, y=mean, colour=factor(mcwd)))+
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)") +
+    theme(legend.text=element_text(face="italic"))
+ggsave("growth_genus_level_dipterocarpus.png", width=4, height=2, dpi=300)
+
+# Plot specific curve versus MCWD
+ggplot(filter(growth, genus_ID %in% c(566))) +
+    geom_line(aes(x=dbh, y=mean, colour=factor(mcwd)))+
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)") +
+    theme(legend.text=element_text(face="italic"))
+ggsave("growth_genus_level_oenocarpus.png", width=4, height=2, dpi=300)
+
+# Plot specific curve versus MCWD
+ggplot(filter(growth, genus_ID %in% c(833))) +
+    geom_line(aes(x=dbh, y=mean, colour=factor(mcwd)))+
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(10, 150), ylim=c(0, 3)) +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)") +
+    theme(legend.text=element_text(face="italic"))
+ggsave("growth_genus_level_unknown.png", width=4, height=2, dpi=300)
+
 ###############################################################################
 # Predict site-level mean growth based on observed frequencies of each genus at 
 # each site
@@ -252,7 +291,7 @@ this_site_ID <- 1
 this_dbh <- dbh_class_midpoints[1]
 
 site_means <- foreach (this_site_ID=c(1:n_site), .combine=rbind) %:% 
-        foreach (mcwd=c(0, 100, 200, 500),
+        foreach (mcwd=c(0, 185, 185+(150*2), 185+(150*3)),
                  .packages=c("reshape2", "dplyr"),
                  .export=c("n_genus"),
                  .combine=rbind) %do% {
@@ -358,6 +397,17 @@ ggplot(filter(site_means)) +
     ylab("Growth (cm/yr)")
 ggsave("growth_site_level_mcwd_all.png", width=8, height=6, dpi=300)
 
+ggplot(filter(site_means, !(site_ID_char %in% c("KRP", "YAS", "COU", "YAN")))) +
+    geom_line(aes(x=dbh, y=growth, colour=factor(mcwd))) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    facet_wrap(~site_ID_char) +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_all_without_short_records.png", width=8, height=6, dpi=300)
+
 ggplot(filter(site_means)) +
     geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
     geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
@@ -371,18 +421,18 @@ ggplot(filter(site_means)) +
     ylab("Growth (cm/yr)")
 ggsave("growth_site_level_mcwd_all_continent.png", width=8, height=6, dpi=300)
 
-# ggplot(filter(site_means, !(sitecode %in%)) +
-#     geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
-#     geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
-#     geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
-#     coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
-#     facet_grid(continent~mcwd) +
-#     scale_colour_discrete("Site") +
-#     scale_fill_discrete("Site") +
-#     scale_shape_manual("Site", values=rep(1:4, 4)) +
-#     xlab("Initial diameter (cm)") +
-#     ylab("Growth (cm/yr)")
-# ggsave("growth_site_level_mcwd_all_continent_sites_without_shortrecords.png", width=8, height=6, dpi=300)
+ggplot(filter(site_means, !(site_ID_char %in% c("KRP", "YAS", "COU", "YAN")))) +
+    geom_line(aes(x=dbh, y=growth, colour=site_ID_char)) +
+    geom_point(aes(x=dbh, y=growth, colour=site_ID_char, shape=site_ID_char), size=2) +
+    geom_ribbon(aes(x=dbh, ymin=q2pt5, ymax=q97pt5, fill=site_ID_char), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, 1.5)) +
+    facet_grid(continent~mcwd) +
+    scale_colour_discrete("Site") +
+    scale_fill_discrete("Site") +
+    scale_shape_manual("Site", values=rep(1:4, 4)) +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)")
+ggsave("growth_site_level_mcwd_all_continent_sites_without_shortrecords.png", width=8, height=6, dpi=300)
 
 ###############################################################################
 # Plot variation in MCWD slope versus wood density
@@ -393,9 +443,9 @@ B_g_scaling <- c(dbh_sd,
                  dbh_sd/dbh_sd,
                  dbh_sd/dbh_sd)
 
-B_g_scaling <- matrix(rep(B_g_scaling, each=nrow(B_g)), ncol=ncol(B_g))
-B_g_scaling <- array(rep(B_g_scaling, dim(B_g)[3]), dim=dim(B_g))
-B_g_rescaled <- B_g * B_g_scaling
+B_g_scaling <- matrix(rep(B_g_scaling, each=nrow(B_g_rep)), ncol=ncol(B_g_rep))
+B_g_scaling <- array(rep(B_g_scaling, dim(B_g_rep)[3]), dim=dim(B_g_rep))
+B_g_rescaled <- B_g_rep * B_g_scaling
 
 B_g_means <- data.frame(apply(B_g_rescaled, c(1, 2), mean))
 B_g_means <- cbind(1:nrow(B_g_means), B_g_means)
@@ -437,4 +487,47 @@ ggsave("growth_MCWD_slope_vs_WD_densities.png", width=6, height=6, dpi=300)
 
 # Plot five dominant genera in each site
 # Plot by region
-# Plot mean global growth
+
+###############################################################################
+# Plot mean global growth curve
+load("jags_fit_full_model_ranefs_mu_B_g.RData")
+ranefs_mu_B_g <- as.data.frame(combine.mcmc(ranefs_mu_B_g))
+
+# Build coefficient matrix
+B_all <- cbind(B, ranefs_mu_B_g)
+
+overall_growth_preds <- foreach(mcwd=(c(0, 185, 185+(150*2), 185+(150*3))- 
+                                      mcwd_mean)/mcwd_sd,
+                                .combine=rbind) %do% {
+    # Build design matrix
+    xs <- cbind(rep(0, length(dbh_smalld_class_midpoints)), # WD
+                rep(0, length(dbh_smalld_class_midpoints)), # WD^2
+                rep(1, length(dbh_smalld_class_midpoints)), # genus-level intercept
+                rep(mcwd, length(dbh_smalld_class_midpoints)), # genus-level MCWD
+                rep(mcwd^2, length(dbh_smalld_class_midpoints)), # genus-level MCWD^2
+                dbh_smalld_class_midpoints,          # genus-level DBH
+                dbh_smalld_class_midpoints^2)        # genus-level DBH^2
+    xs <- matrix(xs, nrow=nrow(xs))
+    preds <- t(xs %*% t(B_all) - rep(dbh_smalld_class_midpoints, 
+                                     nrow(B_all)))*dbh_sd
+    means <- apply(preds, 2, mean)
+    q2pt5 <- apply(preds, 2, quantile, .025)
+    q97pt5 <- apply(preds, 2, quantile, .975)
+    data.frame(cbind(mcwd=mcwd*mcwd_sd + mcwd_mean, 
+                     dbh=dbh_smalld_class_midpoints*dbh_sd+dbh_mean, 
+                     growth=means, q2pt5=q2pt5, q97pt5=q97pt5))
+}
+
+ggplot(overall_growth_preds, aes(dbh, growth)) +
+    theme_bw(base_size=10) +
+    geom_line(aes(colour=factor(mcwd), linetype=factor(mcwd))) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
+    coord_cartesian(xlim=c(15, 125), ylim=c(0, .75)) +
+    scale_fill_discrete("MCWD") +
+    scale_colour_discrete("MCWD") +
+    scale_shape_discrete("MCWD") +
+    scale_linetype_discrete("MCWD") +
+    xlab("Initial diameter (cm)") +
+    ylab("Growth (cm/yr)") +
+    theme(legend.key.size=unit(1, "cm"))
+ggsave("growth_overall_mcwd_all.png", width=8, height=6, dpi=300)
