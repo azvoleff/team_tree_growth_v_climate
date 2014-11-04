@@ -14,9 +14,9 @@ load("model_data_wide.RData")
 load("init_data_with_ranefs_no_t_effects.RData")
 
 # n_B is number of fixed effects
-model_data$n_B <- 7
+model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
-model_data$n_B_g <- 2
+model_data$n_B_g <- 5
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
@@ -51,7 +51,7 @@ model_data$mcwd_sq[is.na(model_data$mcwd_sq)] <- 0
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
 init_data$int_k_std <- init_data$int_k / init_data$sigma_int_k
-#init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
+init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
 
 # Convert vector of scalings (variances)
 sigma_B_g_sigma <- sqrt(diag(init_data$sigma_B_g))
@@ -77,8 +77,7 @@ L_rho_B_g <- chol(rho_B_g)
 
 init_data$sigma_B_g_sigma <- sigma_B_g_sigma
 init_data$L_rho_B_g <- L_rho_B_g
-# Means of the genus-level random effects (essentially mean zero as the ranefs 
-# are relative to the population-level means)
+# Means of the genus-level random effects
 init_data$gamma_B_g <- apply(init_data$B_g_raw, 2, mean)
 init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$B_g_raw - init_data$gamma_B_g)
 
@@ -101,7 +100,6 @@ init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
-init_data <- init_data[names(init_data) != "sigma_int_t"]
 init_data <- init_data[names(init_data) != "B_g_raw"]
 
 get_inits <- function() {
@@ -120,6 +118,14 @@ seed <- 1638
 #                  inits=get_inits)
 # print("finished running test stan model")
 # save(stan_fit, file="stan_fit_full.RData")
+
+model_data$t0 <- model_data$first_obs_period
+model_data$tf <- model_data$last_obs_period
+model_data <- model_data[names(model_data) != "first_obs_period"]
+model_data <- model_data[names(model_data) != "last_obs_period"]
+
+# Test run
+stan_fit_initial <- stan(model_file, data=model_data, chains=1, iter=25, init=get_inits)
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.

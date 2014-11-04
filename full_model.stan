@@ -9,8 +9,8 @@ data {
     int<lower=0> plot_ID[n_tree];
     int<lower=0> site_ID[n_tree];
     int<lower=0> genus_ID[n_tree];
-    int<lower=0> first_obs_period[n_tree];
-    int<lower=0> last_obs_period[n_tree];
+    int<lower=0> t0[n_tree];
+    int<lower=0> tf[n_tree];
     int<lower=0> n_miss;
     int<lower=0> n_obs;
     int<lower=0> obs_indices_tree[n_obs];
@@ -20,12 +20,12 @@ data {
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] WD_sq;
-    matrix[n_tree, n_period + 1] mcwd;
-    matrix[n_tree, n_period + 1] mcwd_sq;
+    vector[n_period + 1] mcwd[n_tree];
+    vector[n_period + 1] mcwd_sq[n_tree];
 }
 
 parameters {
-    matrix[n_tree, n_period + 1] dbh_latent; 
+    vector[n_period + 1] dbh_latent[n_tree]; 
     vector[n_miss] dbh_miss;
     vector[n_B] B;
     matrix[n_B_g, n_genus] B_g_std;
@@ -45,7 +45,8 @@ parameters {
 }
 
 transformed parameters {
-    matrix[n_tree, n_period + 1] dbh;
+    vector[n_period + 1] dbh[n_tree]; 
+    vector[n_period + 1] dbh_latent_sq[n_tree]; 
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
@@ -68,11 +69,16 @@ transformed parameters {
     int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
 
     B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
+
+    for (i in 1:n_tree) {
+        for (j in 1:(n_period+1)) {
+            dbh_latent_sq[i][j] <- square(dbh_latent[i][j]);
+        }
+    }
 }
 
 model {
-    //matrix[n_tree, n_period + 1] dbh_predicted;
-    real dbh_predicted;
+    int n_growths;
 
     //########################################################################
     // Fixed effects
@@ -104,7 +110,7 @@ model {
     // Hill pg. 377-378, and http://bit.ly/1pADacO, and http://bit.ly/1pEpXjo
     
     # Priors for random coefficients:
-    to_vector(B_g_std) ~ normal(0, 1); // implies: B_g ~ multi_normal(gamma_B_g, CovarianceMatrix);
+    to_vector(B_g_std) ~ normal(0, 10); // implies: B_g ~ multi_normal(gamma_B_g, CovarianceMatrix);
 
     # Hyperpriors
     gamma_B_g ~ normal(0, 5);
@@ -112,37 +118,37 @@ model {
     L_rho_B_g ~ lkj_corr_cholesky(3);
 
     //########################################################################
-    // Model missing data. Need to do this explicitly in Stan
+    // Model missing data. Need to do this explicitly in Stan.
     dbh_miss ~ normal(0, 10);
 
     //########################################################################
     // Main likelihood
     for (i in 1:n_tree) {
         //print("Starting tree ", i);
-        # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[i, first_obs_period[i]] ~ normal(0, 10);
+        //print("Latent dbh: ", dbh_latent[i]);
+        n_growths <- tf[i] - t0[i];
 
-        for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            //print(i, ", ", t);
-            dbh_predicted <- B[1] * WD[i] +
+        # Specially handle first latent dbh
+        dbh_latent[i, t0[i]] ~ normal(0, 10);
+
+        { // block to allow local dbh_pred vector of varying length
+            vector[n_growths] dbh_pred;
+            dbh_pred <- B[1] * WD[i] +
                 B[2] * WD_sq[i] +
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
-                int_t[t - 1] +
+                segment(int_t, t0[i], n_growths) +
                 B_g[genus_ID[i], 1] +
-                B_g[genus_ID[i], 2] * mcwd[i, t] +
-                B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
-                B_g[genus_ID[i], 4] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 5] * pow(dbh_latent[i, t - 1], 2);
-            dbh_latent[i, t] ~ normal(dbh_predicted, sigma_proc);
-            /* print("Latent dbh (t): ", dbh_latent[i, t]); */
-            /* print("Latent dbh (t - 1): ", dbh_latent[i, t - 1]); */
-            /* print("Predicted dbh (t): ", dbh_predicted); */
+                B_g[genus_ID[i], 2] * segment(mcwd[i], t0[i] + 1, n_growths) +
+                B_g[genus_ID[i], 3] * segment(mcwd_sq[i], t0[i] + 1, n_growths) +
+                B_g[genus_ID[i], 4] * segment(dbh_latent[i], t0[i], n_growths) +
+                B_g[genus_ID[i], 5] * segment(dbh_latent_sq[i], t0[i], n_growths);
+            // Model dbh_latent
+            segment(dbh_latent[i], t0[i] + 1, n_growths) ~ normal(dbh_pred, sigma_proc);
+            //print("Predicted dbh: ", dbh_pred);
         }
-
-        for (t in (first_obs_period[i]):last_obs_period[i]) {
-            dbh[i, t] ~ normal(dbh_latent[i, t], sigma_obs);
-        }
+        // Model dbh with mean equal to latent dbh
+        segment(dbh[i], t0[i], n_growths + 1) ~ normal(segment(dbh_latent[i], t0[i], n_growths + 1), sigma_obs);
     }
 }
