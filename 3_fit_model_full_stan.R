@@ -125,7 +125,8 @@ model_data <- model_data[names(model_data) != "first_obs_period"]
 model_data <- model_data[names(model_data) != "last_obs_period"]
 
 # Test run
-stan_fit_initial <- stan(model_file, data=model_data, chains=1, iter=25, init=get_inits)
+stan_fit_initial <- stan(model_file, data=model_data, chains=1, iter=1000, 
+                         init=get_inits, sample_file="stan_test_samples.csv")
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -142,8 +143,10 @@ run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
     sink(paste0("stan_", run_id, "_chain", n, ".txt"), append=TRUE)
+    sample_file_csv <- paste0("stan_", run_id, "_chain", n, "_samples.csv")
     stanfit <- stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
-                    iter=n_iter, chain_id=n, init=get_inits)
+                    iter=n_iter, chain_id=n, init=get_inits, 
+                    sample_file=sample_file_csv)
     save(stanfit, file=paste0("full_model_fit_parallel_stan_chain_", n, "_", 
                               run_id, ".RData"))
     sink()
