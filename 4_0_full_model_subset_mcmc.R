@@ -6,7 +6,8 @@ library(mcgibbsit)
 # load("MCMC_Chains/full_model_fit_parallel_vertica1.team.sdsc.edu_20141025-173906_extended_2_with_bg.RData")
 # load("MCMC_Chains/full_model_fit_parallel_vertica1.team.sdsc.edu_20141025-173906_extended_3_with_bg_and_ints.RData")
 # load("MCMC_Chains/full_model_fit_parallel_vertica1.team.sdsc.edu_20141025-173906_extended_3_with_bg_and_ints.RData")
-load("MCMC_Chains/newer_extend_all_ranefs.RData")
+#load("MCMC_Chains/newer_extend_all_ranefs.RData")
+load("MCMC_Chains/newest_longrun_123.RData")
 
 # mcgibbsit(as.mcmc.list(jags_fit))
 

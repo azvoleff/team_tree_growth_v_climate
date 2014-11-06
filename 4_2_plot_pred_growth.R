@@ -1,4 +1,6 @@
 library(ggplot2)
+library(stringr)
+library(scales) # for alpha()
 library(grid)
 library(runjags)
 library(coda)
@@ -7,7 +9,7 @@ library(reshape2)
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster(4)
+cl <- makeCluster(3)
 registerDoParallel(cl)
 
 load("jags_fit_full_model_fixefs.RData")
@@ -101,12 +103,12 @@ B_g_set2 <- B_g[5, c(0:(n_B_g - 1)) * n_genus + 7]
 # Now convert to a 3D array, with genera in rows, coefficients in columns, and 
 # separate MCMC samples in third dimension
 dim(B_g)
-B_g_rep <- t(matrix(t(B_g), byrow=TRUE, ncol=n_genus))
-dim(B_g_rep)
-B_g_rep <- array(B_g_rep, dim=c(n_genus, n_B_g, n_mcmc))
-dim(B_g_rep)
-stopifnot(all(B_g_rep[1, , 1] == B_g_set1))
-stopifnot(all(B_g_rep[7, , 5] == B_g_set2))
+B_g_array <- t(matrix(t(B_g), byrow=TRUE, ncol=n_genus))
+dim(B_g_array)
+B_g_array <- array(B_g_array, dim=c(n_genus, n_B_g, n_mcmc))
+dim(B_g_array)
+stopifnot(all(B_g_array[1, , 1] == B_g_set1))
+stopifnot(all(B_g_array[7, , 5] == B_g_set2))
 
 ###############################################################################
 # Make predictions of mean genus-level growth
@@ -152,7 +154,7 @@ pred_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
         # Collapse betas for this genus into flat matrices (temporarily eliminating 
         # third dimension for efficient matrix multiplication)
         B_flat <- matrix(B_rep[genus_ID, , ], nrow=dim(B_rep)[3])
-        B_g_flat <- matrix(B_g_rep[genus_ID, , ], nrow=dim(B_g_rep)[3], byrow=TRUE)
+        B_g_flat <- matrix(B_g_array[genus_ID, , ], nrow=dim(B_g_array)[3], byrow=TRUE)
         B_all <- cbind(B_flat, B_g_flat)
         this_x_all <- matrix(rep(x_all[genus_ID, ], length(dbhs)), ncol=n_B + n_B_g, byrow=TRUE)
         this_x_all[, 4] <- mcwd 
@@ -172,7 +174,7 @@ genus_mean_growth <- function(genera_IDs=1:n_genus, dbhs=dbh_class_midpoints,
     n_genus <- length(genera_IDs)
     growths <- foreach (mcwd=mcwds, .combine=rbind,
                         .export=c("pred_growth", "n_genus", "n_mcmc", "B_rep", 
-                                  "B_g_rep", "x_all", "n_B", "n_B_g", 
+                                  "B_g_array", "x_all", "n_B", "n_B_g", 
                                   "dbh_class_midpoints", "dbh_sd"),
                         .packages=c("reshape2", "dplyr")) %dopar% {
         growth_preds <- pred_growth(dbhs=dbhs, mcwd=mcwd)
@@ -279,7 +281,7 @@ ggsave("growth_genus_level_unknown.png", width=4, height=2, dpi=300)
 # Predict site-level mean growth based on observed frequencies of each genus at 
 # each site
 
-genus_freq <- group_by(merged, site_ID, dbh_class_ID, genus_ID) %>%
+genus_freq_by_dbh <- group_by(merged, site_ID, dbh_class_ID, genus_ID) %>%
     summarize(dbh=dbh_class_midpoints[dbh_class_ID[1]],
               n=n()) %>%
     group_by(site_ID, dbh_class_ID) %>%
@@ -298,7 +300,7 @@ site_means <- foreach (this_site_ID=c(1:n_site), .combine=rbind) %:%
     # Need to standardize mcwd before using it as a predictor
     mcwd_std <- (mcwd - mcwd_mean)/mcwd_sd
     # Figure out the genera present at this site, and their frequencies
-    this_genus_set <- filter(genus_freq, site_ID == this_site_ID)
+    this_genus_set <- filter(genus_freq_by_dbh, site_ID == this_site_ID)
     # Calculate predictions for all genera present at this site for all MCMC 
     # samples
     this_growth_preds <- pred_growth(unique(this_genus_set$genus_ID), dbhs=dbh_class_midpoints, mcwd=mcwd_std)
@@ -443,9 +445,9 @@ B_g_scaling <- c(dbh_sd,
                  dbh_sd/dbh_sd,
                  dbh_sd/dbh_sd)
 
-B_g_scaling <- matrix(rep(B_g_scaling, each=nrow(B_g_rep)), ncol=ncol(B_g_rep))
-B_g_scaling <- array(rep(B_g_scaling, dim(B_g_rep)[3]), dim=dim(B_g_rep))
-B_g_rescaled <- B_g_rep * B_g_scaling
+B_g_scaling <- matrix(rep(B_g_scaling, each=nrow(B_g_array)), ncol=ncol(B_g_array))
+B_g_scaling <- array(rep(B_g_scaling, dim(B_g_array)[3]), dim=dim(B_g_array))
+B_g_rescaled <- B_g_array * B_g_scaling
 
 B_g_means <- data.frame(apply(B_g_rescaled, c(1, 2), mean))
 B_g_means <- cbind(1:nrow(B_g_means), B_g_means)
@@ -485,6 +487,15 @@ ggplot(filter(B_g_means, variable %in% c("MCWD", "MCWD^2"))) +
     geom_density(aes(mean, fill=WD_class), alpha=.3) + facet_grid(~variable)
 ggsave("growth_MCWD_slope_vs_WD_densities.png", width=6, height=6, dpi=300)
 
+ggplot(filter(B_g_means, variable %in% c("int")),
+       aes(x=WD, y=mean)) +
+    geom_point() + facet_wrap(~variable, scales="free")
+
+    geom_density(aes(mean, fill=WD), alpha=.3) + facet_grid(~variable)
+
+ggsave("growth_WD_slope_vs_WD_densities.png", width=6, height=6, dpi=300)
+
+
 # Plot five dominant genera in each site
 # Plot by region
 
@@ -496,7 +507,9 @@ ranefs_mu_B_g <- as.data.frame(combine.mcmc(ranefs_mu_B_g))
 # Build coefficient matrix
 B_all <- cbind(B, ranefs_mu_B_g)
 
-overall_growth_preds <- foreach(mcwd=(c(0, 185, 185+(150*2), 185+(150*3))- 
+#overall_growth_preds <- foreach(mcwd=(c(0, 185, 185+(150*2), 185+(150*3))- 
+#overall_growth_preds <- foreach(mcwd=(c(185, 185+(150*2))- 
+overall_growth_preds <- foreach(mcwd=(c(0, 185, 185+(150*2))- 
                                       mcwd_mean)/mcwd_sd,
                                 .combine=rbind) %do% {
     # Build design matrix
@@ -520,14 +533,91 @@ overall_growth_preds <- foreach(mcwd=(c(0, 185, 185+(150*2), 185+(150*3))-
 
 ggplot(overall_growth_preds, aes(dbh, growth)) +
     theme_bw(base_size=10) +
-    geom_line(aes(colour=factor(mcwd), linetype=factor(mcwd))) +
+    geom_line(aes(colour=factor(mcwd), linetype=factor(mcwd)), size=.4) +
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=factor(mcwd)), alpha=.25)+
     coord_cartesian(xlim=c(15, 125), ylim=c(0, .75)) +
-    scale_fill_discrete("MCWD") +
-    scale_colour_discrete("MCWD") +
-    scale_shape_discrete("MCWD") +
-    scale_linetype_discrete("MCWD") +
+    scale_fill_discrete("MCWD", guide=guide_legend(title.position="top")) +
+    scale_colour_discrete("MCWD", guide=guide_legend(title.position="top")) +
+    scale_shape_discrete("MCWD", guide=guide_legend(title.position="top")) +
+    scale_linetype_discrete("MCWD", guide=guide_legend(title.position="top")) +
     xlab("Initial diameter (cm)") +
     ylab("Growth (cm/yr)") +
-    theme(legend.key.size=unit(1, "cm"))
-ggsave("growth_overall_mcwd_all.png", width=8, height=6, dpi=300)
+    theme(legend.key.width=unit(.5, "cm"),
+          #legend.position=c(.29,.84),
+          legend.position=c(.7,.8),
+          legend.direction="horizontal",
+          legend.background=element_rect(fill=alpha('white', .5)))
+
+ggsave("growth_overall_mcwd_all.png", width=3, height=2, dpi=300)
+
+###############################################################################
+# Plot site-level mean growth rates (as deviations from the overall mean)
+int_k_mean <- apply(int_k, 2, mean) * dbh_sd
+int_k_q2pt5 <- apply(int_k, 2, quantile, .025) * dbh_sd
+int_k_q97pt5 <- apply(int_k, 2, quantile, .975) * dbh_sd
+int_k_mean <- data.frame(site_ID_factor_key, mean=int_k_mean)
+int_k_mean <- cbind(int_k_mean, q2pt5=int_k_q2pt5)
+int_k_mean <- cbind(int_k_mean, q97pt5=int_k_q97pt5)
+int_k_mean <- merge(int_k_mean, sitecode_key, by.x="site_ID_char", by.y="sitecode")
+int_k_mean$positive <- int_k_mean$mean > 0
+
+# Reorder factors
+#int_k_mean$sitename_abbrev <- with(int_k_mean, factor(sitename_abbrev, levels=sitename_abbrev[order(continent, mean)]))
+int_k_mean$sitename_abbrev <- with(int_k_mean, factor(sitename_abbrev, levels=sitename_abbrev[order(mean)]))
+int_k_mean$site_ID_char <- with(int_k_mean, factor(site_ID_char, levels=site_ID_char[order(mean)]))
+
+#int_k_mean$sitename_pretty_detailed <- gsub('\\(', '\\\n\\(', int_k_mean$sitename_pretty_detailed )
+ggplot(int_k_mean, aes(site_ID_char, mean)) +
+    theme_bw(base_size=8) +
+    geom_point(stat="identity", aes(colour=continent_long)) +
+    geom_errorbar(aes(ymin=q2pt5, ymax=q97pt5, colour=continent_long), width=.3) +
+    scale_colour_discrete("Continent", guide=guide_legend(title.position="top")) +
+    xlab("Site") +
+    ylab("Mean deviation (cm/yr)") +
+    theme(legend.key.width=unit(.5, "cm"),
+          #legend.position=c(.29,.84),
+          legend.position=c(.3,.8),
+          legend.direction="horizontal",
+          legend.background=element_rect(fill=alpha('white', .5)))
+ggsave("growth_site_level_mean_mcwd_all.png", width=4.5, height=3, dpi=300)
+
+int_k_long <- melt(int_k, variable.name="site_ID")
+int_k_long$site_ID <- gsub('int_k\\[', '', int_k_long$site_ID)
+int_k_long$site_ID <- gsub('\\]', '', int_k_long$site_ID)
+int_k_long$site_ID <- as.numeric(int_k_long$site_ID)
+int_k_long <- merge(int_k_long, site_ID_factor_key, by.x="site_ID", by.y="site_ID_numeric")
+int_k_long <- merge(int_k_long, sitecode_key, by.x="site_ID_char", by.y="sitecode")
+ggplot(int_k_long, aes(site_ID_char, value)) +
+    theme_bw(base_size=8) +
+    geom_violin(aes(fill=continent_long, colour=continent_long), width=.3) +
+    scale_colour_discrete("Continent", guide=guide_legend(title.position="top")) +
+    scale_fill_discrete("Continent", guide=guide_legend(title.position="top")) +
+    xlab("Site") +
+    ylab("Mean deviation (cm/yr)") +
+    theme(legend.key.width=unit(.5, "cm"),
+          #legend.position=c(.29,.84),
+          legend.position=c(.3,.8),
+          legend.direction="horizontal",
+          legend.background=element_rect(fill=alpha('white', .5)))
+ggsave("growth_site_level_mean_mcwd_all_violin.png", width=4.5, height=3, dpi=300)
+
+###############################################################################
+# Plot percentage of genera with significant drought effects by site
+
+# Calculate relative frequency of each genus at each site
+genus_freq_by_site <- group_by(merged, site_ID, genus_ID) %>%
+    summarize(n=n()) %>%
+    group_by(site_ID) %>%
+    mutate(freq=n/sum(n)) %>%
+    group_by(site_ID, genus_ID) %>%
+    arrange(site_ID, genus_ID)
+
+# Calculate mean MCWD slope by genus
+mean_mcwd <- apply(B_g_array[, 2, ], 1, mean)
+mean_mcwd_q2pt5 <- apply(B_g_array[, 2, ], 1, quantile, .025)
+mean_mcwd_q97pt5 <- apply(B_g_array[, 2, ], 1, quantile, .975)
+mean_mcwd <- data.frame(genus_ID=1:nrow(B_g_array), mean_mcwd)
+mean_mcwd <- cbind(mean_mcwd, q2pt5=mean_mcwd_q2pt5)
+mean_mcwd <- cbind(mean_mcwd, q97pt5=mean_mcwd_q97pt5)
+mean_mcwd$signif <- mean_mcwd$q97pt5 < 0
+table(mean_mcwd$signif)
