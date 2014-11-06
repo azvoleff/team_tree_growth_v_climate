@@ -10,6 +10,7 @@ load("model_data_wide.RData")
 load("init_data_with_ranefs.RData")
 
 monitored <- c("B",
+               "B_t",
                "sigma_obs",
                "sigma_proc",
                "sigma_int_ijk",
@@ -23,7 +24,7 @@ monitored <- c("B",
 # n_B is number of fixed effects
 model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
-model_data$n_B_g <- 5
+model_data$n_B_g <- 7
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2

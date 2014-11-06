@@ -12,8 +12,10 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * mcwd[i, t] +
                 B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
-                B_g[genus_ID[i], 4] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 5] * pow(dbh_latent[i, t - 1], 2)
+                B_g[genus_ID[i], 4] * (B_t[site_ID[i], 1] + B_t[site_ID[i], 2] * temp[i, t] + B_t[site_ID[i], 3] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 5] * pow(B_t[site_ID[i], 1] + B_t[site_ID[i], 2] * temp[i, t] + B_t[site_ID[i], 3] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2)
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -96,5 +98,13 @@ model {
             rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime]/sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime])
         }
         sigma_B_g[k] <- abs(xi[k]) * sqrt(Sigma_B_g_raw[k, k])
+    }
+
+    ##########################################################################
+    # Temperature model
+    for (k in 1:n_site) {
+        for (n in 1:n_B_t) {
+            B_t[k, n] ~ dnorm(0, 1.0E-4)
+        }
     }
 }
