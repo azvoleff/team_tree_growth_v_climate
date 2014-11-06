@@ -12,8 +12,8 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * mcwd[i, t] +
                 B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
-                B_g[genus_ID[i], 4] * (B_t[site_ID[i], 1] + B_t[site_ID[i], 2] * temp[i, t] + B_t[site_ID[i], 3] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 5] * pow(B_t[site_ID[i], 1] + B_t[site_ID[i], 2] * temp[i, t] + B_t[site_ID[i], 3] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 4] * (B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * temp[i, t] + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 5] * pow(B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * temp[i, t] + B_T[site_ID[i], 3] * elev[plot_ID[i]], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2)
 
@@ -103,8 +103,8 @@ model {
     ##########################################################################
     # Temperature model
     for (k in 1:n_site) {
-        for (n in 1:n_B_t) {
-            B_t[k, n] ~ dnorm(0, 1.0E-4)
+        for (n in 1:n_B_T) {
+            B_T[k, n] ~ dnorm(0, 1.0E-4)
         }
     }
 }
