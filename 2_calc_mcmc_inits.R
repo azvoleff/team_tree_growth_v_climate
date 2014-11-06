@@ -12,7 +12,7 @@ runmodels <- TRUE
 
 suffixes <- c("", "_testing")
 
-foreach (suffix=suffixes) %dopar% {
+foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     load(paste0("init_data", suffix, ".RData"))
     load(paste0("model_data_wide", suffix, ".RData"))
     load(paste0("model_data_long", suffix, ".RData"))
@@ -21,10 +21,13 @@ foreach (suffix=suffixes) %dopar% {
                       value.name="mcwd")
     dbh_latent_long <- melt(init_data$dbh_latent, varnames=c("tree_ID", "period_ID"), 
                             value.name="dbh_latent_end")
+    temp_long <- melt(model_data$temp, varnames=c("tree_ID", "period_ID"), 
+                      value.name="temp")
     dbh_latent_long <- group_by(dbh_latent_long, tree_ID) %>%
         arrange(period_ID) %>%
         mutate(dbh_latent_start=c(NA, dbh_latent_end[1:length(dbh_latent_end) - 1]))
     calib_data <- merge(dbh_latent_long, mcwd_long)
+    calib_data <- merge(calib_data, temp_long)
     calib_data <- calib_data[complete.cases(calib_data), ]
 
     WD <- data.frame(tree_ID=seq(1, model_data$n_tree), WD=model_data$WD)
@@ -70,14 +73,14 @@ foreach (suffix=suffixes) %dopar% {
 
     ###########################################################################
     # Inits with period random intercepts
-    # test_model  <- lm(dbh_latent_end ~ dbh_latent_start + 
-    # I(dbh_latent_start^2) +
-    #                    WD + I(WD^2) + temp + I(temp^2)+ mcwd + I(mcwd^2), 
-    #                    data=calib_data)
+    test_model  <- lm(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
+                      WD + I(WD^2) + temp + I(temp^2)+ mcwd + I(mcwd^2),
+                      data=calib_data)
     if (runmodels) {
         calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                              (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                             (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
+                             (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
+                             control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model, file=paste0("calib_model", suffix, ".RData"))
     }
     load(paste0("calib_model", suffix, ".RData"))
@@ -104,7 +107,8 @@ foreach (suffix=suffixes) %dopar% {
     if (runmodels) {
         calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                                  (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                                 (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
+                                 (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
+                                 control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model_no_t, file=paste0("calib_model_no_t", suffix, ".RData"))
     }
     load(paste0("calib_model_no_t", suffix, ".RData"))
