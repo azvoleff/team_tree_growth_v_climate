@@ -38,7 +38,7 @@ model {
     # Observation and process error
     prec_obs <- pow(sigma_obs, -2)
     # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
-    sigma_obs ~ dunif(0.0002537298, 1)
+    sigma_obs ~ dunif(sigma_obs_lower, 1)
 
     prec_proc <- pow(sigma_proc, -2)
     sigma_proc ~ dunif(0, 10)

@@ -6,6 +6,7 @@ data {
     int<lower=0> n_B;
     int<lower=0> n_B_g;
     int<lower=0> n_period;
+    real<lower=0> sigma_obs_lower;
     int<lower=0> plot_ID[n_tree];
     int<lower=0> site_ID[n_tree];
     int<lower=0> genus_ID[n_tree];
@@ -36,7 +37,7 @@ parameters {
     vector[n_plot] int_jk_std;
     vector[n_site] int_k_std;
     vector[n_period] int_t_std;
-    real<lower=0.0002537298> sigma_obs;
+    real<lower=sigma_obs_lower> sigma_obs;
     real<lower=0> sigma_proc;
     real<lower=0> sigma_int_ijk;
     real<lower=0> sigma_int_jk;
