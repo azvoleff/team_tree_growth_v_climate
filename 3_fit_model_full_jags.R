@@ -8,6 +8,8 @@ model_file <- "full_model.bug"
 
 load("model_data_wide.RData")
 load("init_data_with_ranefs.RData")
+# load("model_data_wide_testing.RData")
+# load("init_data_with_ranefs_testing.RData")
 
 monitored <- c("B",
                "B_t",
@@ -25,6 +27,8 @@ monitored <- c("B",
 model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 7
+# n_B_t is number of terms in the temperature model
+model_data$n_B_t <- 3
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
