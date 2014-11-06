@@ -52,7 +52,7 @@ for (suffix in suffixes) {
     # first growth measurement can only be calculated from time 1 to time 2)
     dbh_ts <- arrange(growth, tree_ID, period_ID) %>%
         select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
-               mcwd=mcwd_run12, WD, dbh=diameter_end)
+               mcwd=mcwd_run12, temp=tmn_meanannual, WD, dbh=diameter_end)
 
     # Setup an array of initial diameters for all the trees, by taking the dbh_st 
     # value from the first period with an available observation
@@ -60,9 +60,10 @@ for (suffix in suffixes) {
         group_by(tree_ID) %>%
         filter(period_ID==min(period_ID)) %>%
         select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
-               mcwd=mcwd_run12, WD, dbh=diameter_start)
+               mcwd=mcwd_run12, temp=tmn_meanannual, WD, dbh=diameter_start)
     dbh_time_0$spi <- NA
     dbh_time_0$mcwd <- NA
+    dbh_time_0$temp <- NA
     dbh_time_0$period_ID <- dbh_time_0$period_ID - 1
 
     dbh_ts <- rbind(dbh_ts, dbh_time_0)
@@ -81,20 +82,16 @@ for (suffix in suffixes) {
     mcwd_max <- max(dbh_ts$mcwd, na.rm=TRUE)
     mcwd_sd <- sd(dbh_ts$mcwd, na.rm=TRUE)
     dbh_ts$mcwd <- (dbh_ts$mcwd - mcwd_mean) / mcwd_sd
+    temp_mean <- mean(dbh_ts$temp, na.rm=TRUE)
+    temp_min <- min(dbh_ts$temp, na.rm=TRUE)
+    temp_max <- max(dbh_ts$temp, na.rm=TRUE)
+    temp_sd <- sd(dbh_ts$temp, na.rm=TRUE)
+    dbh_ts$temp <- (dbh_ts$temp - temp_mean) / temp_sd
     WD_mean <- mean(dbh_ts$WD)
     WD_min <- min(dbh_ts$WD)
     WD_max <- max(dbh_ts$WD)
     WD_sd <- sd(dbh_ts$WD)
     WD <- (dbh_time_0$WD - WD_mean) / WD_sd
-
-    # Save sd and means so the variables can be unstandardized later
-    save(dbh_mean, dbh_sd, dbh_min, dbh_max,
-         WD_mean, WD_sd, WD_min, WD_max,
-         mcwd_mean, mcwd_min, mcwd_max, mcwd_sd, 
-         file=paste0("model_data_standardizing", suffix, ".RData"))
-
-    # Calculate precision of diameter tape (1 mm) in standardized units:
-    .0036 / dbh_sd
 
     genus_ID <- dbh_time_0$genus_ID
     sum(genus_ID == "Unknown") / length(genus_ID)
@@ -103,6 +100,7 @@ for (suffix in suffixes) {
     dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
     spi <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="spi")
     mcwd <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="mcwd")
+    temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="temp")
     tree_ID <- dbh$tree_ID
     plot_ID <- dbh$plot_ID
     site_ID <- dbh$site_ID
@@ -110,6 +108,26 @@ for (suffix in suffixes) {
     dbh <- dbh[!grepl('_ID$', names(dbh))]
     spi <- spi[!grepl('_ID$', names(spi))]
     mcwd <- mcwd[!grepl('_ID$', names(mcwd))]
+    temp <- temp[!grepl('_ID$', names(temp))]
+
+    # Calculate per-plot elevation (not time-varying)
+    elev <- group_by(growth, plot_ID) %>%
+        summarize(elev=elev[1])
+    stopifnot(levels(plot_ID) == elev$plot_ID)
+    elev <- elev$elev
+    elev_mean <- mean(elev)
+    elev_min <- min(elev)
+    elev_max <- max(elev)
+    elev_sd <- sd(elev)
+    elev <- (elev - elev_mean) / elev_sd
+
+    # Save sd and means so the variables can be unstandardized later
+    save(dbh_mean, dbh_sd, dbh_min, dbh_max,
+         WD_mean, WD_sd, WD_min, WD_max,
+         elev_mean, elev_sd, elev_min, elev_max,
+         temp_mean, temp_sd, temp_min, temp_max,
+         mcwd_mean, mcwd_min, mcwd_max, mcwd_sd, 
+         file=paste0("model_data_standardizing", suffix, ".RData"))
 
     # Setup data
     n_tree <- length(unique(dbh_ts$tree_ID))
@@ -126,8 +144,9 @@ for (suffix in suffixes) {
         summarize(first_obs_period=(min(period_ID) + 1),
                   last_obs_period=(max(period_ID) + 1))
 
-    # mcwd observations are missing for periods when dbh observations are missing.  
-    # Fill these observations using the mean mcwd for the appropriate period.
+    # mcwd observations are missing for periods when dbh observations are 
+    # missing.  Fill these observations using the mean mcwd for the appropriate 
+    # period.
     #
     # Note that the same centering and scaling needs to be done here (and log) that 
     # was done for the other mcwd data.
@@ -144,6 +163,18 @@ for (suffix in suffixes) {
     mcwd[mcwd_miss_linear_ind] <- mcwd_means[match(paste(plot_ID[mcwd_missings[, 1]], mcwd_missings[, 2]),
                                                 paste(mcwd_means$plot_ID, mcwd_means$period_ID)), 3]
     stopifnot(is.null(calc_missings(mcwd)$miss))
+
+    # Fill in temp (same issue as above)
+    temp_means <- group_by(growth, plot_ID, period_ID) %>%
+         summarize(temp_means=mean((tmn_meanannual - temp_mean) / temp_sd, na.rm=TRUE))
+    temp_means <- data.frame(temp_means) # Fix for indexing bug in dplyr 0.3.2
+    temp <- as.matrix(temp)
+    temp_missings <- calc_missings(temp)$miss
+    # Use linear indexing to replace NAs in temps
+    temp_miss_linear_ind <- (temp_missings[, 2] - 1) * nrow(temp) + temp_missings[, 1] # From http://bit.ly/1rnKrC3
+    temp[temp_miss_linear_ind] <- temp_means[match(paste(plot_ID[temp_missings[, 1]], temp_missings[, 2]),
+                                                paste(temp_means$plot_ID, temp_means$period_ID)), 3]
+    stopifnot(is.null(calc_missings(temp)$miss))
 
     # SPI observations are missing for periods when dbh observations are missing.  
     # Fill these observations using the mean SPI for the appropriate period.
@@ -163,10 +194,14 @@ for (suffix in suffixes) {
     # separately in Stan.
     missings <- calc_missings(as.matrix(dbh))
 
+    stopifnot(length(elev) == n_plot)
     stopifnot(length(WD) == n_tree)
     stopifnot(length(genus_ID) == n_tree)
     stopifnot(length(plot_ID) == n_tree)
     stopifnot(length(site_ID) == n_tree)
+
+    # Calculate precision of diameter tape (1 mm) in standardized units:
+    sigma_obs_lower <- .1 / dbh_sd / sqrt(12)
 
     ###############################################################################
     # Output wide format data
@@ -180,9 +215,12 @@ for (suffix in suffixes) {
                        plot_ID=as.integer(factor(plot_ID)),
                        site_ID=as.integer(factor(site_ID)),
                        genus_ID=as.integer(factor(genus_ID)),
+                       sigma_obs_lower=sigma_obs_lower,
                        dbh=as.matrix(dbh),
                        WD=WD,
                        spi=spi,
+                       elev=elev,
+                       temp=temp,
                        mcwd=mcwd,
                        obs_indices=missings$obs,
                        miss_indices=missings$miss)
@@ -194,6 +232,7 @@ for (suffix in suffixes) {
                                   plot_ID=factor(plot_ID),
                                   site_ID=factor(site_ID),
                                   genus_ID=factor(genus_ID),
+                                  sigma_obs_lower=sigma_obs_lower,
                                   WD=WD)
     # Standardize the diameter variables and mcwd variable the same way they are 
     # standardized in the wide dataset
@@ -202,6 +241,8 @@ for (suffix in suffixes) {
                              diameter_start=(growth$diameter_start - dbh_mean) / dbh_sd,
                              diameter_end=(growth$diameter_end - dbh_mean) / dbh_sd,
                              n_days=growth$n_days,
+                             elev=(growth$elev - elev_mean) / elev_sd,
+                             temp=(growth$tmn_meanannual - temp_mean) / temp_sd,
                              mcwd=(growth$mcwd_run12 - mcwd_mean) / mcwd_sd)
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
     save(model_data_long, file=paste0("model_data_long", suffix, ".RData"))

@@ -40,6 +40,7 @@ foreach (suffix=suffixes) %dopar% {
     hist(calib_data$dbh_latent_end)
     hist(calib_data$WD)
     hist(calib_data$mcwd)
+    hist(calib_data$temp)
 
     # obs_per_tree <- group_by(calib_data, site_ID, tree_ID) %>%
     #     summarize(n=n()) %>%
@@ -71,11 +72,11 @@ foreach (suffix=suffixes) %dopar% {
     # Inits with period random intercepts
     # test_model  <- lm(dbh_latent_end ~ dbh_latent_start + 
     # I(dbh_latent_start^2) +
-    #                    WD + I(WD^2)+ 
-    #                    mcwd + I(mcwd^2), data=calib_data)
+    #                    WD + I(WD^2) + temp + I(temp^2)+ mcwd + I(mcwd^2), 
+    #                    data=calib_data)
     if (runmodels) {
         calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                             (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                             (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data)
         save(calib_model, file=paste0("calib_model", suffix, ".RData"))
     }
@@ -102,7 +103,7 @@ foreach (suffix=suffixes) %dopar% {
     # Inits without period random intercepts
     if (runmodels) {
         calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                                 (mcwd + I(mcwd^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                                 (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data)
         save(calib_model_no_t, file=paste0("calib_model_no_t", suffix, ".RData"))
     }
@@ -123,7 +124,6 @@ foreach (suffix=suffixes) %dopar% {
     init_data$sigma_B_g <- genus_varcorr
 
     save(init_data, file=paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData"))
-
 }
 
 stopCluster(cl)
