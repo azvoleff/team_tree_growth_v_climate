@@ -9,14 +9,14 @@ library(doParallel)
 cl <- makeCluster(3)
 registerDoParallel(cl)
 
-temp_var <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
-precip_var <- c("mcwd_run12", "spi_24")
+temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
+precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
 out_folder <- 'Data'
 
 foreach (model_type=model_types) %:%
-    foreach (temp_var=temp_var) %:%
-        foreach (precip_var=precip_var,
+    foreach (temp_var=temp_vars) %:%
+        foreach (precip_var=precip_vars,
                  .packages=c("dplyr", "Rcpp", "inline", "zoo", "reshape2"),
                  .inorder=FALSE) %dopar% {
 
