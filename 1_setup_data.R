@@ -9,6 +9,7 @@ sourceCpp('calc_missings.cpp')
 load("growth_ctfsflagged_merged_detrended.RData")
 
 suffixes <- c("", "_testing")
+suffixes <- c("_testing")
 
 for (suffix in suffixes) {
     growth <- tbl_df(growth)
@@ -46,7 +47,7 @@ for (suffix in suffixes) {
         initial_trees <- group_by(growth, site_ID) %>%
             filter(period_ID == min(period_ID)) %>%
             group_by(site_ID) %>%
-            sample_frac(.05)
+            sample_frac(.1)
         growth <- filter(growth, tree_ID %in% initial_trees$tree_ID)
         growth <- setup_factors(growth)
     }

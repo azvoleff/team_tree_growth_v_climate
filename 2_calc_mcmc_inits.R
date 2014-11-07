@@ -11,6 +11,7 @@ registerDoParallel(2)
 runmodels <- TRUE
 
 suffixes <- c("", "_testing")
+suffixes <- c("_testing")
 
 foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     load(paste0("init_data", suffix, ".RData"))
@@ -39,17 +40,11 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     genus_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), genus_ID=model_data$genus_ID)
     calib_data <- merge(calib_data, genus_ID)
 
-    hist(calib_data$dbh_latent_start)
-    hist(calib_data$dbh_latent_end)
-    hist(calib_data$WD)
-    hist(calib_data$mcwd)
-    hist(calib_data$temp)
-
-    # obs_per_tree <- group_by(calib_data, site_ID, tree_ID) %>%
-    #     summarize(n=n()) %>%
-    #     group_by(site_ID) %>%
-    #     summarize(mean(n))
-    #
+    # hist(calib_data$dbh_latent_start)
+    # hist(calib_data$dbh_latent_end)
+    # hist(calib_data$WD)
+    # hist(calib_data$mcwd)
+    # hist(calib_data$temp)
 
     get_variance <- function(model, grp, var1, var2) {
         vc <- as.data.frame(VarCorr(model))
