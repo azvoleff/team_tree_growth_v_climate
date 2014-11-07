@@ -188,8 +188,7 @@ for (suffix in suffixes) {
                                                 paste(temp_means$plot_ID, temp_means$period_ID)), 3]
     stopifnot(is.null(calc_missings(temp)$miss))
 
-    # SPI observations are missing for periods when dbh observations are missing.  
-    # Fill these observations using the mean SPI for the appropriate period.
+    # Fill in SPI (same issue as above)
     spi_means <- group_by(growth, plot_ID, period_ID) %>%
         summarize(spi_means=mean(spi_24, na.rm=TRUE))
     spi_means <- data.frame(spi_means) # Fix for indexing bug in dplyr 0.3.2
