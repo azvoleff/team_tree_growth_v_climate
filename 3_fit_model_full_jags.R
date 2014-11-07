@@ -42,8 +42,10 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
 
 init_data$B <- rep(0, model_data$n_B)
-init_data$B_T <- rep(0, model_data$n_B_T)
-init_data$xi <- rep(1, model_data$n_B_g)
+init_data$B_T <- matrix(0, nrow=model_data$n_site, ncol=model_data$n_B_T)
+# Initialize xi to the standard deviations of the genus-level effects, in an 
+# effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right ballpark
+init_data$xi <- apply(init_data$B_g_raw, 2, sd)
 init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
 # Center the B_g_raw estimates
 init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, 
@@ -53,14 +55,14 @@ init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw,
 
 # Jags uses the inverse of the variance-covariance matrix to parameterize the 
 # wishart.
-init_data$Tau_B_g_raw <- solve(init_data$sigma_B_g)
+init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
 init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
 #                      inits=rep(list(init_data), seq_n_chains), 
-#                      n.chains=seq_n_chains, adapt=200, burnin=200, 
-#                      sample=200)
+#                      n.chains=seq_n_chains, adapt=100, burnin=100, 
+#                      sample=100)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
 # save(jags_fit, file=paste0("full_model_fit_", run_id, ".RData"))
