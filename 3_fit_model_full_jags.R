@@ -9,6 +9,7 @@ model_file <- "full_model.bug"
 temp_var <- "tmn_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
+model_type <- "testing"
 out_folder <- 'Data'
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
@@ -69,13 +70,13 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 #                      n.chains=seq_n_chains, adapt=100, burnin=100, 
 #                      sample=100)
 # print("finished running single JAGS chain")
-# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
-# save(jags_fit, file=paste0("full_model_fit_", run_id, ".RData"))
+# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+# save(jags_fit, file=paste0("jags_fit", suffix, '-', run_id, ".RData"))
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
                      burnin=2500, sample=2500, thin=4)
 print("finished running JAGS chains in parallel")
-run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
-save(jags_fit, file=paste0("full_model_fit_parallel_", run_id, ".RData"))
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+save(jags_fit, file=paste0("jags_fit", suffix, '-', run_id, ".RData"))
