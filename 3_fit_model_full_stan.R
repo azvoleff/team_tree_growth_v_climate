@@ -125,7 +125,9 @@ seed <- 1638
 #                  inits=get_inits)
 # print("finished running test stan model")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# save(stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, ".RData")))
+# out_name <- file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, ".RData"))
+# save(stan_fit, file=out_name)
+# print(paste("Finished", out_name))
 
 model_data$t0 <- model_data$first_obs_period
 model_data$tf <- model_data$last_obs_period
@@ -163,4 +165,6 @@ print("finished running stan models on cluster")
 stopCluster(cl)
 
 stan_fit <- sflist2stanfit(sflist)
-save(stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_fullfit.RData")))
+out_name <- file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_fullfit.RData"))
+save(stan_fit, file=out_name)
+print(paste("Finished", out_name))
