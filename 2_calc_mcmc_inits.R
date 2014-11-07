@@ -23,9 +23,9 @@ foreach (model_type=model_types) %:%
 
     suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-    load(paste0("init_data", suffix, ".RData"))
-    load(paste0("model_data_wide", suffix, ".RData"))
-    load(paste0("model_data_long", suffix, ".RData"))
+    load(file.path(out_folder, paste0("init_data", suffix, ".RData")))
+    load(file.path(out_folder, paste0("model_data_wide", suffix, ".RData")))
+    load(file.path(out_folder, paste0("model_data_long", suffix, ".RData")))
 
     precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_ID"), 
                       value.name="precip")
@@ -86,8 +86,9 @@ foreach (model_type=model_types) %:%
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model, file=file.path(out_folder, paste0("calib_model", suffix, ".RData")))
+    } else {
+        load(file.path(out_folder, paste0("calib_model", suffix, ".RData")))
     }
-    load(paste0("calib_model", suffix, ".RData"))
 
     init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
@@ -114,8 +115,9 @@ foreach (model_type=model_types) %:%
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
                                  control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model_no_t, file=file.path(out_folder, paste0("calib_model_no_t", suffix, ".RData")))
+    } else {
+        load(file.path(out_folder, paste0("calib_model_no_t", suffix, ".RData")))
     }
-    load(paste0("calib_model_no_t", suffix, ".RData"))
 
     init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t)$tree_ID))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t)$plot_ID))
