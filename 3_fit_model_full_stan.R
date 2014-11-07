@@ -4,14 +4,17 @@ library(doParallel)
 
 model_file <- "full_model.stan" 
 
-# load("model_data_wide_testing.RData")
-# load("init_data_with_ranefs_no_t_effects_testing.RData")
+temp_var <- "tmn_meanannual"
+precip_var <- "mcwd_run12"
+model_type <- "full"
+model_type <- "testing"
+in_folder <- 'Data'
+out_folder <- 'MCMC_Chains'
 
-# load("model_data_wide.RData")
-# load("init_data_with_ranefs.RData")
+suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-load("model_data_wide.RData")
-load("init_data_with_ranefs_no_t_effects.RData")
+load(file.path(in_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(in_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
@@ -69,7 +72,7 @@ L_rho_B_g <- chol(rho_B_g)
 ## Below is just for checking my math
 ##
 # Compute cholesky factor of final covariance matrix (equivalent to 
-# diag_pre_multiply line in JAGS code):
+# diag_pre_multiply line in Stan code):
 #L_B_g_sigma <- diag(sigma_B_g_sigma) %*% t(L_rho_B_g)
 #
 # Verify original covariance matrix is equal to L_B_g_sigma %*% t(L_B_g_sigma) 
@@ -121,7 +124,8 @@ seed <- 1638
 # stan_fit <- stan(model_file, data=model_data, iter=20, chains=2, 
 #                  inits=get_inits)
 # print("finished running test stan model")
-# save(stan_fit, file="stan_fit_full.RData")
+# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+# save(stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, ".RData")))
 
 model_data$t0 <- model_data$first_obs_period
 model_data$tf <- model_data$last_obs_period
@@ -143,21 +147,20 @@ n_cpu <- n_chains
 n_iter <- 1000
 cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
-run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d-%H%M%S"))
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
     # Add 1 to n in order to ensure chain_id 1 is not reused
     sink(paste0("stan_", run_id, "_chain", n, ".txt"), append=TRUE)
     sample_file_csv <- paste0("stan_", run_id, "_chain", n, "_samples.csv")
-    stanfit <- stan(fit=stan_fit_initial, data=model_data, seed=seed, chains=1,
-                    iter=n_iter, chain_id=n, init=get_inits, 
-                    sample_file=sample_file_csv)
-    save(stanfit, file=paste0("full_model_fit_parallel_stan_chain_", n, "_", 
-                              run_id, ".RData"))
+    this_stanfit <- stan(fit=stan_fit_initial, data=model_data, seed=seed, 
+                         chains=1, iter=n_iter, chain_id=n, init=get_inits, 
+                         sample_file=sample_file_csv)
+    save(this_stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_chain", n,  ".RData")))
     sink()
-    return(stanfit)
+    return(this_stanfit)
 }
 print("finished running stan models on cluster")
 stopCluster(cl)
 
 stan_fit <- sflist2stanfit(sflist)
-save(stan_fit, file=paste0("stan_", run_id, "_fullfit.RData"))
+save(stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_fullfit.RData")))
