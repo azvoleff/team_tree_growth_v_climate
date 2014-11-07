@@ -22,24 +22,35 @@ for (suffix in suffixes) {
     # Exclude Pasoh until Pasoh plot coordinates are confirmed
     growth <- filter(growth, !(sitecode %in% c("PSH")))
 
+    setup_factors <- function(growth) {
+        growth$tree_ID_char <- factor(growth$SamplingUnitName)
+        growth$plot_ID_char <- factor(growth$plot_ID)
+        growth$site_ID_char <- factor(growth$sitecode)
+        growth$period_ID_char <- factor(growth$SamplingPeriodEnd)
+        growth$genus_ID_char <- factor(growth$Genus)
+        growth$tree_ID <- factor(growth$SamplingUnitName)
+        growth$plot_ID <- factor(growth$plot_ID)
+        growth$site_ID <- factor(growth$sitecode)
+        growth$genus_ID <- factor(growth$Genus)
+        growth$period_ID <- as.integer(ordered(growth$SamplingPeriodEnd))
+        return(growth)
+    }
+    growth <- setup_factors(growth)
+
     ###############################################################################
     # Subsample dataset fro running testing models
     if (suffix == "_testing") {
-        growth <- filter(growth, sitecode %in% c("VB", "CAX"))
-        growth <- filter(growth, SamplingPeriodEnd %in% c("2011.01", "2012.01", "2013.01"))
+        set.seed(1)
+        # Generate a subsample including only 5% of the trees included in the 
+        # initial sampling period at each site
+        initial_trees <- group_by(growth, site_ID) %>%
+            filter(period_ID == min(period_ID)) %>%
+            group_by(site_ID) %>%
+            sample_frac(.05)
+        growth <- filter(growth, tree_ID %in% initial_trees$tree_ID)
+        growth <- setup_factors(growth)
     }
     ###############################################################################
-
-    growth$tree_ID_char <- factor(growth$SamplingUnitName)
-    growth$plot_ID_char <- factor(growth$plot_ID)
-    growth$site_ID_char <- factor(growth$sitecode)
-    growth$period_ID_char <- factor(growth$SamplingPeriodEnd)
-    growth$genus_ID_char <- factor(growth$Genus)
-    growth$tree_ID <- factor(growth$SamplingUnitName)
-    growth$plot_ID <- factor(growth$plot_ID)
-    growth$site_ID <- factor(growth$sitecode)
-    growth$genus_ID <- factor(growth$Genus)
-    growth$period_ID <- as.integer(ordered(growth$SamplingPeriodEnd))
 
     # Define maximum cumulative water deficit as a positive number to make 
     # interpretation easier
