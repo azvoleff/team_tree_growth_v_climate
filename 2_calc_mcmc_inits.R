@@ -5,13 +5,13 @@ library(lme4)
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster(8)
+cl <- makeCluster(12)
 registerDoParallel(cl)
 
 runmodels <- TRUE
 
 temp_var <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
-precip_var <- "mcwd_run12"
+precip_var <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
 out_folder <- 'Data'
 
