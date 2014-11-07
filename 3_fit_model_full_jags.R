@@ -6,10 +6,15 @@ library(rjags)
 
 model_file <- "full_model.bug" 
 
-load("model_data_wide.RData")
-load("init_data_with_ranefs.RData")
-# load("model_data_wide_testing.RData")
-# load("init_data_with_ranefs_testing.RData")
+temp_var <- "tmn_meanannual"
+precip_var <- "mcwd_run12"
+model_type <- "full"
+out_folder <- 'Data'
+
+suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+
+load(file.path(out_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(out_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
 monitored <- c("B",
                "B_T",
