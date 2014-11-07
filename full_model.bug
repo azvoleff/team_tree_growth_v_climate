@@ -24,7 +24,7 @@ model {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
 
-        # Specially handle first latent dbh (following Eitzel, 2013)
+        # Handle first latent dbh (for which there is no prediction)
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
 
@@ -65,7 +65,6 @@ model {
 
     ##########################################################################
     # Period random effects (crossed)
-    
     for (t in 1:n_period) {
         int_t[t] ~ dnorm(0, tau_int_t)
     }
@@ -75,7 +74,6 @@ model {
     ##########################################################################
     # Correlated random effects at genus level (crossed). Based on Gelman and 
     # Hill pg. 377-378.
- 
     for (g in 1:n_genus) {
         for (k in 1:n_B_g) {
             B_g[g, k] <- xi[k] * B_g_raw[g, k]
@@ -90,6 +88,7 @@ model {
         mu_B_g[k] <- xi[k] * mu_B_g_raw[k]
     }
 
+    # Set up the variance-covariance matrix
     Tau_B_g_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
     df <- n_B_g + 1
     Sigma_B_g_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_g_raw[,])
