@@ -17,6 +17,8 @@ load("init_data_with_ranefs_no_t_effects.RData")
 model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 5
+# n_B_T is number of terms in the temperature model
+model_data$n_B_T <- 3
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
@@ -106,6 +108,8 @@ get_inits <- function() {
     c(init_data, list(
         # Fixed effects
         B=c(rnorm(model_data$n_B, 0, 1)),
+        # Temperature model
+        B_T=c(rnorm(model_data$n_B_T, 0, 1)),
         # Sigmas
         sigma_obs=runif(1, .00026, .001), 
         sigma_proc=abs(rnorm(1, 0, 1))

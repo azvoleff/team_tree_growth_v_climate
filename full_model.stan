@@ -21,6 +21,8 @@ data {
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] WD_sq;
+    vector[n_plot] elev;
+    vector[n_period + 1] temp[n_tree];
     vector[n_period + 1] mcwd[n_tree];
     vector[n_period + 1] mcwd_sq[n_tree];
 }
@@ -29,6 +31,7 @@ parameters {
     vector[n_period + 1] dbh_latent[n_tree]; 
     vector[n_miss] dbh_miss;
     vector[n_B] B;
+    vector[n_B_T] B_T;
     matrix[n_B_g, n_genus] B_g_std;
     vector[n_B_g] gamma_B_g;
     cholesky_factor_corr[n_B_g] L_rho_B_g;
@@ -143,8 +146,11 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * segment(mcwd[i], t0[i] + 1, n_growths) +
                 B_g[genus_ID[i], 3] * segment(mcwd_sq[i], t0[i] + 1, n_growths) +
-                B_g[genus_ID[i], 4] * segment(dbh_latent[i], t0[i], n_growths) +
-                B_g[genus_ID[i], 5] * segment(dbh_latent_sq[i], t0[i], n_growths);
+                B_g[genus_ID[i], 4] * (B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 5] * square(B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 6] * segment(dbh_latent[i], t0[i], n_growths) +
+                B_g[genus_ID[i], 7] * segment(dbh_latent_sq[i], t0[i], n_growths);
+
             // Model dbh_latent
             segment(dbh_latent[i], t0[i] + 1, n_growths) ~ normal(dbh_pred, sigma_proc);
             //print("Predicted dbh: ", dbh_pred);
@@ -152,4 +158,8 @@ model {
         // Model dbh with mean equal to latent dbh
         segment(dbh[i], t0[i], n_growths + 1) ~ normal(segment(dbh_latent[i], t0[i], n_growths + 1), sigma_obs);
     }
+
+    //########################################################################
+    // Temperature model
+    B_T ~ normal(0, 10);
 }
