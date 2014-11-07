@@ -9,7 +9,7 @@ model_file <- "full_model.bug"
 temp_var <- "tmn_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
-model_type <- "testing"
+#model_type <- "testing"
 in_folder <- 'Data'
 out_folder <- 'MCMC_Chains'
 
