@@ -5,21 +5,30 @@ library(lme4)
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster(2)
-registerDoParallel(2)
+cl <- makeCluster(8)
+registerDoParallel(cl)
 
 runmodels <- TRUE
 
-suffixes <- c("", "_testing")
-suffixes <- c("_testing")
+temp_var <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
+precip_var <- "mcwd_run12"
+model_types <- c("full", "testing")
+out_folder <- 'Data'
 
-foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
+foreach (model_type=model_types) %:%
+    foreach (temp_var=temp_var) %:%
+        foreach (precip_var=precip_var,
+                 .packages=c("reshape2", "dplyr", "lme4"),
+                 .inorder=FALSE) %dopar% {
+
+    suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+
     load(paste0("init_data", suffix, ".RData"))
     load(paste0("model_data_wide", suffix, ".RData"))
     load(paste0("model_data_long", suffix, ".RData"))
 
-    mcwd_long <- melt(model_data$mcwd, varnames=c("tree_ID", "period_ID"), 
-                      value.name="mcwd")
+    precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_ID"), 
+                      value.name="precip")
     dbh_latent_long <- melt(init_data$dbh_latent, varnames=c("tree_ID", "period_ID"), 
                             value.name="dbh_latent_end")
     temp_long <- melt(model_data$temp, varnames=c("tree_ID", "period_ID"), 
@@ -27,7 +36,7 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     dbh_latent_long <- group_by(dbh_latent_long, tree_ID) %>%
         arrange(period_ID) %>%
         mutate(dbh_latent_start=c(NA, dbh_latent_end[1:length(dbh_latent_end) - 1]))
-    calib_data <- merge(dbh_latent_long, mcwd_long)
+    calib_data <- merge(dbh_latent_long, precip_long)
     calib_data <- merge(calib_data, temp_long)
     calib_data <- calib_data[complete.cases(calib_data), ]
 
@@ -43,7 +52,7 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     # hist(calib_data$dbh_latent_start)
     # hist(calib_data$dbh_latent_end)
     # hist(calib_data$WD)
-    # hist(calib_data$mcwd)
+    # hist(calib_data$precip)
     # hist(calib_data$temp)
 
     get_variance <- function(model, grp, var1, var2) {
@@ -69,14 +78,14 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     ###########################################################################
     # Inits with period random intercepts
     test_model  <- lm(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
-                      WD + I(WD^2) + temp + I(temp^2)+ mcwd + I(mcwd^2),
+                      WD + I(WD^2) + temp + I(temp^2)+ precip + I(precip^2),
                       data=calib_data)
     if (runmodels) {
         calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                             (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                             (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model, file=paste0("calib_model", suffix, ".RData"))
+        save(calib_model, file=file.path(out_folder, paste0("calib_model", suffix, ".RData")))
     }
     load(paste0("calib_model", suffix, ".RData"))
 
@@ -95,16 +104,16 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     # Drop the attributes
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=paste0("init_data_with_ranefs", suffix, ".RData"))
+    save(init_data, file=file.path(out_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
     ###########################################################################
     # Inits without period random intercepts
     if (runmodels) {
         calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                                 (mcwd + I(mcwd^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                                 (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
                                  control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model_no_t, file=paste0("calib_model_no_t", suffix, ".RData"))
+        save(calib_model_no_t, file=file.path(out_folder, paste0("calib_model_no_t", suffix, ".RData")))
     }
     load(paste0("calib_model_no_t", suffix, ".RData"))
 
@@ -122,7 +131,7 @@ foreach (suffix=suffixes, .packages=c("reshape2", "dplyr", "lme4")) %dopar% {
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
 
-    save(init_data, file=paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData"))
+    save(init_data, file=file.path(out_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
 }
 
 stopCluster(cl)

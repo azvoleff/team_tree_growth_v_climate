@@ -22,7 +22,7 @@ model_data$n_B_T <- 3
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
-model_data$mcwd_sq <- model_data$mcwd^2
+model_data$precip_sq <- model_data$precip^2
 
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
@@ -47,8 +47,8 @@ init_data$dbh_miss <- init_data$dbh_latent[miss_linear_ind]
 # Stan doesn't allow NAs in input, so store 0 in the NAs of dbh_latent (these 
 # cells will never be accessed anyways)
 init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
-model_data$mcwd[is.na(model_data$mcwd)] <- 0
-model_data$mcwd_sq[is.na(model_data$mcwd_sq)] <- 0
+model_data$precip[is.na(model_data$precip)] <- 0
+model_data$precip_sq[is.na(model_data$precip_sq)] <- 0
 
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk

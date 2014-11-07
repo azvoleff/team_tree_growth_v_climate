@@ -36,7 +36,7 @@ model_data$n_B_T <- 3
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
-model_data$mcwd_sq <- model_data$mcwd^2
+model_data$precip_sq <- model_data$precip^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 model_data <- model_data[!(names(model_data) %in% c("spi"))]

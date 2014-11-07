@@ -23,8 +23,8 @@ data {
     vector[n_tree] WD_sq;
     vector[n_plot] elev;
     vector[n_period + 1] temp[n_tree];
-    vector[n_period + 1] mcwd[n_tree];
-    vector[n_period + 1] mcwd_sq[n_tree];
+    vector[n_period + 1] precip[n_tree];
+    vector[n_period + 1] precip_sq[n_tree];
 }
 
 parameters {
@@ -144,8 +144,8 @@ model {
                 int_k[site_ID[i]] +
                 segment(int_t, t0[i], n_growths) +
                 B_g[genus_ID[i], 1] +
-                B_g[genus_ID[i], 2] * segment(mcwd[i], t0[i] + 1, n_growths) +
-                B_g[genus_ID[i], 3] * segment(mcwd_sq[i], t0[i] + 1, n_growths) +
+                B_g[genus_ID[i], 2] * segment(precip[i], t0[i] + 1, n_growths) +
+                B_g[genus_ID[i], 3] * segment(precip_sq[i], t0[i] + 1, n_growths) +
                 B_g[genus_ID[i], 4] * (B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
                 B_g[genus_ID[i], 5] * square(B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
                 B_g[genus_ID[i], 6] * segment(dbh_latent[i], t0[i], n_growths) +

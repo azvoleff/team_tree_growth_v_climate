@@ -10,8 +10,8 @@ model {
                 int_k[site_ID[i]] +
                 int_t[t - 1] +
                 B_g[genus_ID[i], 1] +
-                B_g[genus_ID[i], 2] * mcwd[i, t] +
-                B_g[genus_ID[i], 3] * mcwd_sq[i, t] +
+                B_g[genus_ID[i], 2] * precip[i, t] +
+                B_g[genus_ID[i], 3] * precip_sq[i, t] +
                 B_g[genus_ID[i], 4] * (B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * temp[i, t] + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
                 B_g[genus_ID[i], 5] * pow(B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * temp[i, t] + B_T[site_ID[i], 3] * elev[plot_ID[i]], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +

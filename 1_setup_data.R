@@ -3,15 +3,29 @@ library(reshape2)
 library(zoo) # for na.approx
 library(Rcpp)
 library(inline)
+library(foreach)
+library(doParallel)
 
-sourceCpp('calc_missings.cpp')
+cl <- makeCluster(3)
+registerDoParallel(cl)
 
-load("growth_ctfsflagged_merged_detrended.RData")
+temp_var <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
+precip_var <- "mcwd_run12"
+model_types <- c("full", "testing")
+out_folder <- 'Data'
 
-suffixes <- c("", "_testing")
-suffixes <- c("_testing")
+foreach (model_type=model_types) %:%
+    foreach (temp_var=temp_var) %:%
+        foreach (precip_var=precip_var,
+                 .packages=c("dplyr", "Rcpp", "inline", "zoo", "reshape2"),
+                 .inorder=FALSE) %dopar% {
 
-for (suffix in suffixes) {
+    sourceCpp('calc_missings.cpp')
+
+    load("growth_ctfsflagged_merged_detrended.RData")
+
+    suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+
     growth <- tbl_df(growth)
 
     #TODO Fix WD data
@@ -38,9 +52,8 @@ for (suffix in suffixes) {
     }
     growth <- setup_factors(growth)
 
-    ###############################################################################
-    # Subsample dataset fro running testing models
-    if (suffix == "_testing") {
+    # Subsample dataset for running testing models
+    if (model_type == "testing") {
         set.seed(1)
         # Generate a subsample including only 5% of the trees included in the 
         # initial sampling period at each site
@@ -51,37 +64,41 @@ for (suffix in suffixes) {
         growth <- filter(growth, tree_ID %in% initial_trees$tree_ID)
         growth <- setup_factors(growth)
     }
-    ###############################################################################
 
-    # Define maximum cumulative water deficit as a positive number to make 
-    # interpretation easier
-    growth$cwd <- abs(growth$cwd)
-    growth$mcwd12 <- abs(growth$mcwd12)
-    growth$cwd_run12 <- abs(growth$cwd_run12)
-    growth$mcwd_run12 <- abs(growth$mcwd_run12)
+    # Rename chosen precip var to be named "precip" and chosen temp var to be 
+    # "temp" for easier handling in the later code.
+    stopifnot(sum(names(growth) == temp_var) == 1)
+    stopifnot(sum(names(growth) == precip_var) == 1)
+    stopifnot(sum(names(growth) == 'temp') == 0)
+    stopifnot(sum(names(growth) == 'precip') == 0)
+    names(growth)[names(growth) ==  precip_var] <- "precip"
+    names(growth)[names(growth) ==  temp_var] <- "temp"
 
     # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
     # first growth measurement can only be calculated from time 1 to time 2)
     dbh_ts <- arrange(growth, tree_ID, period_ID) %>%
-        select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
-               mcwd=mcwd_run12, temp=tmn_meanannual, WD, dbh=diameter_end)
+        select(tree_ID, plot_ID, site_ID, period_ID, genus_ID, WD, 
+               dbh=diameter_end, diameter_start, precip, temp)
 
-    # Setup an array of initial diameters for all the trees, by taking the dbh_st 
+    # Setup an array of initial diameters for all the trees, by taking the 
+    # dbh_start
     # value from the first period with an available observation
-    dbh_time_0 <- arrange(growth, tree_ID, period_ID) %>%
+    dbh_time_0 <- arrange(dbh_ts, tree_ID, period_ID) %>%
         group_by(tree_ID) %>%
         filter(period_ID==min(period_ID)) %>%
-        select(tree_ID, site_ID, plot_ID, period_ID, genus_ID, spi=spi_24, 
-               mcwd=mcwd_run12, temp=tmn_meanannual, WD, dbh=diameter_start)
-    dbh_time_0$spi <- NA
-    dbh_time_0$mcwd <- NA
+        select(tree_ID, plot_ID, site_ID, period_ID, genus_ID, WD, diameter_start)
+    dbh_time_0$dbh <- dbh_time_0$diameter_start
+    dbh_time_0 <- select(dbh_time_0, -diameter_start)
+    dbh_ts <- select(dbh_ts, -diameter_start)
+
+    dbh_time_0$precip <- NA
     dbh_time_0$temp <- NA
     dbh_time_0$period_ID <- dbh_time_0$period_ID - 1
 
-    dbh_ts <- rbind(dbh_ts, dbh_time_0)
+    dbh_ts <- merge(dbh_ts, dbh_time_0, all=TRUE)
     dbh_ts <- arrange(dbh_ts, tree_ID, period_ID)
 
-    #dbh_ts$mcwd <- log(1 + dbh_ts$mcwd)
+    #dbh_ts$precip <- log(1 + dbh_ts$precip)
 
     # Standardize outcome and predictors.
     dbh_mean <- mean(dbh_ts$dbh)
@@ -89,11 +106,11 @@ for (suffix in suffixes) {
     dbh_max <- max(dbh_ts$dbh)
     dbh_sd <- sd(dbh_ts$dbh)
     dbh_ts$dbh <- (dbh_ts$dbh - dbh_mean) / dbh_sd
-    mcwd_mean <- mean(dbh_ts$mcwd, na.rm=TRUE)
-    mcwd_min <- min(dbh_ts$mcwd, na.rm=TRUE)
-    mcwd_max <- max(dbh_ts$mcwd, na.rm=TRUE)
-    mcwd_sd <- sd(dbh_ts$mcwd, na.rm=TRUE)
-    dbh_ts$mcwd <- (dbh_ts$mcwd - mcwd_mean) / mcwd_sd
+    precip_mean <- mean(dbh_ts$precip, na.rm=TRUE)
+    precip_min <- min(dbh_ts$precip, na.rm=TRUE)
+    precip_max <- max(dbh_ts$precip, na.rm=TRUE)
+    precip_sd <- sd(dbh_ts$precip, na.rm=TRUE)
+    dbh_ts$precip <- (dbh_ts$precip - precip_mean) / precip_sd
     temp_mean <- mean(dbh_ts$temp, na.rm=TRUE)
     temp_min <- min(dbh_ts$temp, na.rm=TRUE)
     temp_max <- max(dbh_ts$temp, na.rm=TRUE)
@@ -108,18 +125,16 @@ for (suffix in suffixes) {
     genus_ID <- dbh_time_0$genus_ID
     sum(genus_ID == "Unknown") / length(genus_ID)
 
-    # Setup wide format dbh and spi dataframes
+    # Setup wide format dbh, precip, and temp dataframes
     dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
-    spi <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="spi")
-    mcwd <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="mcwd")
+    precip <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="precip")
     temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="temp")
     tree_ID <- dbh$tree_ID
     plot_ID <- dbh$plot_ID
     site_ID <- dbh$site_ID
     # Eliminate the ID columns
     dbh <- dbh[!grepl('_ID$', names(dbh))]
-    spi <- spi[!grepl('_ID$', names(spi))]
-    mcwd <- mcwd[!grepl('_ID$', names(mcwd))]
+    precip <- precip[!grepl('_ID$', names(precip))]
     temp <- temp[!grepl('_ID$', names(temp))]
 
     # Calculate per-plot elevation (not time-varying)
@@ -138,8 +153,9 @@ for (suffix in suffixes) {
          WD_mean, WD_sd, WD_min, WD_max,
          elev_mean, elev_sd, elev_min, elev_max,
          temp_mean, temp_sd, temp_min, temp_max,
-         mcwd_mean, mcwd_min, mcwd_max, mcwd_sd, 
-         file=paste0("model_data_standardizing", suffix, ".RData"))
+         precip_mean, precip_min, precip_max, precip_sd, 
+         file=file.path(out_folder, paste0("model_data_standardizing", suffix, 
+                                     ".RData")))
 
     # Setup data
     n_tree <- length(unique(dbh_ts$tree_ID))
@@ -156,29 +172,26 @@ for (suffix in suffixes) {
         summarize(first_obs_period=(min(period_ID) + 1),
                   last_obs_period=(max(period_ID) + 1))
 
-    # mcwd observations are missing for periods when dbh observations are 
-    # missing.  Fill these observations using the mean mcwd for the appropriate 
+    # precip observations are missing for periods when dbh observations are 
+    # missing.  Fill these observations using the mean precip for the appropriate 
     # period.
     #
     # Note that the same centering and scaling needs to be done here (and log) that 
-    # was done for the other mcwd data.
-    # mcwd_means <- group_by(growth, plot_ID, period_ID) %>%
-    #     summarize(mcwd_means=mean((log(1 + mcwd_run12) - mcwd_mean) / mcwd_sd, 
-    #     na.rm=TRUE))
-    mcwd_means <- group_by(growth, plot_ID, period_ID) %>%
-         summarize(mcwd_means=mean((mcwd_run12 - mcwd_mean) / mcwd_sd, na.rm=TRUE))
-    mcwd_means <- data.frame(mcwd_means) # Fix for indexing bug in dplyr 0.3.2
-    mcwd <- as.matrix(mcwd)
-    mcwd_missings <- calc_missings(mcwd)$miss
-    # Use linear indexing to replace NAs in mcwds
-    mcwd_miss_linear_ind <- (mcwd_missings[, 2] - 1) * nrow(mcwd) + mcwd_missings[, 1] # From http://bit.ly/1rnKrC3
-    mcwd[mcwd_miss_linear_ind] <- mcwd_means[match(paste(plot_ID[mcwd_missings[, 1]], mcwd_missings[, 2]),
-                                                paste(mcwd_means$plot_ID, mcwd_means$period_ID)), 3]
-    stopifnot(is.null(calc_missings(mcwd)$miss))
+    # was done for the other precip data.
+    precip_means <- group_by(growth, plot_ID, period_ID) %>%
+         summarize(precip_means=mean((precip - precip_mean) / precip_sd, na.rm=TRUE))
+    precip_means <- data.frame(precip_means) # Fix for indexing bug in dplyr 0.3.2
+    precip <- as.matrix(precip)
+    precip_missings <- calc_missings(precip)$miss
+    # Use linear indexing to replace NAs in precips
+    precip_miss_linear_ind <- (precip_missings[, 2] - 1) * nrow(precip) + precip_missings[, 1] # From http://bit.ly/1rnKrC3
+    precip[precip_miss_linear_ind] <- precip_means[match(paste(plot_ID[precip_missings[, 1]], precip_missings[, 2]),
+                                                paste(precip_means$plot_ID, precip_means$period_ID)), 3]
+    stopifnot(is.null(calc_missings(precip)$miss))
 
     # Fill in temp (same issue as above)
     temp_means <- group_by(growth, plot_ID, period_ID) %>%
-         summarize(temp_means=mean((tmn_meanannual - temp_mean) / temp_sd, na.rm=TRUE))
+         summarize(temp_means=mean((temp - temp_mean) / temp_sd, na.rm=TRUE))
     temp_means <- data.frame(temp_means) # Fix for indexing bug in dplyr 0.3.2
     temp <- as.matrix(temp)
     temp_missings <- calc_missings(temp)$miss
@@ -188,21 +201,9 @@ for (suffix in suffixes) {
                                                 paste(temp_means$plot_ID, temp_means$period_ID)), 3]
     stopifnot(is.null(calc_missings(temp)$miss))
 
-    # Fill in SPI (same issue as above)
-    spi_means <- group_by(growth, plot_ID, period_ID) %>%
-        summarize(spi_means=mean(spi_24, na.rm=TRUE))
-    spi_means <- data.frame(spi_means) # Fix for indexing bug in dplyr 0.3.2
-    spi <- as.matrix(spi)
-    spi_missings <- calc_missings(spi)$miss
-    # Use linear indexing to replace NAs in SPIs
-    spi_miss_linear_ind <- (spi_missings[, 2] - 1) * nrow(spi) + spi_missings[, 1] # From http://bit.ly/1rnKrC3
-    spi[spi_miss_linear_ind] <- spi_means[match(paste(plot_ID[spi_missings[, 1]], spi_missings[, 2]),
-                                                paste(spi_means$plot_ID, spi_means$period_ID)), 3]
-    stopifnot(is.null(calc_missings(spi)$miss))
-
-    # Calculate indices of missing and observed data (using the function defined in 
-    # calc_missings.cpp), so that observed and missing data can be modeled 
-    # separately in Stan.
+    # Calculate indices of missing and observed data (using the function 
+    # defined in calc_missings.cpp), so that observed and missing data can be 
+    # modeled separately in Stan.
     missings <- calc_missings(as.matrix(dbh))
 
     stopifnot(length(elev) == n_plot)
@@ -229,13 +230,13 @@ for (suffix in suffixes) {
                        sigma_obs_lower=sigma_obs_lower,
                        dbh=as.matrix(dbh),
                        WD=WD,
-                       spi=spi,
                        elev=elev,
                        temp=temp,
-                       mcwd=mcwd,
+                       precip=precip,
                        obs_indices=missings$obs,
                        miss_indices=missings$miss)
-    save(model_data, file=paste0("model_data_wide", suffix, ".RData"))
+    save(model_data, file=file.path(out_folder, paste0("model_data_wide", 
+                                                       suffix, ".RData")))
 
     ###############################################################################
     # Output long format data
@@ -245,7 +246,7 @@ for (suffix in suffixes) {
                                   genus_ID=factor(genus_ID),
                                   sigma_obs_lower=sigma_obs_lower,
                                   WD=WD)
-    # Standardize the diameter variables and mcwd variable the same way they are 
+    # Standardize the diameter variables and precip variable the same way they are 
     # standardized in the wide dataset
     merge_data <- data.frame(tree_ID=growth$tree_ID,
                              growth_rgr=growth$growth_rgr,
@@ -253,22 +254,26 @@ for (suffix in suffixes) {
                              diameter_end=(growth$diameter_end - dbh_mean) / dbh_sd,
                              n_days=growth$n_days,
                              elev=(growth$elev - elev_mean) / elev_sd,
-                             temp=(growth$tmn_meanannual - temp_mean) / temp_sd,
-                             mcwd=(growth$mcwd_run12 - mcwd_mean) / mcwd_sd)
+                             temp=(growth$temp - temp_mean) / temp_sd,
+                             precip=(growth$precip - precip_mean) / precip_sd)
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
-    save(model_data_long, file=paste0("model_data_long", suffix, ".RData"))
+    save(model_data_long, file=file.path(out_folder, paste0("model_data_long", 
+                                                            suffix, ".RData")))
 
     genus_ID_factor_levels <- levels(factor(genus_ID))
     genus_ID_factor_key <- cbind(genus_ID_char=as.character(genus_ID_factor_levels), 
                                  genus_ID_numeric=seq(1:length(genus_ID_factor_levels)))
-    write.csv(genus_ID_factor_key, file=paste0("genus_ID_factor_key", suffix, 
-                                              ".csv"), row.names=FALSE)
+    write.csv(genus_ID_factor_key, file=file.path(out_folder, paste0("genus_ID_factor_key", 
+                                                         suffix, ".csv")), 
+                                                  row.names=FALSE)
 
     site_ID_factor_levels <- levels(factor(site_ID))
     site_ID_factor_key <- cbind(site_ID_char=as.character(site_ID_factor_levels), 
                                 site_ID_numeric=seq(1:length(site_ID_factor_levels)))
-    write.csv(site_ID_factor_key, file=paste0("site_ID_factor_key", suffix, 
-                                              ".csv"), row.names=FALSE)
+    write.csv(site_ID_factor_key, file=file.path(out_folder, 
+                                                 paste0("site_ID_factor_key", 
+                                                        suffix, ".csv")), 
+                                                 row.names=FALSE)
 
     period_ID_factor_levels <- levels(ordered(growth$SamplingPeriodEnd))
     period_ID_factor_key <- data.frame(period_ID_char=as.character(period_ID_factor_levels), 
@@ -279,8 +284,8 @@ for (suffix in suffixes) {
     initial_period <- paste0(as.numeric(substr(period_ID_factor_key$period_ID_char[1], 1, 4)) - 1, ".01")
     period_ID_factor_key <- rbind(c(initial_period, 0), period_ID_factor_key)
     write.csv(period_ID_factor_key,
-              file=paste0("period_ID_factor_key", suffix, ".csv"), 
-              row.names=FALSE)
+              file=file.path(out_folder, paste0("period_ID_factor_key", suffix, 
+                                                ".csv")), row.names=FALSE)
 
     ###############################################################################
     # Setup inits
@@ -304,5 +309,8 @@ for (suffix in suffixes) {
     dbh_latent <- t(apply(dbh_latent, 1, smooth_dbh_obs))
 
     init_data <- list(dbh_latent=as.matrix(dbh_latent))
-    save(init_data, file=paste0("init_data", suffix, ".RData"))
+    save(init_data, file=file.path(out_folder, paste0("init_data", suffix, 
+                                                      ".RData")))
 }
+
+stopCluster(cl)
