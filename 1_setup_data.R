@@ -285,12 +285,6 @@ for (suffix in suffixes) {
     ###############################################################################
     # Setup inits
 
-    # test_m <- lm(growth$diameter_end ~ growth$diameter_start + 
-    # I(growth$diameter_start^2) + growth$WD + I(growth$WD^2) + growth$spi_24 +
-    #    growth$diameter_start * growth$spi_24 +
-    #    growth$WD * growth$spi_24)
-    # #summary(test_m)
-
     # Setup wide format dbh_latent dataframes
     dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
     dbh_latent <- dbh_latent[!grepl('_ID$', names(dbh_latent))]
