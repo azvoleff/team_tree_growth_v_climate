@@ -69,7 +69,7 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
 #                      inits=rep(list(init_data), seq_n_chains), 
 #                      n.chains=seq_n_chains, adapt=100, burnin=100, 
-#                      sample=100)
+#                      sample=100, summarise=FALSE)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 # out_name <- file.path(out_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
@@ -79,7 +79,7 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
-                     burnin=2500, sample=2500, thin=4)
+                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(out_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
