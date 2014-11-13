@@ -7,12 +7,26 @@ library(grid) # for unit
 
 img_dpi <- 300
 
-load("model_data_standardizing.RData")
+n_B_g <- 7
 
-plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL, 
+model_type <- "full"
+#model_type <- "testing"
+temp_var <- "tmp_meanannual"
+precip_var <- "mcwd_run12"
+run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
+
+in_folder <- 'MCMC_Chains'
+suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
+
+load(file.path('Data', paste0("model_data_standardizing_", suffix, ".RData")))
+
+plot_estimates <- function(mcmc_ests, pars=NULL, pars_pretty=NULL, xmin=NULL, 
                            xmax=NULL, scaling=NULL) {
+    if (is.null(pars)) pars <- names(mcmc_ests)
+    if (is.null(pars_pretty)) pars_pretty <- pars
     stopifnot(length(pars) == length(pars_pretty))
     suppressMessages(mcmc_ests <- melt(mcmc_ests))
+
     # Melt will convert the variable names to be syntactically valid R variable 
     # names. So do the same to the names supplied in pars
     pars <- make.names(pars)
@@ -31,14 +45,9 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL,
                   q2pt5=quantile(value, .025),
                   q97pt5=quantile(value, .975))
 
-    if (is.null(pars_pretty)) {
-        mcmc_ests$variable <- ordered(mcmc_ests$variable, 
-                                      levels=rev(pars))
-    } else {
-        mcmc_ests$variable <- ordered(mcmc_ests$variable, 
-                                      levels=rev(pars),
-                                      labels=rev(pars_pretty))
-    }
+    mcmc_ests$variable <- ordered(mcmc_ests$variable, 
+                                  levels=rev(pars),
+                                  labels=rev(pars_pretty))
 
     if (is.null(xmin)) xmin <- min(mcmc_ests$q2pt5)
     if (is.null(xmax)) xmax <- max(mcmc_ests$q97pt5)
@@ -53,18 +62,20 @@ plot_estimates <- function(mcmc_ests, pars, pars_pretty=NULL, xmin=NULL,
     return(p)
 }
 
-load("jags_fit_full_model_fixefs.RData")
-load("jags_fit_full_model_ranefs_sigmas.RData")
-load("jags_fit_full_model_ranefs_mu_B_g.RData")
-load("jags_fit_full_model_ranefs_sigma_B_g.RData")
-load("jags_fit_full_model_ranefs_rho_B_g.RData")
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
+load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
 
-start_val <- 22000
+start_val <- 18000
 thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
 ranefs_sigmas <- window(ranefs_sigmas, start=start_val, thin=thin_val)
 ranefs_mu_B_g <- window(ranefs_mu_B_g, start=start_val, thin=thin_val)
+ranefs_B_T <- window(ranefs_B_T, start=start_val, thin=thin_val)
 ranefs_sigma_B_g <- window(ranefs_sigma_B_g, start=start_val, thin=thin_val)
 ranefs_rho_B_g <- window(ranefs_rho_B_g, start=start_val, thin=thin_val)
 
@@ -112,27 +123,43 @@ plot_estimates(fixefs_comb, fixefs_names, fixefs_names_pretty,
 ggsave("growth_model_fixefs.png", width=3, height=1.5, dpi=img_dpi)
 
 ###############################################################################
+### Plot temperature model
+###############################################################################
+
+ranefs_B_T_names <- c("B[1]",
+                      "B[2]")
+ranefs_B_T_names_pretty <- c("Density",
+                         expression(Density^2))
+ranefs_B_T_scaling <- c(dbh_sd/WD_sd,
+                        dbh_sd/WD_sd)
+
+ranefs_B_T_comb <- data.frame(combine.mcmc(ranefs_B_T))
+
+plot_estimates(ranefs_B_T_comb)
+ggsave("growth_model_ranefs_B_T.png", width=3, height=1.5, dpi=img_dpi)
+
+###############################################################################
 ### Plot random intercepts and process and observation error
 ###############################################################################
 
 ranef_sigmas_names <- c("sigma_obs",
-                 "sigma_proc",
-                 "sigma_int_ijk",
-                 "sigma_int_jk",
-                 "sigma_int_k",
-                 "sigma_int_t")
+                        "sigma_proc",
+                        "sigma_int_ijk",
+                        "sigma_int_jk",
+                        "sigma_int_k",
+                        "sigma_int_t")
 ranef_sigmas_names_pretty <- c(expression(sigma[obs]),
-                        expression(sigma[proc]),
-                        expression(sigma[tree]),
-                        expression(sigma[plot]),
-                        expression(sigma[site]),
-                        expression(sigma[period]))
+                               expression(sigma[proc]),
+                               expression(sigma[tree]),
+                               expression(sigma[plot]),
+                               expression(sigma[site]),
+                               expression(sigma[period]))
 ranefs_sigmas_scaling <- c(dbh_sd,
-                        dbh_sd,
-                        dbh_sd,
-                        dbh_sd,
-                        dbh_sd,
-                        dbh_sd)
+                           dbh_sd,
+                           dbh_sd,
+                           dbh_sd,
+                           dbh_sd,
+                           dbh_sd)
 
 ranefs_sigmas_comb <- data.frame(combine.mcmc(ranefs_sigmas))
 
@@ -148,15 +175,21 @@ ranefs_mu_B_g_names <- c("mu_B_g[1]",
                          "mu_B_g[2]",
                          "mu_B_g[3]",
                          "mu_B_g[4]",
-                         "mu_B_g[5]")
+                         "mu_B_g[5]",
+                         "mu_B_g[6]",
+                         "mu_B_g[7]")
 ranefs_mu_B_g_names_pretty <- c(expression(mu[int,g]),
-                                 expression(mu[MCWD,g]),
-                                 expression(mu[MCWD^2,g]),
-                                 expression(mu[DBH,g]),
-                                 expression(mu[DBH^2,g]))
+                                expression(mu[P,g]),
+                                expression(mu[P^2,g]),
+                                expression(mu[T,g]),
+                                expression(mu[T^2,g]),
+                                expression(mu[D,g]),
+                                expression(mu[D^2,g]))
 ranef_mu_b_g_scaling <- c(dbh_sd,
-                          (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
-                          (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
+                          dbh_sd/temp_sd,
+                          dbh_sd/temp_sd,
+                          (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
+                          (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
                           dbh_sd/dbh_sd,
                           dbh_sd/dbh_sd)
 
@@ -174,17 +207,23 @@ ranefs_sigma_B_g_names <- c("sigma_B_g[1]",
                             "sigma_B_g[2]",
                             "sigma_B_g[3]",
                             "sigma_B_g[4]",
-                            "sigma_B_g[5]")
+                            "sigma_B_g[5]",
+                            "sigma_B_g[6]",
+                            "sigma_B_g[7]")
 ranefs_sigma_B_g_names_pretty <- c(expression(sigma[int,g]),
-                                   expression(sigma[MCWD,g]),
-                                   expression(sigma[MCWD^2,g]),
-                                   expression(sigma[DBH,g]),
-                                   expression(sigma[DBH^2,g]))
+                                   expression(sigma[P,g]),
+                                   expression(sigma[P^2,g]),
+                                   expression(sigma[T,g]),
+                                   expression(sigma[T^2,g]),
+                                   expression(sigma[D,g]),
+                                   expression(sigma[D^2,g]))
 ranefs_sigma_B_g_scaling <- c(dbh_sd,
-                             (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
-                             (dbh_sd/mcwd_sd) * 100, # Convert from mm to 10s of cm
-                             dbh_sd/dbh_sd,
-                             dbh_sd/dbh_sd)
+                              dbh_sd/temp_sd,
+                              dbh_sd/temp_sd,
+                              (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
+                              (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
+                              dbh_sd/dbh_sd,
+                              dbh_sd/dbh_sd)
 
 ranefs_sigma_B_g_comb <- data.frame(combine.mcmc(ranefs_sigma_B_g))
 
@@ -200,33 +239,53 @@ ranefs_rho_B_g_names <- c("rho_B_g[1,2]",
                           "rho_B_g[1,3]",
                           "rho_B_g[1,4]",
                           "rho_B_g[1,5]",
+                          "rho_B_g[1,6]",
+                          "rho_B_g[1,7]",
                           "rho_B_g[2,3]",
                           "rho_B_g[2,4]",
                           "rho_B_g[2,5]",
+                          "rho_B_g[2,6]",
+                          "rho_B_g[2,7]",
                           "rho_B_g[3,4]",
                           "rho_B_g[3,5]",
-                          "rho_B_g[4,5]")
-ranefs_rho_B_g_names_pretty <- c(expression(rho[list(int,MCWD)]),
-                                 expression(rho[list(int,MCWD^2)]),
-                                 expression(rho[list(int,DBH)]),
-                                 expression(rho[list(int,DBH^2)]),
-                                 expression(rho[list(MCWD,MCWD^2)]),
-                                 expression(rho[list(MCWD,DBH)]),
-                                 expression(rho[list(MCWD,DBH^2)]),
-                                 expression(rho[list(MCWD^2,DBH)]),
-                                 expression(rho[list(MCWD^2,DBH^2)]),
-                                 expression(rho[list(DBH,DBH^2)]))
-
+                          "rho_B_g[3,6]",
+                          "rho_B_g[3,7]",
+                          "rho_B_g[4,5]",
+                          "rho_B_g[4,6]",
+                          "rho_B_g[4,7]",
+                          "rho_B_g[5,6]",
+                          "rho_B_g[5,7]",
+                          "rho_B_g[6,7]")
+ranefs_rho_B_g_names_pretty <- c(expression(rho[list(int,P)]),
+                                 expression(rho[list(int,P^2)]),
+                                 expression(rho[list(int,T)]),
+                                 expression(rho[list(int,T^2)]),
+                                 expression(rho[list(int,D)]),
+                                 expression(rho[list(int,D^2)]),
+                                 expression(rho[list(P,P^2)]),
+                                 expression(rho[list(P,T)]),
+                                 expression(rho[list(P,T^2)]),
+                                 expression(rho[list(P,D)]),
+                                 expression(rho[list(P,D^2)]),
+                                 expression(rho[list(P^2,T)]),
+                                 expression(rho[list(P^2,T^2)]),
+                                 expression(rho[list(P^2,D)]),
+                                 expression(rho[list(P^2,D^2)]),
+                                 expression(rho[list(T,T^2)]),
+                                 expression(rho[list(T,D)]),
+                                 expression(rho[list(T,D^2)]),
+                                 expression(rho[list(T^2,D)]),
+                                 expression(rho[list(T^2,D^2)]),
+                                 expression(rho[list(D,D^2)]))
 ranefs_rho_B_g_comb <- data.frame(combine.mcmc(ranefs_rho_B_g))
 
 plot_estimates(ranefs_rho_B_g_comb, ranefs_rho_B_g_names,
                ranefs_rho_B_g_names_pretty, xmin=-1, xmax=1)
 ggsave("growth_model_ranefs_rho_B_g.png", width=4, height=5, dpi=img_dpi)
 
-corr_matrix_names <- c("Intercept", "MCWD", "MCWD^2", "DBH", "DBH^2")
-
-corr_matrix <- matrix(apply(ranefs_rho_B_g_comb, 2, mean), nrow=5)
-
+# Make a color coded plot of the correlation matrix
+corr_matrix_names <- c("Intercept", "P", "P^2", "T", "T^2", "D", "D^2")
+corr_matrix <- matrix(apply(ranefs_rho_B_g_comb, 2, mean), nrow=n_B_g)
 corr_matrix_q2pt5 <- matrix(apply(ranefs_rho_B_g_comb, 2, quantile, .025), nrow=5)
 corr_matrix_q97pt5 <- matrix(apply(ranefs_rho_B_g_comb, 2, quantile, .975), nrow=5)
 signif_mat <- (corr_matrix_q2pt5 > 0) | (corr_matrix_q97pt5 < 0)
@@ -291,4 +350,4 @@ corrplot <- function(corr_mat, labels=NULL, signif=NULL, base_size=10,
 }
 
 corrplot(corr_matrix, corr_matrix_names, base_size=10)
-ggsave("growth_model_ranefs_rho_B_g_corrplot.png", width=3, height=3, dpi=img_dpi)
+ggsave("growth_model_ranefs_rho_B_g_corrplot.png", width=4, height=4, dpi=img_dpi)
