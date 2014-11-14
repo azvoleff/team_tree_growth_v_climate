@@ -343,12 +343,12 @@ foreach (model_type=model_types) %:%
     precip_la <- precip_la[new_order, ]
     tree_ID_la <- as.integer(factor(tree_ID))[new_order]
 
-    block_n_periods <- unique(first_na_dbh$first_na)
+    n_blocks <- unique(first_na_dbh$first_na)
     # Drop the NA (which is for rows without ANY missing observations - meaning 
     # they have no first NA)
-    block_n_periods <- block_n_periods[!is.na(block_n_periods)]
-    block_start_row <- match(block_n_periods, first_na_dbh$first_na)
-    block_end_row <- c(block_start_row[2:length(block_start_row)] - 1, nrow(first_na_dbh))
+    n_blocks <- n_blocks[!is.na(n_blocks)]
+    bl_st <- match(n_blocks, first_na_dbh$first_na)
+    bl_end <- c(bl_st[2:length(bl_st)] - 1, nrow(first_na_dbh))
 
     missings_wide <- calc_missings(as.matrix(dbh_la))
 
@@ -357,9 +357,9 @@ foreach (model_type=model_types) %:%
                                n_site=n_site,
                                n_period=n_period,
                                n_genus=n_genus,
-                               block_n_periods=block_n_periods,
-                               block_start_row=block_start_row,
-                               block_end_row=block_end_row,
+                               n_blocks=n_blocks,
+                               bl_st=bl_st,
+                               bl_end=bl_end,
                                tree_ID=tree_ID_la,
                                plot_ID=as.integer(as.factor(plot_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
                                site_ID=as.integer(as.factor(site_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
