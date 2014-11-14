@@ -6,7 +6,7 @@ library(inline)
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster(3)
+cl <- makeCluster(4)
 registerDoParallel(cl)
 
 temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
@@ -14,9 +14,9 @@ precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
 out_folder <- 'Data'
 
-# temp_var <- 'tmp_meanannual'
-# precip_var <- 'mcwd_run12'
-# model_type <- 'full'
+temp_var <- 'tmp_meanannual'
+precip_var <- 'mcwd_run12'
+model_type <- 'full'
 
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
@@ -329,13 +329,13 @@ foreach (model_type=model_types) %:%
     precip_la <- left_align(model_data$precip, indent=1)
 
     # Reorder covariates and independent variables by number of periods
-    first_na_dbh_latent <- data.frame(tree_ID=as.integer(factor(tree_ID)),
-                                      first_na=apply(dbh_latent_la, 1, function(x) match(NA, x)))
-    first_na_dbh <- data.frame(tree_ID=as.integer(factor(tree_ID)),
-                               first_na=apply(dbh_latent_la, 1, function(x) match(NA, x)))
-    stopifnot(identical(first_na_dbh, first_na_dbh_latent))
-    new_order <- order(first_na_dbh$first_na, first_na_dbh$tree_ID)
-    first_na_dbh <- first_na_dbh[new_order, ]
+    last_obs_dbh_latent <- data.frame(tree_ID=as.integer(factor(tree_ID)),
+                                      last_obs=apply(dbh_latent_la, 1, function(x) match(NA, x) - 1))
+    last_obs_dbh <- data.frame(tree_ID=as.integer(factor(tree_ID)),
+                               last_obs=apply(dbh_latent_la, 1, function(x) match(NA, x) - 1))
+    stopifnot(identical(last_obs_dbh, last_obs_dbh_latent))
+    new_order <- order(last_obs_dbh$last_obs, last_obs_dbh$tree_ID)
+    last_obs_dbh <- last_obs_dbh[new_order, ]
 
     dbh_la <- dbh_la[new_order, ]
     dbh_latent_la <- dbh_latent_la[new_order, ]
@@ -343,12 +343,12 @@ foreach (model_type=model_types) %:%
     precip_la <- precip_la[new_order, ]
     tree_ID_la <- as.integer(factor(tree_ID))[new_order]
 
-    n_blocks <- unique(first_na_dbh$first_na)
+    bl_size <- unique(last_obs_dbh$last_obs)
     # Drop the NA (which is for rows without ANY missing observations - meaning 
     # they have no first NA)
-    n_blocks <- n_blocks[!is.na(n_blocks)]
-    bl_st <- match(n_blocks, first_na_dbh$first_na)
-    bl_end <- c(bl_st[2:length(bl_st)] - 1, nrow(first_na_dbh))
+    bl_size <- bl_size[!is.na(bl_size)]
+    bl_st <- match(bl_size, last_obs_dbh$last_obs)
+    bl_end <- c(bl_st[2:length(bl_st)] - 1, nrow(last_obs_dbh))
 
     missings_wide <- calc_missings(as.matrix(dbh_la))
 
@@ -357,7 +357,8 @@ foreach (model_type=model_types) %:%
                                n_site=n_site,
                                n_period=n_period,
                                n_genus=n_genus,
-                               n_blocks=n_blocks,
+                               n_blocks=length(bl_size),
+                               bl_size=bl_size,
                                bl_st=bl_st,
                                bl_end=bl_end,
                                tree_ID=tree_ID_la,
@@ -365,7 +366,7 @@ foreach (model_type=model_types) %:%
                                site_ID=as.integer(as.factor(site_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
                                genus_ID=as.integer(as.factor(genus_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
                                sigma_obs_lower=sigma_obs_lower,
-                               dbh_la=as.matrix(dbh_la),
+                               dbh=as.matrix(dbh_la),
                                WD=WD, # doesn't need to be left aligned since it is indexed by tree_ID
                                elev=elev[plot_ID], # doesn't need to be left aligned since it is indexed by tree_ID
                                temp=temp_la,

@@ -19,7 +19,7 @@ load(file.path(in_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 # n_B is number of fixed effects
 model_data_blocked$n_B <- 2
 # n_B_g is number of genus-level random effects
-model_data_blocked$n_B_g <- 5
+model_data_blocked$n_B_g <- 7
 # n_B_T is number of terms in the temperature model
 model_data_blocked$n_B_T <- 3
 # W is prior scale for the inverse-Wishart
@@ -52,6 +52,7 @@ init_data$dbh_miss <- init_data$dbh_latent[miss_linear_ind]
 init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
 model_data_blocked$precip[is.na(model_data_blocked$precip)] <- 0
 model_data_blocked$precip_sq[is.na(model_data_blocked$precip_sq)] <- 0
+model_data_blocked$temp[is.na(model_data_blocked$temp)] <- 0
 
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
@@ -119,8 +120,6 @@ get_inits <- function() {
     ))
 }
 
-seed <- 1638
-
 # stan_fit <- stan(model_file, data=model_data_blocked, iter=20, chains=2, 
 #                  inits=get_inits)
 # print("finished running test stan model")
@@ -129,8 +128,6 @@ seed <- 1638
 # save(stan_fit, file=out_name)
 # print(paste("Finished", out_name))
 
-model_data_blocked$t0 <- model_data_blocked$first_obs_period
-model_data_blocked$tf <- model_data_blocked$last_obs_period
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "first_obs_period"]
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_period"]
 
