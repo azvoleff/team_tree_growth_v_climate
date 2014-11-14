@@ -24,11 +24,9 @@ data {
     int<lower=0> bl_end[n_blocks];
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
-    vector[n_tree] WD_sq;
     vector[n_tree] elev;
     matrix[n_tree, n_period + 1] temp;
     matrix[n_tree, n_period + 1] precip;
-    matrix[n_tree, n_period + 1] precip_sq;
 }
 
 parameters {
@@ -54,7 +52,8 @@ parameters {
 
 transformed parameters {
     matrix[n_tree, n_period + 1] dbh;
-    matrix[n_tree, n_period + 1] dbh_latent_sq;
+    // Don't need +1 since can't calculate pred for first period
+    matrix[n_tree, n_period] dbh_pred;
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
@@ -78,18 +77,38 @@ transformed parameters {
 
     B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
 
-    // TODO: This could be made faster by not squaring cells that are no data
-    for (i in 1:n_tree) {
-        for (j in 1:(n_period+1)) {
-            dbh_latent_sq[i][j] <- square(dbh_latent[i][j]);
+    { // block to allow local variables
+        real temp_model;
+        int this_tree_ID;
+        for (bl_num in 1:n_blocks) {
+            for (row_num in bl_st[bl_num]:bl_end[bl_num]) {
+                this_tree_ID <- tree_ID[row_num];
+                for (t in 2:(bl_size[bl_num])) {
+                    temp_model <- B_T[site_ID[this_tree_ID], 1] +
+                        B_T[site_ID[this_tree_ID], 2] * temp[row_num, t] +
+                        B_T[site_ID[this_tree_ID], 3] * elev[plot_ID[this_tree_ID]];
+                    // minus 1 is because dbh_pred is one column smaller than 
+                    // dbh_latent matrix
+                    dbh_pred[row_num, t - 1] <- B[1] * WD[this_tree_ID] +
+                        B[2] * square(WD[this_tree_ID]) +
+                        int_ijk[this_tree_ID] +
+                        int_jk[plot_ID[this_tree_ID]] +
+                        int_k[site_ID[this_tree_ID]] +
+                        B_g[genus_ID[this_tree_ID], 1] +
+                        B_g[genus_ID[this_tree_ID], 2] * precip[row_num, t] +
+                        B_g[genus_ID[this_tree_ID], 3] * square(precip[row_num, t]) +
+                        B_g[genus_ID[this_tree_ID], 4] * temp_model +
+                        B_g[genus_ID[this_tree_ID], 5] * square(temp_model) +
+                        B_g[genus_ID[this_tree_ID], 6] * dbh_latent[row_num, t - 1] +
+                        B_g[genus_ID[this_tree_ID], 7] * square(dbh_latent[row_num, t - 1]);
+                    // print("latent=", dbh_latent[row_num, t - 1], ", pred=", dbh_pred[row_num, t - 1]);
+                }
+            }
         }
     }
 }
 
 model {
-    int bl_rows;
-    int bl_cols;
-
     //########################################################################
     // Fixed effects
     B ~ normal(0, 10);
@@ -137,51 +156,18 @@ model {
 
     //########################################################################
     // Main likelihood
-    for (bl_num in 1:n_blocks) {
-        bl_rows <- bl_end[bl_num] - bl_st[bl_num] + 1;
-        bl_cols <- bl_size[bl_num];
-        { // block to allow local dbh_pred and ID vectors of varying size
-            // minus 1 below since can't make dbh prediction for first period
-            matrix[bl_rows, bl_cols - 1] dbh_pred;
-            real temp_model;
-            int row_overall;
-            int this_tree_ID;
-
-            for (row_bl in 1:bl_rows) {
-                // convenience counter to track position in full dataset
-                row_overall <- row_bl + bl_st[bl_num] - 1;
-
-                this_tree_ID <- tree_ID[row_overall];
-
-                for (t in 2:(bl_cols)) {
-                    temp_model <- B_T[site_ID[this_tree_ID], 1] +
-                        B_T[site_ID[this_tree_ID], 2] * temp[row_overall, t] +
-                        B_T[site_ID[this_tree_ID], 3] * elev[plot_ID[this_tree_ID]];
-
-                    // minus 1 is because dbh_pred is one column smaller than 
-                    // dbh_latent matrix
-                    dbh_pred[row_bl, t - 1] <- B[1] * WD[this_tree_ID] +
-                        B[2] * WD_sq[this_tree_ID] +
-                        int_ijk[this_tree_ID] +
-                        int_jk[plot_ID[this_tree_ID]] +
-                        int_k[site_ID[this_tree_ID]] +
-                        B_g[genus_ID[this_tree_ID], 1] +
-                        B_g[genus_ID[this_tree_ID], 2] * precip[row_overall, t] +
-                        B_g[genus_ID[this_tree_ID], 3] * precip_sq[row_overall, t] +
-                        B_g[genus_ID[this_tree_ID], 4] * temp_model +
-                        B_g[genus_ID[this_tree_ID], 5] * square(temp_model) +
-                        B_g[genus_ID[this_tree_ID], 6] * dbh_latent[row_overall, t - 1] +
-                        B_g[genus_ID[this_tree_ID], 7] * dbh_latent_sq[row_overall, t - 1];
-                }
-            }
-
-            // Model dbh_latent
-            to_vector(block(dbh_latent, bl_st[bl_num], 2, bl_rows, bl_cols - 1)) ~ normal(to_vector(dbh_pred), sigma_proc);
-        }
-        // Model dbh with mean equal to latent dbh
-        to_vector(block(dbh, bl_st[bl_num], 2, bl_rows, bl_cols - 1)) ~ normal(to_vector(block(dbh_latent, bl_st[bl_num], 2, bl_rows, bl_cols - 1)), sigma_obs);
-    }
-
-    # Specially handle first latent dbh
+    
+    // Specially handle first latent dbh
     to_vector(block(dbh_latent, 1, 1, n_tree, 1)) ~ normal(0, 10);
+    { // block to allow local variable
+        int bl_rows;
+        for (bl_num in 1:n_blocks) {
+            bl_rows <- bl_end[bl_num] - bl_st[bl_num] + 1;
+            // Model dbh_latent. Don't model first column since there is not 
+            // prediction for the first dbh (first column is handled above).
+            to_vector(block(dbh_latent, bl_st[bl_num], 2, bl_rows, bl_size[bl_num] - 1)) ~ normal(to_vector(block(dbh_pred, bl_st[bl_num], 1, bl_rows, bl_size[bl_num] - 1)), sigma_proc);
+            // Model dbh with mean equal to latent dbh.
+            to_vector(block(dbh, bl_st[bl_num], 1, bl_rows, bl_size[bl_num])) ~ normal(to_vector(block(dbh_latent, bl_st[bl_num], 1, bl_rows, bl_size[bl_num])), sigma_obs);
+        }
+    }
 }

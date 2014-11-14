@@ -15,6 +15,9 @@ suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
 load(file.path(in_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
 load(file.path(in_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+load(file.path(in_folder, paste0("init_data_blocked", suffix, ".RData")))
+
+init_data$dbh_latent <- init_data_blocked$dbh_latent
 
 # n_B is number of fixed effects
 model_data_blocked$n_B <- 2
@@ -24,8 +27,6 @@ model_data_blocked$n_B_g <- 7
 model_data_blocked$n_B_T <- 3
 # W is prior scale for the inverse-Wishart
 model_data_blocked$W <- diag(model_data_blocked$n_B_g)
-model_data_blocked$WD_sq <- model_data_blocked$WD^2
-model_data_blocked$precip_sq <- model_data_blocked$precip^2
 
 model_data_blocked$n_miss <- nrow(model_data_blocked$miss_indices)
 model_data_blocked$n_obs <- nrow(model_data_blocked$obs_indices)
@@ -51,7 +52,6 @@ init_data$dbh_miss <- init_data$dbh_latent[miss_linear_ind]
 # cells will never be accessed anyways)
 init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
 model_data_blocked$precip[is.na(model_data_blocked$precip)] <- 0
-model_data_blocked$precip_sq[is.na(model_data_blocked$precip_sq)] <- 0
 model_data_blocked$temp[is.na(model_data_blocked$temp)] <- 0
 
 init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
@@ -113,9 +113,10 @@ get_inits <- function() {
         # Fixed effects
         B=c(rnorm(model_data_blocked$n_B, 0, 1)),
         # Temperature model
-        B_T=c(rnorm(model_data_blocked$n_B_T, 0, 1)),
+        B_T=matrix(rnorm(model_data_blocked$n_B_T*model_data_blocked$n_site, 0, 1),
+                   ncol=model_data_blocked$n_B_T),
         # Sigmas
-        sigma_obs=runif(1, .00026, .001), 
+        sigma_obs=runif(1, model_data_blocked$sigma_obs_lower, .01), 
         sigma_proc=abs(rnorm(1, 0, 1))
     ))
 }
@@ -131,8 +132,12 @@ get_inits <- function() {
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "first_obs_period"]
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_period"]
 
-stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
-                         sample_file="stan_test_samples.csv")
+# stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
+#                          sample_file="stan_test_samples.csv")
+#
+# stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
+#                          init=0, sample_file="stan_test_samples.csv")
+
 # Test run
 stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=1000, 
                          init=get_inits, sample_file="stan_test_samples.csv")
