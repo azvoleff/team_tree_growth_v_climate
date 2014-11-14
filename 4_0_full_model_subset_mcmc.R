@@ -4,9 +4,12 @@ library(mcgibbsit)
 
 model_type <- "full"
 #model_type <- "testing"
-temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
-run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
+
+temp_var <- "tmx_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend2" 
+# temp_var <- "tmp_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
 in_folder <- 'MCMC_Chains'
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
@@ -39,7 +42,6 @@ ranefs_B_T <- as.mcmc.list(jags_fit, c("^B_T"))
 # mcgibbsit(ranefs_B_T)
 save(ranefs_B_T, file=file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
 
-ranefs_mu_B_g <- as.mcmc.list(jags_fit, c("mu_B_g"))
 ranefs_B_g <- as.mcmc.list(jags_fit, c("^B_g"))
 # plot(ranefs_B_g, ask=TRUE)
 # gelman.diag(ranefs_B_g)

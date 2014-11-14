@@ -11,9 +11,12 @@ n_B_g <- 7
 
 model_type <- "full"
 #model_type <- "testing"
-temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
-run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
+
+temp_var <- "tmx_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend2" 
+# temp_var <- "tmp_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
 in_folder <- 'MCMC_Chains'
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
@@ -69,7 +72,7 @@ load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RDat
 load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
 load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
 
-start_val <- 18000
+start_val <- 24000
 thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
