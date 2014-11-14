@@ -14,6 +14,10 @@ precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
 out_folder <- 'Data'
 
+# temp_var <- 'tmn_meanannual'
+# precip_var <- 'mcwd_run12'
+# model_type <- 'full'
+
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
         foreach (precip_var=precip_vars,
@@ -21,6 +25,7 @@ foreach (model_type=model_types) %:%
                  .inorder=FALSE) %dopar% {
 
     sourceCpp('calc_missings.cpp')
+    sourceCpp('left_align.cpp')
 
     load("growth_ctfsflagged_merged_detrended.RData")
 
@@ -311,6 +316,66 @@ foreach (model_type=model_types) %:%
     init_data <- list(dbh_latent=as.matrix(dbh_latent))
     save(init_data, file=file.path(out_folder, paste0("init_data", suffix, 
                                                       ".RData")))
+
+    ###############################################################################
+    # Output data in a format that is clustered by the number of periods of 
+    # observations there are per individual - this format allows Stan to run 
+    # faster.
+    head(model_data$temp)
+
+    dbh_la <- left_align(model_data$dbh)
+    dbh_latent_la <- left_align(dbh_latent)
+    temp_la <- left_align(model_data$temp, indent=1)
+    precip_la <- left_align(model_data$precip, indent=1)
+
+    # Reorder covariates and independent variables by number of periods
+    first_na_dbh_latent <- data.frame(tree_ID=as.integer(factor(tree_ID)),
+                                      first_na=apply(dbh_latent_la, 1, function(x) match(NA, x)))
+    first_na_dbh <- data.frame(tree_ID=as.integer(factor(tree_ID)),
+                               first_na=apply(dbh_latent_la, 1, function(x) match(NA, x)))
+    stopifnot(identical(first_na_dbh, first_na_dbh_latent))
+    new_order <- order(first_na_dbh$first_na, first_na_dbh$tree_ID)
+    first_na_dbh <- first_na_dbh[new_order, ]
+
+    dbh_la <- dbh_la[new_order, ]
+    dbh_latent_la <- dbh_latent_la[new_order, ]
+    temp_la <- temp_la[new_order, ]
+    precip_la <- precip_la[new_order, ]
+    tree_ID_la <- as.integer(factor(tree_ID))[new_order]
+
+    block_n_periods <- unique(first_na_dbh$first_na)
+    block_start_row <- match(block_n_periods, first_na_dbh$first_na)
+    block_end_row <- c(block_start_row[2:length(block_start_row)] - 1, nrow(first_na_dbh))
+
+    missings_wide <- calc_missings(as.matrix(dbh_la))
+
+    model_data_blocked <- list(n_tree=n_tree,
+                               n_plot=n_plot,
+                               n_site=n_site,
+                               n_period=n_period,
+                               n_genus=n_genus,
+                               block_n_periods=block_n_periods,
+                               block_start_row=block_start_row,
+                               block_end_row=block_end_row,
+                               tree_ID=tree_ID_la,
+                               plot_ID=as.integer(as.factor(plot_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
+                               site_ID=as.integer(as.factor(site_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
+                               genus_ID=as.integer(as.factor(genus_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
+                               sigma_obs_lower=sigma_obs_lower,
+                               dbh_la=as.matrix(dbh_la),
+                               WD=WD, # doesn't need to be left aligned since it is indexed by tree_ID
+                               elev=elev[plot_ID], # doesn't need to be left aligned since it is indexed by tree_ID
+                               temp=temp_la,
+                               precip=precip_la,
+                               obs_indices=missings_wide$obs,
+                               miss_indices=missings_wide$miss)
+    save(model_data_blocked,
+         file=file.path(out_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
+
+    init_data_blocked <- list(dbh_latent_la=as.matrix(dbh_latent_la))
+    save(init_data_blocked,
+         file=file.path(out_folder, paste0("init_data_blocked", suffix, ".RData")))
+
 }
 
 stopCluster(cl)
