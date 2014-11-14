@@ -5,6 +5,7 @@ data {
     int<lower=0> n_genus;
     int<lower=0> n_B;
     int<lower=0> n_B_g;
+    int<lower=0> n_B_T;
     int<lower=0> n_period;
     int<lower=0> n_blocks;
     real<lower=0> sigma_obs_lower;
@@ -20,20 +21,23 @@ data {
     int<lower=0> obs_indices_period[n_obs];
     int<lower=0> miss_indices_tree[n_miss];
     int<lower=0> miss_indices_period[n_miss];
+    int<lower=0> block_n_periods[n_blocks];
+    int<lower=0> block_start_row[n_blocks];
+    int<lower=0> block_end_row[n_blocks];
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] WD_sq;
     vector[n_tree] elev;
-    vector[n_period + 1] temp[n_tree];
-    vector[n_period + 1] precip[n_tree];
-    vector[n_period + 1] precip_sq[n_tree];
+    matrix[n_tree, n_period + 1] temp;
+    matrix[n_tree, n_period + 1] precip;
+    matrix[n_tree, n_period + 1] precip_sq;
 }
 
 parameters {
     matrix[n_tree, n_period + 1] dbh_latent;
     vector[n_miss] dbh_miss;
     vector[n_B] B;
-    vector[n_B_T] B_T;
+    matrix[n_site, n_B_T] B_T;
     matrix[n_B_g, n_genus] B_g_std;
     vector[n_B_g] gamma_B_g;
     cholesky_factor_corr[n_B_g] L_rho_B_g;
@@ -88,6 +92,10 @@ model {
     B ~ normal(0, 10);
 
     //########################################################################
+    // Temperature model (per site)
+    to_vector(B_T) ~ normal(0, 10);
+
+    //########################################################################
     // Observation and process error
     sigma_obs ~ cauchy(0, 1);
     sigma_proc ~ cauchy(0, 1);
@@ -119,47 +127,54 @@ model {
     // Model missing data. Need to do this explicitly in Stan.
     dbh_miss ~ normal(0, 10);
 
-    # Specially handle first latent dbh
-    block(dbh_latent, 1, 1, n_tree, 1) ~ normal(0, 10);
-
     //########################################################################
     // Main likelihood
-    for (i in 1:n_blocks) {
-        n_rows <- block_end_row[i] - block_start_row[i] + 1;
+    for (bl_num in 1:n_blocks) {
+        n_rows <- block_end_row[bl_num] - block_start_row[bl_num] + 1;
         { // block to allow local dbh_pred and ID vectors of varying size
-            matrix[n_rows, block_n_periods[i]] dbh_pred;
-            vector[n_rows] site_IDs;
-            vector[n_rows] plot_IDs;
-            vector[n_rows] tree_IDs;
-            vector[n_rows] genus_IDs;
+            // minus 1 below since can't make dbh_pred for first period
+            matrix[n_rows, block_n_periods[bl_num] - 1] dbh_pred;
+            int row_overall;
+            int this_tree_ID;
+            int this_plot_ID;
+            int this_site_ID;
+            int this_genus_ID;
 
-            tree_IDs <- segment(tree_ID, block_start_row[i], n_rows)
-            plot_IDs <- plot_ID[tree_IDs];
-            site_IDs <- site_ID[tree_IDs];
-            genus_IDs <- genus_ID[tree_IDs];
+            for (row_bl in 1:n_rows) {
+                // convenience counter to track position in full dataset
+                row_overall <- row_bl + block_start_row[bl_num] - 1;
 
-            dbh_pred <- B[1] * WD[tree_IDs] +
-                B[2] * WD_sq[tree_IDs] +
-                int_ijk[tree_IDs] +
-                int_jk[plot_IDs] +
-                int_k[site_IDs] +
-                B_g[genus_IDs, 1] +
-                B_g[genus_IDs, 2] * block(precip, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) +
-                B_g[genus_IDs, 3] * block(precip_sq, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) +
-                B_g[genus_IDs, 4] * (B_T[site_IDs, 1] + B_T[site_IDs, 2] * block(temp, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) + B_T[site_IDs, 3] * elev[plot_IDs]) +
-                B_g[genus_IDs, 5] * square(B_T[site_IDs, 1] + B_T[site_IDs, 2] * block(temp, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) + B_T[site_IDs, 3] * elev[plot_IDs]) +
-                B_g[genus_IDs, 6] * block(dbh_latent, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) +
-                B_g[genus_IDs, 7] * block(dbh_latent_sq, block_start_row[i], 1, block_end_row[i], block_n_periods[i]);
+                this_tree_ID <- tree_ID[row_overall];
+                this_plot_ID <- plot_ID[this_tree_ID];
+                this_site_ID <- site_ID[this_tree_ID];
+                this_genus_ID <- genus_ID[this_tree_ID];
+
+                for (t in 2:(block_n_periods[bl_num])) {
+                    // minus 1 is because dbh_pred is one column smaller than 
+                    // dbh_latent matrix
+                    dbh_pred[row_bl, t - 1] <- B[1] * WD[this_tree_ID] +
+                        B[2] * WD_sq[this_tree_ID] +
+                        int_ijk[this_tree_ID] +
+                        int_jk[this_plot_ID] +
+                        int_k[this_site_ID] +
+                        B_g[this_genus_ID, 1] +
+                        B_g[this_genus_ID, 2] * precip[row_overall, t] +
+                        B_g[this_genus_ID, 3] * precip_sq[row_overall, t] +
+                        B_g[this_genus_ID, 4] * (B_T[this_site_ID, 1] + B_T[this_site_ID, 2] * temp[row_overall, t] + B_T[this_site_ID, 3] * elev[this_plot_ID]) +
+                        B_g[this_genus_ID, 5] * square(B_T[this_site_ID, 1] + B_T[this_site_ID, 2] * temp[row_overall, t] + B_T[this_site_ID, 3] * elev[this_plot_ID]) +
+                        B_g[this_genus_ID, 6] * dbh_latent[row_overall, t] +
+                        B_g[this_genus_ID, 7] * dbh_latent_sq[row_overall, t];
+                }
+            }
 
             // Model dbh_latent
-            block(dbh_latent, block_start_row[i], 1, block_end_row[i], block_n_periods[i]) ~ normal(dbh_pred, sigma_proc);
+            to_vector(block(dbh_latent, block_start_row[bl_num], 1, block_end_row[bl_num], block_n_periods[bl_num])) ~ normal(to_vector(dbh_pred), sigma_proc);
             //print("Predicted dbh: ", dbh_pred);
         }
         // Model dbh with mean equal to latent dbh
-        block(dbh, block_start_row[i], 2, block_end_row[i], block_n_periods[i] - 1) ~ normal(block(dbh_latent, block_start_row[i], 2, block_end_row[i], block_n_periods[i] - 1), sigma_obs);
+        to_vector(block(dbh, block_start_row[bl_num], 2, block_end_row[bl_num], block_n_periods[bl_num] - 1)) ~ normal(to_vector(block(dbh_latent, block_start_row[bl_num], 2, block_end_row[bl_num], block_n_periods[bl_num] - 1)), sigma_obs);
     }
 
-    //########################################################################
-    // Temperature model
-    B_T ~ normal(0, 10);
+    # Specially handle first latent dbh
+    to_vector(block(dbh_latent, 1, 1, n_tree, 1)) ~ normal(0, 10);
 }

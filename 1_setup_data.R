@@ -14,7 +14,7 @@ precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
 out_folder <- 'Data'
 
-# temp_var <- 'tmn_meanannual'
+# temp_var <- 'tmp_meanannual'
 # precip_var <- 'mcwd_run12'
 # model_type <- 'full'
 
@@ -344,6 +344,9 @@ foreach (model_type=model_types) %:%
     tree_ID_la <- as.integer(factor(tree_ID))[new_order]
 
     block_n_periods <- unique(first_na_dbh$first_na)
+    # Drop the NA (which is for rows without ANY missing observations - meaning 
+    # they have no first NA)
+    block_n_periods <- block_n_periods[!is.na(block_n_periods)]
     block_start_row <- match(block_n_periods, first_na_dbh$first_na)
     block_end_row <- c(block_start_row[2:length(block_start_row)] - 1, nrow(first_na_dbh))
 
