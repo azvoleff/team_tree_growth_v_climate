@@ -22,7 +22,7 @@ data {
     int<lower=0> bl_size[n_blocks];
     int<lower=0> bl_st[n_blocks];
     int<lower=0> bl_end[n_blocks];
-    vector[n_obs] first_obs_period;
+    int<lower=0> first_obs_period[n_obs];
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] elev;
