@@ -2,12 +2,12 @@ library(rstan)
 library(foreach)
 library(doParallel)
 
-model_file <- "full_model_blocked.stan" 
+model_file <- "full_model.stan" 
 
 temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
-model_type <- "full"
-#model_type <- "testing"
+#model_type <- "full"
+model_type <- "testing"
 in_folder <- 'Data'
 out_folder <- 'MCMC_Chains'
 
@@ -24,7 +24,7 @@ model_data_blocked$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data_blocked$n_B_g <- 7
 # n_B_T is number of terms in the temperature model
-model_data_blocked$n_B_T <- 3
+model_data_blocked$n_B_T <- 2
 # W is prior scale for the inverse-Wishart
 model_data_blocked$W <- diag(model_data_blocked$n_B_g)
 
@@ -139,8 +139,10 @@ model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_
 #                          init=0, sample_file="stan_test_samples.csv")
 
 # Test run
-stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=1000, 
-                         init=get_inits, sample_file="stan_test_samples.csv")
+stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, 
+                         iter=10, init=get_inits, 
+                         sample_file="stan_test_samples.csv", 
+                         control=list(refresh=1))
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.

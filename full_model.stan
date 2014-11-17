@@ -84,9 +84,9 @@ transformed parameters {
             for (row_num in bl_st[bl_num]:bl_end[bl_num]) {
                 this_tree_ID <- tree_ID[row_num];
                 for (t in 2:(bl_size[bl_num])) {
-                    temp_model <- B_T[site_ID[this_tree_ID], 1] +
-                        B_T[site_ID[this_tree_ID], 2] * temp[row_num, t] +
-                        B_T[site_ID[this_tree_ID], 3] * elev[plot_ID[this_tree_ID]];
+                    temp_model <- temp[row_num, t] +
+                        B_T[site_ID[this_tree_ID], 1] * 
+                        B_T[site_ID[this_tree_ID], 2] * elev[plot_ID[this_tree_ID]];
                     // minus 1 is because dbh_pred is one column smaller than 
                     // dbh_latent matrix
                     dbh_pred[row_num, t - 1] <- B[1] * WD[this_tree_ID] +
