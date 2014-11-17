@@ -5,6 +5,7 @@ data {
     int<lower=0> n_genus;
     int<lower=0> n_B;
     int<lower=0> n_B_g;
+    int<lower=0> n_B_T;
     int<lower=0> n_period;
     real<lower=0> sigma_obs_lower;
     int<lower=0> plot_ID[n_tree];

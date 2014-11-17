@@ -119,7 +119,7 @@ model {
 
     //########################################################################
     // Observation and process error
-    sigma_obs ~ cauchy(0, 1);
+    sigma_obs ~ cauchy(sigma_obs_lower, 1);
     sigma_proc ~ cauchy(0, 1);
 
     //########################################################################

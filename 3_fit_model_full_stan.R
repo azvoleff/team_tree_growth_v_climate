@@ -21,7 +21,7 @@ model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 5
 # n_B_T is number of terms in the temperature model
-model_data$n_B_T <- 3
+model_data$n_B_T <- 2
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
@@ -135,8 +135,9 @@ model_data <- model_data[names(model_data) != "first_obs_period"]
 model_data <- model_data[names(model_data) != "last_obs_period"]
 
 # Test run
-stan_fit_initial <- stan(model_file, data=model_data, chains=1, iter=1000, 
-                         init=get_inits, sample_file="stan_test_samples.csv")
+stan_fit_initial <- stan(model_file, data=model_data, chains=1, iter=10, 
+                         init=get_inits, sample_file="stan_test_samples.csv", 
+                         update=1)
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
