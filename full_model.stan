@@ -22,6 +22,7 @@ data {
     int<lower=0> bl_size[n_blocks];
     int<lower=0> bl_st[n_blocks];
     int<lower=0> bl_end[n_blocks];
+    vector[n_obs] first_obs_period;
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
     vector[n_tree] elev;
@@ -41,7 +42,7 @@ parameters {
     vector[n_tree] int_ijk_std;
     vector[n_plot] int_jk_std;
     vector[n_site] int_k_std;
-    vector[n_period] int_t_std;
+    vector[n_period * n_site] int_t_std;
     real<lower=sigma_obs_lower> sigma_obs;
     real<lower=0> sigma_proc;
     real<lower=0> sigma_int_ijk;
@@ -52,12 +53,12 @@ parameters {
 
 transformed parameters {
     matrix[n_tree, n_period + 1] dbh;
-    // Don't need +1 since can't calculate pred for first period
+    // Don't need + 1 for dbh_pred since can't predict dbh for first period
     matrix[n_tree, n_period] dbh_pred;
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
-    vector[n_period] int_t;
+    vector[n_period * n_site] int_t;
     matrix[n_genus, n_B_g] B_g;
 
     // Handle missing data
@@ -94,6 +95,7 @@ transformed parameters {
                         int_ijk[this_tree_ID] +
                         int_jk[plot_ID[this_tree_ID]] +
                         int_k[site_ID[this_tree_ID]] +
+                        int_t[(first_obs_period[this_tree_ID] + t - 2) * site_ID[this_tree_ID]] +
                         B_g[genus_ID[this_tree_ID], 1] +
                         B_g[genus_ID[this_tree_ID], 2] * precip[row_num, t] +
                         B_g[genus_ID[this_tree_ID], 3] * square(precip[row_num, t]) +
@@ -163,7 +165,7 @@ model {
         int bl_rows;
         for (bl_num in 1:n_blocks) {
             bl_rows <- bl_end[bl_num] - bl_st[bl_num] + 1;
-            // Model dbh_latent. Don't model first column since there is not 
+            // Model dbh_latent. Don't model first column as there is no
             // prediction for the first dbh (first column is handled above).
             to_vector(block(dbh_latent, bl_st[bl_num], 2, bl_rows, bl_size[bl_num] - 1)) ~ normal(to_vector(block(dbh_pred, bl_st[bl_num], 1, bl_rows, bl_size[bl_num] - 1)), sigma_proc);
             // Model dbh with mean equal to latent dbh.

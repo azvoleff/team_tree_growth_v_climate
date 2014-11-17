@@ -129,7 +129,6 @@ get_inits <- function() {
 # save(stan_fit, file=out_name)
 # print(paste("Finished", out_name))
 
-model_data_blocked <- model_data_blocked[names(model_data_blocked) != "first_obs_period"]
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_period"]
 
 # stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
@@ -139,10 +138,8 @@ model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_
 #                          init=0, sample_file="stan_test_samples.csv")
 
 # Test run
-stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, 
-                         iter=10, init=get_inits, 
-                         sample_file="stan_test_samples.csv", 
-                         control=list(refresh=1))
+stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=2, 
+                         iter=20, init=get_inits, control=list(refresh=1))
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
@@ -150,6 +147,9 @@ stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1,
 stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=0, init=get_inits)
 print("finished setting up stan model")
 
+
+# Run in CmdStan for memory reasons (so that output can be streamed directly to 
+# disk.
 n_chains <- 3
 n_cpu <- n_chains
 n_iter <- 1000
