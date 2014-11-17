@@ -8,31 +8,32 @@ data {
     int<lower=0> n_B_T;
     int<lower=0> n_period;
     real<lower=0> sigma_obs_lower;
+    int<lower=0> tree_ID[n_tree];
     int<lower=0> plot_ID[n_tree];
     int<lower=0> site_ID[n_tree];
     int<lower=0> genus_ID[n_tree];
-    int<lower=0> t0[n_tree];
-    int<lower=0> tf[n_tree];
     int<lower=0> n_miss;
     int<lower=0> n_obs;
     int<lower=0> obs_indices_tree[n_obs];
     int<lower=0> obs_indices_period[n_obs];
     int<lower=0> miss_indices_tree[n_miss];
     int<lower=0> miss_indices_period[n_miss];
+    int<lower=0> n_blocks;
+    int<lower=0> bl_size[n_blocks];
+    int<lower=0> bl_st[n_blocks];
+    int<lower=0> bl_end[n_blocks];
     vector[n_obs] dbh_obs;
     vector[n_tree] WD;
-    vector[n_tree] WD_sq;
-    vector[n_plot] elev;
-    vector[n_period + 1] temp[n_tree];
-    vector[n_period + 1] precip[n_tree];
-    vector[n_period + 1] precip_sq[n_tree];
+    vector[n_tree] elev;
+    matrix[n_tree, n_period + 1] temp;
+    matrix[n_tree, n_period + 1] precip;
 }
 
 parameters {
-    vector[n_period + 1] dbh_latent[n_tree]; 
+    matrix[n_tree, n_period + 1] dbh_latent;
     vector[n_miss] dbh_miss;
     vector[n_B] B;
-    vector[n_B_T] B_T;
+    matrix[n_site, n_B_T] B_T;
     matrix[n_B_g, n_genus] B_g_std;
     vector[n_B_g] gamma_B_g;
     cholesky_factor_corr[n_B_g] L_rho_B_g;
@@ -50,8 +51,9 @@ parameters {
 }
 
 transformed parameters {
-    vector[n_period + 1] dbh[n_tree]; 
-    vector[n_period + 1] dbh_latent_sq[n_tree]; 
+    matrix[n_tree, n_period + 1] dbh;
+    // Don't need +1 since can't calculate pred for first period
+    matrix[n_tree, n_period] dbh_pred;
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
@@ -75,23 +77,49 @@ transformed parameters {
 
     B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
 
-    for (i in 1:n_tree) {
-        for (j in 1:(n_period+1)) {
-            dbh_latent_sq[i][j] <- square(dbh_latent[i][j]);
+    { // block to allow local variables
+        real temp_model;
+        int this_tree_ID;
+        for (bl_num in 1:n_blocks) {
+            for (row_num in bl_st[bl_num]:bl_end[bl_num]) {
+                this_tree_ID <- tree_ID[row_num];
+                for (t in 2:(bl_size[bl_num])) {
+                    temp_model <- B_T[site_ID[this_tree_ID], 1] +
+                        B_T[site_ID[this_tree_ID], 2] * temp[row_num, t] +
+                        B_T[site_ID[this_tree_ID], 3] * elev[plot_ID[this_tree_ID]];
+                    // minus 1 is because dbh_pred is one column smaller than 
+                    // dbh_latent matrix
+                    dbh_pred[row_num, t - 1] <- B[1] * WD[this_tree_ID] +
+                        B[2] * square(WD[this_tree_ID]) +
+                        int_ijk[this_tree_ID] +
+                        int_jk[plot_ID[this_tree_ID]] +
+                        int_k[site_ID[this_tree_ID]] +
+                        B_g[genus_ID[this_tree_ID], 1] +
+                        B_g[genus_ID[this_tree_ID], 2] * precip[row_num, t] +
+                        B_g[genus_ID[this_tree_ID], 3] * square(precip[row_num, t]) +
+                        B_g[genus_ID[this_tree_ID], 4] * temp_model +
+                        B_g[genus_ID[this_tree_ID], 5] * square(temp_model) +
+                        B_g[genus_ID[this_tree_ID], 6] * dbh_latent[row_num, t - 1] +
+                        B_g[genus_ID[this_tree_ID], 7] * square(dbh_latent[row_num, t - 1]);
+                    // print("latent=", dbh_latent[row_num, t - 1], ", pred=", dbh_pred[row_num, t - 1]);
+                }
+            }
         }
     }
 }
 
 model {
-    int n_growths;
-
     //########################################################################
     // Fixed effects
     B ~ normal(0, 10);
 
     //########################################################################
+    // Temperature model (per site)
+    to_vector(B_T) ~ normal(0, 10);
+
+    //########################################################################
     // Observation and process error
-    sigma_obs ~ cauchy(0, 1);
+    sigma_obs ~ cauchy(sigma_obs_lower, 1);
     sigma_proc ~ cauchy(0, 1);
 
     //########################################################################
@@ -128,39 +156,18 @@ model {
 
     //########################################################################
     // Main likelihood
-    for (i in 1:n_tree) {
-        //print("Starting tree ", i);
-        //print("Latent dbh: ", dbh_latent[i]);
-        n_growths <- tf[i] - t0[i];
-
-        # Specially handle first latent dbh
-        dbh_latent[i, t0[i]] ~ normal(0, 10);
-
-        { // block to allow local dbh_pred vector of varying length
-            vector[n_growths] dbh_pred;
-            dbh_pred <- B[1] * WD[i] +
-                B[2] * WD_sq[i] +
-                int_ijk[i] +
-                int_jk[plot_ID[i]] +
-                int_k[site_ID[i]] +
-                segment(int_t, t0[i], n_growths) +
-                B_g[genus_ID[i], 1] +
-                B_g[genus_ID[i], 2] * segment(precip[i], t0[i] + 1, n_growths) +
-                B_g[genus_ID[i], 3] * segment(precip_sq[i], t0[i] + 1, n_growths) +
-                B_g[genus_ID[i], 4] * (B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 5] * square(B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * segment(temp[i], t0[i] + 1, n_growths) + B_T[site_ID[i], 3] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 6] * segment(dbh_latent[i], t0[i], n_growths) +
-                B_g[genus_ID[i], 7] * segment(dbh_latent_sq[i], t0[i], n_growths);
-
-            // Model dbh_latent
-            segment(dbh_latent[i], t0[i] + 1, n_growths) ~ normal(dbh_pred, sigma_proc);
-            //print("Predicted dbh: ", dbh_pred);
+    
+    // Specially handle first latent dbh
+    to_vector(block(dbh_latent, 1, 1, n_tree, 1)) ~ normal(0, 10);
+    { // block to allow local variable
+        int bl_rows;
+        for (bl_num in 1:n_blocks) {
+            bl_rows <- bl_end[bl_num] - bl_st[bl_num] + 1;
+            // Model dbh_latent. Don't model first column since there is not 
+            // prediction for the first dbh (first column is handled above).
+            to_vector(block(dbh_latent, bl_st[bl_num], 2, bl_rows, bl_size[bl_num] - 1)) ~ normal(to_vector(block(dbh_pred, bl_st[bl_num], 1, bl_rows, bl_size[bl_num] - 1)), sigma_proc);
+            // Model dbh with mean equal to latent dbh.
+            to_vector(block(dbh, bl_st[bl_num], 1, bl_rows, bl_size[bl_num])) ~ normal(to_vector(block(dbh_latent, bl_st[bl_num], 1, bl_rows, bl_size[bl_num])), sigma_obs);
         }
-        // Model dbh with mean equal to latent dbh
-        segment(dbh[i], t0[i], n_growths + 1) ~ normal(segment(dbh_latent[i], t0[i], n_growths + 1), sigma_obs);
     }
-
-    //########################################################################
-    // Temperature model
-    B_T ~ normal(0, 10);
 }
