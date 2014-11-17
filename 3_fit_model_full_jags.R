@@ -39,7 +39,7 @@ model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 7
 # n_B_T is number of terms in the temperature model
-model_data$n_B_T <- 3
+model_data$n_B_T <- 2
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
