@@ -14,7 +14,8 @@ model_type <- "full"
 precip_var <- "mcwd_run12"
 
 temp_var <- "tmx_meanannual"
-run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend2" 
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
@@ -72,7 +73,7 @@ load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RDat
 load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
 load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
 
-start_val <- 24000
+start_val <- 14000
 thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
@@ -139,7 +140,7 @@ ranefs_B_T_scaling <- c(dbh_sd/WD_sd,
 ranefs_B_T_comb <- data.frame(combine.mcmc(ranefs_B_T))
 
 plot_estimates(ranefs_B_T_comb)
-ggsave("growth_model_ranefs_B_T.png", width=3, height=1.5, dpi=img_dpi)
+ggsave("growth_model_ranefs_B_T.png", width=3, height=3, dpi=img_dpi)
 
 ###############################################################################
 ### Plot random intercepts and process and observation error

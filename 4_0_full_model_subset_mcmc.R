@@ -7,15 +7,16 @@ model_type <- "full"
 precip_var <- "mcwd_run12"
 
 temp_var <- "tmx_meanannual"
-run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend2" 
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
+# temp_var <- "tmn_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141115021513"
+
 in_folder <- 'MCMC_Chains'
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
-
-load(file.path('Data', paste0("model_data_standardizing_", suffix, ".RData")))
-
 load(file.path(in_folder, paste0("jags_fit_", suffix, "-", run_ID, ".RData")))
 
 #mcgibbsit(as.mcmc.list(jags_fit))
@@ -42,15 +43,15 @@ ranefs_B_T <- as.mcmc.list(jags_fit, c("^B_T"))
 # mcgibbsit(ranefs_B_T)
 save(ranefs_B_T, file=file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
 
-ranefs_B_g <- as.mcmc.list(jags_fit, c("^B_g"))
-# plot(ranefs_B_g, ask=TRUE)
-# gelman.diag(ranefs_B_g)
-save(ranefs_B_g, file=file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_g.RData")))
-
 ranefs_mu_B_g <- as.mcmc.list(jags_fit, c("mu_B_g"))
 # plot(ranefs_mu_B_g, ask=TRUE)
 # gelman.diag(ranefs_mu_B_g)
 save(ranefs_mu_B_g, file=file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
+
+ranefs_B_g <- as.mcmc.list(jags_fit, c("^B_g"))
+# plot(ranefs_B_g, ask=TRUE)
+# gelman.diag(ranefs_B_g)
+save(ranefs_B_g, file=file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_g.RData")))
 
 ranefs_sigma_B_g <- as.mcmc.list(jags_fit, c("sigma_B_g"))
 # plot(ranefs_sigma_B_g, ask=TRUE)
