@@ -62,7 +62,7 @@ init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw,
 
 # Jags uses the inverse of the variance-covariance matrix to parameterize the 
 # wishart.
-init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
+#init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
 init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 # seq_n_chains <- 1
