@@ -2,7 +2,10 @@ library(rstan)
 library(foreach)
 library(doParallel)
 
+stan_path <- "C:/cmdstan"
+
 model_file <- "full_model.stan" 
+model_name <- "full_model" 
 
 temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
@@ -131,20 +134,15 @@ get_inits <- function() {
 
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_period"]
 
-# stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
-#                          sample_file="stan_test_samples.csv")
-#
-# stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=1, iter=10, 
-#                          init=0, sample_file="stan_test_samples.csv")
-
 # Test run
-stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=2, 
-                         iter=20, init=get_inits, control=list(refresh=1))
+# stan_fit <- stan(model_file, data=model_data_blocked, chains=2, iter=20, 
+#                  init=get_inits, control=list(refresh=1))
 
 # Fit n_chains chains in parallel. Reuse same seed so that the chain_ids can be 
 # used by stan to properly seed each chain differently.
 # Fit initial model, on a single CPU. Run only one iteration.
-stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=0, init=get_inits)
+# stan_fit_initial <- stan(model_file, data=model_data_blocked, chains=0, 
+#                          init=get_inits)
 print("finished setting up stan model")
 
 
@@ -156,13 +154,51 @@ n_iter <- 1000
 cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+
+data_file <- file.path(out_folder, paste0("model_data", suffix, ".R"))
+attach(model_data_blocked)
+stan_rdump(names(model_data_blocked), file=data_file)
+detach(model_data_blocked)
+
 sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
-    # Add 1 to n in order to ensure chain_id 1 is not reused
-    sink(paste0("stan_", run_id, "_chain", n, ".txt"), append=TRUE)
-    sample_file_csv <- paste0("stan_", run_id, "_chain", n, "_samples.csv")
+    sink_file <- paste0("stan_", run_id, "_chain", n, "_sink.txt")
+    init_file <- paste0("stan_", run_id, "_chain", n, "_inits.csv")
+    sample_file <- paste0("stan_", run_id, "_chain", n, "_samples.csv")
+    sink(sink_file, append=TRUE)
+    inits <- get_inits()
+    attach(inits)
+    stan_rdump(names(inits), init_file)
+    detach(inits)
+
+                        " --o=", gsub(".stan", ".cpp", model_file),
+
+    cpp_file <- file.path(stan_path, "mymodels", gsub(".stan", ".cpp", model_file))
+
+    # Compile stan model (Windows)
+    stanc_cmd <- paste0(file.path(stan_path, "bin", "stanc.exe"), " --name=", 
+                        model_name, " --o=", cpp_file, " ", model_file)
+    system(stanc_cmd)
+
+    setwd(stan_path)
+    make_cmd <- paste0("make ", gsub('.stan', '', model_file))
+    system(make_cmd)
+
+
+    # Sample
+    sampl_cmd <- paste0("./", model_name, " sample random seed=12345 id=", n,
+                        " data file=", data_file, " output file=", sample_file,
+                        " &")
+
+
+    # Windows
+    sampl_cmd <- paste0("start /b ", model_name, " sample random seed=12345 id=", n,
+                        " data file=", data_file, " output file=", sample_file)
+    system(sampl_cmd)
+
     this_stanfit <- stan(fit=stan_fit_initial, data=model_data_blocked, seed=seed, 
                          chains=1, iter=n_iter, chain_id=n, init=get_inits, 
                          sample_file=sample_file_csv)
+
     save(this_stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_chain", n,  ".RData")))
     sink()
     return(this_stanfit)
