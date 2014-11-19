@@ -5,6 +5,8 @@ library(lme4)
 library(foreach)
 library(doParallel)
 
+source("settings.R")
+
 cl <- makeCluster(12)
 registerDoParallel(cl)
 
@@ -13,7 +15,9 @@ runmodels <- TRUE
 temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
 precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
-out_folder <- 'Data'
+
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
@@ -23,9 +27,9 @@ foreach (model_type=model_types) %:%
 
     suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-    load(file.path(out_folder, paste0("init_data", suffix, ".RData")))
-    load(file.path(out_folder, paste0("model_data_wide", suffix, ".RData")))
-    load(file.path(out_folder, paste0("model_data_long", suffix, ".RData")))
+    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+    load(file.path(data_folder, paste0("model_data_long", suffix, ".RData")))
 
     precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_ID"), 
                       value.name="precip")
@@ -85,9 +89,9 @@ foreach (model_type=model_types) %:%
                              (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                              (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model, file=file.path(out_folder, paste0("calib_model", suffix, ".RData")))
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     } else {
-        load(file.path(out_folder, paste0("calib_model", suffix, ".RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     }
 
     init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
@@ -105,7 +109,7 @@ foreach (model_type=model_types) %:%
     # Drop the attributes
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(out_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
     ###########################################################################
     # Inits without period random intercepts
@@ -114,9 +118,9 @@ foreach (model_type=model_types) %:%
                                  (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
                                  control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model_no_t, file=file.path(out_folder, paste0("calib_model_no_t", suffix, ".RData")))
+        save(calib_model_no_t, file=file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
     } else {
-        load(file.path(out_folder, paste0("calib_model_no_t", suffix, ".RData")))
+        load(file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
     }
 
     init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t)$tree_ID))
@@ -133,7 +137,7 @@ foreach (model_type=model_types) %:%
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
 
-    save(init_data, file=file.path(out_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
 }
 
 stopCluster(cl)

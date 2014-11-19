@@ -1,6 +1,8 @@
 library(runjags)
 library(rjags)
 
+source("settings.R")
+
 # Allow block-updating using glm module
 #load.module("glm")
 
@@ -10,13 +12,15 @@ temp_var <- "tmn_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
 #model_type <- "testing"
-in_folder <- 'Data'
-out_folder <- 'MCMC_Chains'
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-load(file.path(in_folder, paste0("model_data_wide", suffix, ".RData")))
-load(file.path(in_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
+mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
+
+load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
 monitored <- c("B",
                "B_T",
@@ -72,16 +76,16 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 #                      sample=100, summarise=FALSE)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# out_name <- file.path(out_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
+# out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
 # save(jags_fit, file=out_name)
 # print(paste("Finished", out_name))
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
-                     data=model_data, inits=rep(list(init_data), 5),
+                     data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
                      burnin=2500, sample=2500, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-out_name <- file.path(out_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
+out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))

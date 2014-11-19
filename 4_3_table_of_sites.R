@@ -2,16 +2,31 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 
+source("settings.R")
+
 img_dpi <- 300
 
-sites <- read.csv('H:/Data/TEAM/Sitecode_Key/sitecode_key.csv')
+model_type <- "full"
+#model_type <- "testing"
+precip_var <- "mcwd_run12"
 
-load("init_data.RData")
-load("model_data_wide.RData")
-load("model_data_standardizing.RData")
+temp_var <- "tmx_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
 
-site_ID_key <- read.csv("site_ID_factor_key.csv")
-period_ID_key <- read.csv("period_ID_factor_key.csv")
+suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
+
+sites <- read.csv(file.path(prefix, "TEAM", "Sitecode_Key", "sitecode_key.csv")
+
+load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing_", suffix, ".RData")))
+
+site_ID_factor_key <- read.csv(file.path(data_folder,
+                                         paste0("site_ID_factor_key_", suffix, 
+                                                ".csv")))
+period_ID_factor_key <- read.csv(file.path(data_folder,
+                                         paste0("period_ID_factor_key_", suffix, 
+                                                ".csv")))
 
 dbh_latent_long <- melt(init_data$dbh_latent, varnames=c("tree_ID", "period_ID"), 
                         value.name="dbh_latent_end")

@@ -9,6 +9,8 @@ library(reshape2)
 library(foreach)
 library(doParallel)
 
+source("settings.R")
+
 cl <- makeCluster(3)
 registerDoParallel(cl)
 
@@ -22,15 +24,17 @@ run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3"
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
-in_folder <- 'MCMC_Chains'
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
+
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+params_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Extracted_Parameters")
 
 n_site <- 14
 
 ###############################################################################
 # Load MCMC samples
 
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
 
 start_val <- 14000
 thin_val <- 4
@@ -60,7 +64,7 @@ stopifnot(all(B_T_array[7, , 5] == B_T_set2))
 ###############################################################################
 # Now make plots of predicted temperatures at each plot for each site
 
-site_ID_factor_key <- read.csv(file.path("Data", 
+site_ID_factor_key <- read.csv(file.path(data_folder,
                                          paste0("site_ID_factor_key_", suffix, 
                                                 ".csv")))
 

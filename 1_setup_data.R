@@ -6,13 +6,17 @@ library(inline)
 library(foreach)
 library(doParallel)
 
+source("settings.R")
+
 cl <- makeCluster(4)
 registerDoParallel(cl)
 
 temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
 precip_vars <- c("mcwd_run12", "spi_24")
 model_types <- c("full", "testing")
-out_folder <- 'Data'
+
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
 temp_var <- 'tmp_meanannual'
 precip_var <- 'mcwd_run12'
@@ -159,7 +163,7 @@ foreach (model_type=model_types) %:%
          elev_mean, elev_sd, elev_min, elev_max,
          temp_mean, temp_sd, temp_min, temp_max,
          precip_mean, precip_min, precip_max, precip_sd, 
-         file=file.path(out_folder, paste0("model_data_standardizing", suffix, 
+         file=file.path(data_folder, paste0("model_data_standardizing", suffix, 
                                      ".RData")))
 
     # Setup data
@@ -240,7 +244,7 @@ foreach (model_type=model_types) %:%
                        precip=precip,
                        obs_indices=missings$obs,
                        miss_indices=missings$miss)
-    save(model_data, file=file.path(out_folder, paste0("model_data_wide", 
+    save(model_data, file=file.path(data_folder, paste0("model_data_wide", 
                                                        suffix, ".RData")))
 
     ###############################################################################
@@ -262,20 +266,20 @@ foreach (model_type=model_types) %:%
                              temp=(growth$temp - temp_mean) / temp_sd,
                              precip=(growth$precip - precip_mean) / precip_sd)
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)
-    save(model_data_long, file=file.path(out_folder, paste0("model_data_long", 
+    save(model_data_long, file=file.path(data_folder, paste0("model_data_long", 
                                                             suffix, ".RData")))
 
     genus_ID_factor_levels <- levels(factor(genus_ID))
     genus_ID_factor_key <- cbind(genus_ID_char=as.character(genus_ID_factor_levels), 
                                  genus_ID_numeric=seq(1:length(genus_ID_factor_levels)))
-    write.csv(genus_ID_factor_key, file=file.path(out_folder, paste0("genus_ID_factor_key", 
+    write.csv(genus_ID_factor_key, file=file.path(data_folder, paste0("genus_ID_factor_key", 
                                                          suffix, ".csv")), 
                                                   row.names=FALSE)
 
     site_ID_factor_levels <- levels(factor(site_ID))
     site_ID_factor_key <- cbind(site_ID_char=as.character(site_ID_factor_levels), 
                                 site_ID_numeric=seq(1:length(site_ID_factor_levels)))
-    write.csv(site_ID_factor_key, file=file.path(out_folder, 
+    write.csv(site_ID_factor_key, file=file.path(data_folder, 
                                                  paste0("site_ID_factor_key", 
                                                         suffix, ".csv")), 
                                                  row.names=FALSE)
@@ -289,7 +293,7 @@ foreach (model_type=model_types) %:%
     initial_period <- paste0(as.numeric(substr(period_ID_factor_key$period_ID_char[1], 1, 4)) - 1, ".01")
     period_ID_factor_key <- rbind(c(initial_period, 0), period_ID_factor_key)
     write.csv(period_ID_factor_key,
-              file=file.path(out_folder, paste0("period_ID_factor_key", suffix, 
+              file=file.path(data_folder, paste0("period_ID_factor_key", suffix, 
                                                 ".csv")), row.names=FALSE)
 
     ###############################################################################
@@ -314,7 +318,7 @@ foreach (model_type=model_types) %:%
     dbh_latent <- t(apply(dbh_latent, 1, smooth_dbh_obs))
 
     init_data <- list(dbh_latent=as.matrix(dbh_latent))
-    save(init_data, file=file.path(out_folder, paste0("init_data", suffix, 
+    save(init_data, file=file.path(init_folder, paste0("init_data", suffix, 
                                                       ".RData")))
 
     ###############################################################################
@@ -376,11 +380,11 @@ foreach (model_type=model_types) %:%
                                obs_indices=missings_wide$obs,
                                miss_indices=missings_wide$miss)
     save(model_data_blocked,
-         file=file.path(out_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
+         file=file.path(data_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
 
     init_data_blocked <- list(dbh_latent_la=as.matrix(dbh_latent_la))
     save(init_data_blocked,
-         file=file.path(out_folder, paste0("init_data_blocked", suffix, ".RData")))
+         file=file.path(init_folder, paste0("init_data_blocked", suffix, ".RData")))
 
 }
 

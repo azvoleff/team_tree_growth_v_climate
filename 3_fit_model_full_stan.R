@@ -4,6 +4,8 @@ library(doParallel)
 
 stan_path <- "C:/cmdstan"
 
+source("settings.R")
+
 model_file <- "full_model.stan" 
 model_name <- "full_model" 
 
@@ -11,14 +13,16 @@ temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
 #model_type <- "full"
 model_type <- "testing"
-in_folder <- 'Data'
-out_folder <- 'MCMC_Chains'
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-load(file.path(in_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
-load(file.path(in_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
-load(file.path(in_folder, paste0("init_data_blocked", suffix, ".RData")))
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
+mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
+
+load(file.path(data_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
+load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+load(file.path(init_folder, paste0("init_data_blocked", suffix, ".RData")))
 
 init_data$dbh_latent <- init_data_blocked$dbh_latent
 
@@ -128,7 +132,7 @@ get_inits <- function() {
 #                  inits=get_inits)
 # print("finished running test stan model")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# out_name <- file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, ".RData"))
+# out_name <- file.path(mcmc_folder, paste0("stan_fit", suffix, '-', run_id, ".RData"))
 # save(stan_fit, file=out_name)
 # print(paste("Finished", out_name))
 
@@ -155,7 +159,7 @@ cl <- makeCluster(n_cpu)
 registerDoParallel(cl)
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 
-data_file <- file.path(out_folder, paste0("model_data", suffix, ".R"))
+data_file <- file.path(mcmc_folder, paste0("model_data", suffix, ".R"))
 attach(model_data_blocked)
 stan_rdump(names(model_data_blocked), file=data_file)
 detach(model_data_blocked)
@@ -199,7 +203,7 @@ sflist <- foreach(n=1:n_chains, .packages=c("rstan")) %dopar% {
                          chains=1, iter=n_iter, chain_id=n, init=get_inits, 
                          sample_file=sample_file_csv)
 
-    save(this_stan_fit, file=file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_chain", n,  ".RData")))
+    save(this_stan_fit, file=file.path(mcmc_folder, paste0("stan_fit", suffix, '-', run_id, "_chain", n,  ".RData")))
     sink()
     return(this_stanfit)
 }
@@ -207,6 +211,6 @@ print("finished running stan models on cluster")
 stopCluster(cl)
 
 stan_fit <- sflist2stanfit(sflist)
-out_name <- file.path(out_folder, paste0("stan_fit", suffix, '-', run_id, "_fullfit.RData"))
+out_name <- file.path(mcmc_folder, paste0("stan_fit", suffix, '-', run_id, "_fullfit.RData"))
 save(stan_fit, file=out_name)
 print(paste("Finished", out_name))

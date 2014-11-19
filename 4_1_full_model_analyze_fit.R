@@ -5,6 +5,8 @@ library(reshape2)
 library(ggplot2)
 library(grid) # for unit
 
+source("settings.R")
+
 img_dpi <- 300
 
 n_B_g <- 7
@@ -19,10 +21,12 @@ run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3"
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
-in_folder <- 'MCMC_Chains'
+mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
 
-load(file.path('Data', paste0("model_data_standardizing_", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing_", suffix, ".RData")))
 
 plot_estimates <- function(mcmc_ests, pars=NULL, pars_pretty=NULL, xmin=NULL, 
                            xmax=NULL, scaling=NULL) {
@@ -66,12 +70,12 @@ plot_estimates <- function(mcmc_ests, pars=NULL, pars_pretty=NULL, xmin=NULL,
     return(p)
 }
 
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
-load(file.path(in_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
+load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
 
 start_val <- 14000
 thin_val <- 4

@@ -9,13 +9,27 @@ library(reshape2)
 library(foreach)
 library(doParallel)
 
+source("settings.R")
+
 cl <- makeCluster(3)
 registerDoParallel(cl)
 
-load("jags_fit_full_model_fixefs.RData")
+model_type <- "full"
+#model_type <- "testing"
+precip_var <- "mcwd_run12"
 
-load("model_data_wide.RData")
-load("model_data_standardizing.RData")
+temp_var <- "tmx_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+
+suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
+
+params_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Extracted_Parameters")
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+
+load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing_", suffix, ".RData")))
+
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
 
 n_site <- model_data$n_site
 n_genus <- model_data$n_genus
@@ -66,9 +80,8 @@ genus_stats <- group_by(merged, site_ID, genus_ID) %>%
 # Load MCMC samples
 
 # Fixed effects on density
-load("jags_fit_full_model_fixefs.RData")
 # Combine the MCMC chains and convert to data.frame with coefficients in 
-# columns and MCMC samples in rows
+    # columns and MCMC samples in rows
 fixefs <- as.data.frame(combine.mcmc(fixefs))
 n_mcmc <- nrow(fixefs)
 B <- fixefs[grepl('^B\\[', names(fixefs))]
@@ -77,7 +90,7 @@ B <- as.matrix(B)
 n_B <- ncol(B)
 
 # Random intercepts at plot, site, and period levels
-load("jags_fit_full_model_ranefs.RData")
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs.RData")))
 ranefs <- as.data.frame(combine.mcmc(ranefs))
 # Combine the MCMC chains and convert to data.frames with coefficients in 
 # columns and MCMC samples in rows
@@ -89,7 +102,7 @@ int_t <- ranefs[grepl('^int_t\\[', names(ranefs))]
 int_t <- int_t[order(names(int_t))]
 
 # Random effects at genus-level
-load("jags_fit_full_model_ranefs_B_g.RData")
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_g.RData")))
 B_g <- combine.mcmc(ranefs_B_g)
 n_B_g <- ncol(B_g)/n_genus
 
@@ -200,7 +213,9 @@ growth <- genus_mean_growth(mcwds=(c(0, 185, 185+(150*2), 185+(150*3))-
                                    mcwd_mean)/mcwd_sd, 
                             dbhs=dbh_smalld_class_midpoints)
 
-genus_ID_factor_key <- read.csv("genus_ID_factor_key.csv")
+genus_ID_factor_key <- read.csv(file.path(data_folder,
+                                         paste0("genus_ID_factor_key_", suffix, 
+                                                ".csv")))
 growth <- merge(growth, genus_ID_factor_key, by.x="genus_ID", by.y="genus_ID_numeric")
 growth$dbh <- dbh_smalld_class_midpoints[growth$dbh_class_ID]*dbh_sd + dbh_mean
 growth$mcwd <- (growth$mcwd*mcwd_sd) + mcwd_mean
@@ -341,10 +356,12 @@ site_means <- foreach (this_site_ID=c(1:n_site), .combine=rbind) %:%
                      q97pt5=growth_q97pt5))
 }
 
-site_ID_factor_key <- read.csv("site_ID_factor_key.csv")
+site_ID_factor_key <- read.csv(file.path(data_folder,
+                                         paste0("site_ID_factor_key_", suffix, 
+                                                ".csv")))
 site_means <- merge(site_means, site_ID_factor_key, by.x="site_ID", by.y="site_ID_numeric")
 
-sitecode_key <- read.csv('H:/Data/TEAM/Sitecode_Key/sitecode_key.csv')
+sitecode_key <- read.csv(file.path(prefix, "TEAM", "Sitecode_Key", "sitecode_key.csv")
 site_means <- merge(site_means, sitecode_key, by.x="site_ID_char", by.y="sitecode")
 
 ggplot(filter(site_means, mcwd == 0)) +
@@ -501,7 +518,7 @@ ggsave("growth_WD_slope_vs_WD_densities.png", width=6, height=6, dpi=300)
 
 ###############################################################################
 # Plot mean global growth curve
-load("jags_fit_full_model_ranefs_mu_B_g.RData")
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
 ranefs_mu_B_g <- as.data.frame(combine.mcmc(ranefs_mu_B_g))
 
 # Build coefficient matrix
