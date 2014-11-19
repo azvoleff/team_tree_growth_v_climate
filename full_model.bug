@@ -1,4 +1,32 @@
 model {
+    ###########################################################################
+    # Parameters:
+    #   B[1]: fixed effect - wood density
+    #   B[2]: fixed effect - wood density (squared)
+    #   int_ijk: random intercept - tree level
+    #   int_jk: random intercept - plot level
+    #   int_k: random intercept - site level
+    #   int_t: random intercept - by period
+    #   B_g[g, 1]: random intercept for genus g
+    #   B_g[g, 2]: random slope on mcwd genus g
+    #   B_g[g, 3]: random slope on mcwd (squared) genus g
+    #   B_g[g, 4]: random slope on temperature genus g
+    #   B_g[g, 5]: random slope on temperature (squared) genus g
+    #   B_g[g, 6]: random slope on initial diameter genus g
+    #   B_g[g, 7]: random slope on initial diameter (squared) genus g
+    #   B_T[k, 1]: intercept in temperature model for site k
+    #   B_T[k, 2]: lapse rate in temperature model for site k
+    #   sigma_obs: std. dev. of observation error
+    #   sigma_proc: std. dev. of residual error
+    #   sigma_ijk: std. dev. of tree-level random intercept
+    #   sigma_jk: std. dev. of plot-level random intercept
+    #   sigma_k: std. dev. of site-level random intercept
+    #   sigma_t: std. dev. of period random intercept
+    #   sigma_B_g: variance-covariance matrix of genus-level random effects
+    #   mu_B_g: mean of genus-level random effects
+    #   rho_B_g: correlation matrix of genus-level random effects
+    ###########################################################################
+
     ##########################################################################
     # Likelihood
     for (i in 1:n_tree) {
@@ -102,8 +130,7 @@ model {
     ##########################################################################
     # Temperature model
     for (k in 1:n_site) {
-        for (n in 1:n_B_T) {
-            B_T[k, n] ~ dnorm(0, 1.0E-4)
-        }
+        B_T[k, 1] ~ dnorm(0, 1.0E-4) # intercept
+        B_T[k, 2] ~ dnorm(0, 1.0E-4) # lapse rate
     }
 }
