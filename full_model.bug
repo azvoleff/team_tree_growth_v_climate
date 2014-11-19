@@ -130,7 +130,12 @@ model {
     ##########################################################################
     # Temperature model
     for (k in 1:n_site) {
-        B_T[k, 1] ~ dnorm(0, 1.0E-4) # intercept
-        B_T[k, 2] ~ dnorm(0, 1.0E-4) # lapse rate
+        # Prior on intercept
+        B_T[k, 1] ~ dnorm(0, 1.0E-4)
+        # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
+        # of temp with increase in elevation, so the below truncation to make 
+        # B_T[k, 2] less than zero means that lapse rate is constrained to be 
+        # positive).
+        B_T[k, 2] ~ dnorm(lapse_mean, lapse_prec) I( ,0)
     }
 }

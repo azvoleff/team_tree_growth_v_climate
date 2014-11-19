@@ -21,6 +21,7 @@ mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
 load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
 load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
 
 monitored <- c("B",
                "B_T",
@@ -43,7 +44,7 @@ model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data$n_B_g <- 7
 # n_B_T is number of terms in the temperature model
-model_data$n_B_T <- 2
+n_B_T <- 2
 # W is prior scale for the inverse-Wishart
 model_data$W <- diag(model_data$n_B_g)
 model_data$WD_sq <- model_data$WD^2
@@ -52,8 +53,16 @@ model_data$precip_sq <- model_data$precip^2
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
 
-init_data$B <- rep(0, model_data$n_B)
-init_data$B_T <- matrix(0, nrow=model_data$n_site, ncol=model_data$n_B_T)
+# Setup mean for lapse rate prior
+model_data$lapse_mean <- 6.5 / temp_sd
+# Recall the precision is 1 over the variance. Define the lapse rate prior to 
+# have a standard deviation of 5 degrees
+model_data$lapse_sd <- 5 / temp_sd
+
+init_data$B <- rnorm(model_data$n_B, 0, 10)
+init_data$B_T_int <- rnorm(model_data$n_site, 0, 10),
+# Constrain lapse rate to be negative
+init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, model_data$lapse_sd)),
 # Initialize xi to the standard deviations of the genus-level effects, in an 
 # effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right ballpark
 init_data$xi <- apply(init_data$B_g_raw, 2, sd)

@@ -5,7 +5,6 @@ data {
     int<lower=0> n_genus;
     int<lower=0> n_B;
     int<lower=0> n_B_g;
-    int<lower=0> n_B_T;
     int<lower=0> n_period;
     real<lower=0> sigma_obs_lower;
     int<lower=0> tree_ID[n_tree];
@@ -14,6 +13,8 @@ data {
     int<lower=0> genus_ID[n_tree];
     int<lower=0> n_miss;
     int<lower=0> n_obs;
+    int<lower=0> lapse_mean;
+    int<lower=0> lapse_sd;
     int<lower=0> obs_indices_tree[n_obs];
     int<lower=0> obs_indices_period[n_obs];
     int<lower=0> miss_indices_tree[n_miss];
@@ -34,7 +35,8 @@ parameters {
     matrix[n_tree, n_period + 1] dbh_latent;
     vector[n_miss] dbh_miss;
     vector[n_B] B;
-    matrix[n_site, n_B_T] B_T;
+    vector[n_site] B_T_int;
+    vector<lower=0> [n_site] B_T_lapse;
     matrix[n_B_g, n_genus] B_g_std;
     vector[n_B_g] gamma_B_g;
     cholesky_factor_corr[n_B_g] L_rho_B_g;
@@ -86,8 +88,8 @@ transformed parameters {
                 this_tree_ID <- tree_ID[row_num];
                 for (t in 2:(bl_size[bl_num])) {
                     temp_model <- temp[row_num, t] +
-                        B_T[site_ID[this_tree_ID], 1] * 
-                        B_T[site_ID[this_tree_ID], 2] * elev[plot_ID[this_tree_ID]];
+                        B_T_int[site_ID[this_tree_ID]] + 
+                        B_T_lapse[site_ID[this_tree_ID]] * elev[plot_ID[this_tree_ID]];
                     // minus 1 is because dbh_pred is one column smaller than 
                     // dbh_latent matrix
                     dbh_pred[row_num, t - 1] <- B[1] * WD[this_tree_ID] +
@@ -117,7 +119,15 @@ model {
 
     //########################################################################
     // Temperature model (per site)
-    to_vector(B_T) ~ normal(0, 10);
+
+    // Prior on intercept
+    B_T_int~ normal(0, 10);
+
+    // Prior on lapse rate (recall lapse rate is defined as rate of decrease of 
+    // temp with increase in elevation, so the below truncation to make
+    // B_T[k, 2] less than zero means that lapse rate is constrained to be 
+    // positive).
+    B_T_lapse ~ normal(lapse_mean, lapse_sd);
 
     //########################################################################
     // Observation and process error

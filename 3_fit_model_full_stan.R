@@ -23,6 +23,7 @@ mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 load(file.path(data_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
 load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 load(file.path(init_folder, paste0("init_data_blocked", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
 
 init_data$dbh_latent <- init_data_blocked$dbh_latent
 
@@ -31,7 +32,7 @@ model_data_blocked$n_B <- 2
 # n_B_g is number of genus-level random effects
 model_data_blocked$n_B_g <- 7
 # n_B_T is number of terms in the temperature model
-model_data_blocked$n_B_T <- 2
+n_B_T <- 2
 # W is prior scale for the inverse-Wishart
 model_data_blocked$W <- diag(model_data_blocked$n_B_g)
 
@@ -109,6 +110,12 @@ init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$
 # head(B_g_check - init_data$B_g_raw)
 # table(abs(B_g - init_data$B_g_raw) < 1E-12)
 
+# Setup mean for lapse rate prior
+model_data_blocked$lapse_mean <- 6.5 / temp_sd
+# Recall the precision is 1 over the variance. Define the lapse rate prior to 
+# have a standard deviation of 5 degrees
+model_data_blocked$lapse_prec <- (5 / temp_sd)^-2
+
 init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
@@ -120,8 +127,9 @@ get_inits <- function() {
         # Fixed effects
         B=c(rnorm(model_data_blocked$n_B, 0, 1)),
         # Temperature model
-        B_T=matrix(rnorm(model_data_blocked$n_B_T*model_data_blocked$n_site, 0, 1),
-                   ncol=model_data_blocked$n_B_T),
+        B_T_int=rnorm(model_data_blocked$n_site, 0, 10),
+        # Constrain lapse rate to be negative
+        B_T_lapse=-abs(rnorm(model_data_blocked$n_site, model_data_blocked$lapse_mean, model_data_blocked$lapse_sd)),
         # Sigmas
         sigma_obs=runif(1, model_data_blocked$sigma_obs_lower, .01), 
         sigma_proc=abs(rnorm(1, 0, 1))
