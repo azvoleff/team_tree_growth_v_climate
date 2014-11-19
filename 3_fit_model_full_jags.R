@@ -1,7 +1,7 @@
 library(runjags)
 library(rjags)
 
-source("settings.R")
+source("0_settings.R")
 
 # Allow block-updating using glm module
 #load.module("glm")

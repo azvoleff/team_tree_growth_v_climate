@@ -2,7 +2,7 @@ library(runjags)
 library(coda)
 library(mcgibbsit)
 
-source("settings.R")
+source("0_settings.R")
 
 model_type <- "full"
 #model_type <- "testing"

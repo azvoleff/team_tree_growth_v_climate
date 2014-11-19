@@ -5,7 +5,7 @@ library(lme4)
 library(foreach)
 library(doParallel)
 
-source("settings.R")
+source("0_settings.R")
 
 cl <- makeCluster(12)
 registerDoParallel(cl)

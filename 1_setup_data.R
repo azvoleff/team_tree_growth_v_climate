@@ -6,7 +6,7 @@ library(inline)
 library(foreach)
 library(doParallel)
 
-source("settings.R")
+source("0_settings.R")
 
 cl <- makeCluster(4)
 registerDoParallel(cl)

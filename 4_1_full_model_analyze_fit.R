@@ -5,7 +5,7 @@ library(reshape2)
 library(ggplot2)
 library(grid) # for unit
 
-source("settings.R")
+source("0_settings.R")
 
 img_dpi <- 300
 

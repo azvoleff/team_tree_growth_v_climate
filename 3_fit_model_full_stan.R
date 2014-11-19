@@ -4,7 +4,7 @@ library(doParallel)
 
 stan_path <- "C:/cmdstan"
 
-source("settings.R")
+source("0_settings.R")
 
 model_file <- "full_model.stan" 
 model_name <- "full_model" 

@@ -2,7 +2,7 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 
-source("settings.R")
+source("0_settings.R")
 
 img_dpi <- 300
 
