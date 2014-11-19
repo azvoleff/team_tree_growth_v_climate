@@ -27,44 +27,57 @@ load(file.path(mcmc_folder, paste0("jags_fit_", suffix, "-", run_ID, ".RData")))
 #mcgibbsit(as.mcmc.list(jags_fit))
 
 fixefs <- as.mcmc.list(jags_fit, c("B[1]", "B[2]"))
-# plot(fixefs, ask=TRUE)
-# gelman.diag(fixefs)
-# mcgibbsit(fixefs)
 save(fixefs, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
 
 ranefs <- as.mcmc.list(jags_fit, c("^int"))
-# plot(ranefs, ask=TRUE)
-# gelman.diag(ranefs)
 save(ranefs, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs.RData")))
 
 ranefs_sigmas <- as.mcmc.list(jags_fit, c("sigma_obs", "sigma_proc", "sigma_int"))
-# plot(ranefs_sigmas, ask=TRUE)
-# gelman.diag(ranefs_sigmas)
 save(ranefs_sigmas , file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
 
 ranefs_B_T <- as.mcmc.list(jags_fit, c("^B_T"))
-# plot(ranefs_B_T, ask=TRUE)
-# gelman.diag(ranefs_B_T)
-# mcgibbsit(ranefs_B_T)
 save(ranefs_B_T, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
 
 ranefs_mu_B_g <- as.mcmc.list(jags_fit, c("mu_B_g"))
-# plot(ranefs_mu_B_g, ask=TRUE)
-# gelman.diag(ranefs_mu_B_g)
 save(ranefs_mu_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
 
 ranefs_B_g <- as.mcmc.list(jags_fit, c("^B_g"))
-# plot(ranefs_B_g, ask=TRUE)
-# gelman.diag(ranefs_B_g)
 save(ranefs_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_g.RData")))
 
 ranefs_sigma_B_g <- as.mcmc.list(jags_fit, c("sigma_B_g"))
-# plot(ranefs_sigma_B_g, ask=TRUE)
-# gelman.diag(ranefs_sigma_B_g)
 save(ranefs_sigma_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
 
 ranefs_rho_B_g <- as.mcmc.list(jags_fit, c("rho_B_g"))
-# # Below list is of the subset of the correlation matrix that is stochastic
+save(ranefs_rho_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
+
+# plot(fixefs, ask=TRUE)
+# gelman.diag(fixefs)
+# mcgibbsit(fixefs)
+#
+# plot(ranefs, ask=TRUE)
+# gelman.diag(ranefs)
+# mcgibbsit(ranefs)
+#
+# plot(ranefs_sigmas, ask=TRUE)
+# gelman.diag(ranefs_sigmas)
+# mcgibbsit(ranefs_sigmas)
+#
+# plot(ranefs_B_T, ask=TRUE)
+# gelman.diag(ranefs_B_T)
+# mcgibbsit(ranefs_B_T)
+#
+# plot(ranefs_mu_B_g, ask=TRUE)
+# gelman.diag(ranefs_mu_B_g)
+# mcgibbsit(ranefs_mu_B_g)
+#
+# plot(ranefs_sigma_B_g, ask=TRUE)
+# gelman.diag(ranefs_sigma_B_g)
+# mcgibbsit(ranefs_sigma_B_g)
+#
+# plot(ranefs_B_g, ask=TRUE)
+# gelman.diag(ranefs_B_g)
+#
+# # Subset of the correlation matrix that is stochastic:
 # ranef_rho_B_g_names <- c("rho_B_g[1,2]",
 #                          "rho_B_g[1,3]",
 #                          "rho_B_g[1,4]",
@@ -88,4 +101,4 @@ ranefs_rho_B_g <- as.mcmc.list(jags_fit, c("rho_B_g"))
 #                          "rho_B_g[6,7]")
 # plot(as.mcmc.list(jags_fit, ranef_rho_B_g_names), ask=TRUE)
 # gelman.diag(as.mcmc.list(jags_fit, ranef_rho_B_g_names))
-save(ranefs_rho_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
+# mcgibbsit(as.mcmc.list(jags_fit, ranef_rho_B_g_names))
