@@ -8,7 +8,7 @@ source("0_settings.R")
 
 model_file <- "full_model.bug" 
 
-temp_var <- "tmn_meanannual"
+temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
 #model_type <- "testing"
@@ -60,9 +60,9 @@ model_data$lapse_mean <- 6.5 / temp_sd
 model_data$lapse_sd <- 5 / temp_sd
 
 init_data$B <- rnorm(model_data$n_B, 0, 10)
-init_data$B_T_int <- rnorm(model_data$n_site, 0, 10),
+init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
-init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, model_data$lapse_sd)),
+init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, model_data$lapse_sd))
 # Initialize xi to the standard deviations of the genus-level effects, in an 
 # effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right ballpark
 init_data$xi <- apply(init_data$B_g_raw, 2, sd)
