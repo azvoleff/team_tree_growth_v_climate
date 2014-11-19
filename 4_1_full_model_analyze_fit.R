@@ -12,16 +12,20 @@ img_dpi <- 300
 n_B_g <- 7
 
 model_type <- "full"
-#model_type <- "testing"
+# model_type <- "testing"
+
 precip_var <- "mcwd_run12"
 
-temp_var <- "tmx_meanannual"
-run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+# temp_var <- "tmx_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
 
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
-mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
+temp_var <- "tmn_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141119133145"
+
+params_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Extracted_Parameters")
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
@@ -70,14 +74,14 @@ plot_estimates <- function(mcmc_ests, pars=NULL, pars_pretty=NULL, xmin=NULL,
     return(p)
 }
 
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
-load(file.path(mcmc_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigmas.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_T.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_sigma_B_g.RData")))
+load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_rho_B_g.RData")))
 
-start_val <- 14000
+start_val <- 2000
 thin_val <- 4
 
 fixefs <- window(fixefs, start=start_val, thin=thin_val)
@@ -134,17 +138,13 @@ ggsave("growth_model_fixefs.png", width=3, height=1.5, dpi=img_dpi)
 ### Plot temperature model
 ###############################################################################
 
-ranefs_B_T_names <- c("B[1]",
-                      "B[2]")
-ranefs_B_T_names_pretty <- c("Density",
-                         expression(Density^2))
 ranefs_B_T_scaling <- c(dbh_sd/WD_sd,
                         dbh_sd/WD_sd)
 
 ranefs_B_T_comb <- data.frame(combine.mcmc(ranefs_B_T))
 
 plot_estimates(ranefs_B_T_comb)
-ggsave("growth_model_ranefs_B_T.png", width=3, height=3, dpi=img_dpi)
+ggsave("growth_model_ranefs_B_T.png", width=4, height=5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot random intercepts and process and observation error
@@ -194,10 +194,10 @@ ranefs_mu_B_g_names_pretty <- c(expression(mu[int,g]),
                                 expression(mu[D,g]),
                                 expression(mu[D^2,g]))
 ranef_mu_b_g_scaling <- c(dbh_sd,
-                          dbh_sd/temp_sd,
-                          dbh_sd/temp_sd,
                           (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
                           (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
+                          dbh_sd/temp_sd,
+                          dbh_sd/temp_sd,
                           dbh_sd/dbh_sd,
                           dbh_sd/dbh_sd)
 
@@ -226,10 +226,10 @@ ranefs_sigma_B_g_names_pretty <- c(expression(sigma[int,g]),
                                    expression(sigma[D,g]),
                                    expression(sigma[D^2,g]))
 ranefs_sigma_B_g_scaling <- c(dbh_sd,
-                              dbh_sd/temp_sd,
-                              dbh_sd/temp_sd,
                               (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
                               (dbh_sd/precip_sd) * 100, # Convert from mm to 10s of cm
+                              dbh_sd/temp_sd,
+                              dbh_sd/temp_sd,
                               dbh_sd/dbh_sd,
                               dbh_sd/dbh_sd)
 

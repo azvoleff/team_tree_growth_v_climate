@@ -8,14 +8,14 @@ model_type <- "full"
 #model_type <- "testing"
 precip_var <- "mcwd_run12"
 
-temp_var <- "tmx_meanannual"
-run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+# temp_var <- "tmx_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
 
 # temp_var <- "tmp_meanannual"
 # run_ID <- "vertica1.team.sdsc.edu_20141110152032_extend1"
 
-# temp_var <- "tmn_meanannual"
-# run_ID <- "vertica1.team.sdsc.edu_20141115021513"
+temp_var <- "tmn_meanannual"
+run_ID <- "vertica1.team.sdsc.edu_20141119133145"
 
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
 
