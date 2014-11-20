@@ -111,7 +111,7 @@ init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$
 # table(abs(B_g - init_data$B_g_raw) < 1E-12)
 
 # Setup mean for lapse rate prior
-model_data_blocked$lapse_mean <- 6.5 / temp_sd
+model_data_blocked$lapse_mean <- -6.5 / temp_sd
 # Recall the precision is 1 over the variance. Define the lapse rate prior to 
 # have a standard deviation of 5 degrees
 model_data_blocked$lapse_sd <- 5 / temp_sd

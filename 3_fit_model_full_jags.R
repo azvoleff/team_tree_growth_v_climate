@@ -10,8 +10,8 @@ model_file <- "full_model.bug"
 
 temp_var <- "tmp_meanannual"
 precip_var <- "mcwd_run12"
-model_type <- "full"
-#model_type <- "testing"
+#model_type <- "full"
+model_type <- "testing"
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
@@ -55,7 +55,7 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
 
 # Setup mean for lapse rate prior
-model_data$lapse_mean <- 6.5 / temp_sd
+model_data$lapse_mean <- -6.5 / temp_sd
 # Recall the precision is 1 over the variance. Define the lapse rate prior to 
 # have a standard deviation of 5 degrees
 model_data$lapse_prec <- (5 / temp_sd)^-2
@@ -92,8 +92,8 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
-                     n.chains=3, method="parallel", adapt=500,
-                     burnin=2500, sample=2500, thin=8, summarise=FALSE)
+                     n.chains=3, method="parallel", adapt=250,
+                     burnin=25, sample=25, thin=8, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
@@ -101,7 +101,7 @@ save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
 
 print(paste("Starting autorun", out_name))
-jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="2 weeks") 
+jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="30 minutes") 
 autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
 save(jags_fit, file=autorun_out_name)
 print(paste("Finished", autorun_out_name))
