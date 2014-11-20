@@ -57,7 +57,7 @@ model_data <- model_data[!(names(model_data) %in% c("spi"))]
 model_data$lapse_mean <- 6.5 / temp_sd
 # Recall the precision is 1 over the variance. Define the lapse rate prior to 
 # have a standard deviation of 5 degrees
-model_data$lapse_sd <- 5 / temp_sd
+model_data_blocked$lapse_prec <- (5 / temp_sd)^-2
 
 init_data$B <- rnorm(model_data$n_B, 0, 10)
 init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)

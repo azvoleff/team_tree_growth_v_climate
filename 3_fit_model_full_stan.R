@@ -115,6 +115,7 @@ model_data_blocked$lapse_mean <- 6.5 / temp_sd
 # Recall the precision is 1 over the variance. Define the lapse rate prior to 
 # have a standard deviation of 5 degrees
 model_data_blocked$lapse_prec <- (5 / temp_sd)^-2
+model_data_blocked$lapse_sd <- 5 / temp_sd
 
 init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
