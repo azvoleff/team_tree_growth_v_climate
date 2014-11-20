@@ -40,8 +40,8 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * precip[i, t] +
                 B_g[genus_ID[i], 3] * precip_sq[i, t] +
-                B_g[genus_ID[i], 4] * (temp[i, t] + B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 5] * pow(temp[i, t] + B_T[site_ID[i], 1] + B_T[site_ID[i], 2] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 4] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 5] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2)
 
@@ -131,11 +131,11 @@ model {
     # Temperature model
     for (k in 1:n_site) {
         # Prior on intercept
-        B_T[k, 1] ~ dnorm(0, 1.0E-4)
+        B_T_int[k] ~ dnorm(0, 1.0E-4)
         # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
         # of temp with increase in elevation, so the below truncation to make 
         # B_T[k, 2] less than zero means that lapse rate is constrained to be 
         # positive).
-        B_T[k, 2] ~ dnorm(lapse_mean, lapse_prec) I( ,0)
+        B_T_lapse[k] ~ dnorm(lapse_mean, lapse_prec) I(, 0)
     }
 }
