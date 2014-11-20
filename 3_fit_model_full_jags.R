@@ -101,7 +101,7 @@ save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
 
 print(paste("Starting autorun", out_name))
-jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="30 minutes") 
+jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="30 minutes", startburnin=200, startsample=200) 
 autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
 save(jags_fit, file=autorun_out_name)
 print(paste("Finished", autorun_out_name))
