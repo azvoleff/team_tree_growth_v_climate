@@ -62,7 +62,7 @@ model_data$lapse_prec <- (5 / temp_sd)^-2
 init_data$B <- rnorm(model_data$n_B, 0, 10)
 init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
-init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2)
+init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
 # Initialize xi to the standard deviations of the genus-level effects, in an 
 # effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right ballpark
 init_data$xi <- apply(init_data$B_g_raw, 2, sd)
