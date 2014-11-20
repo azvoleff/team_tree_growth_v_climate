@@ -8,10 +8,12 @@ source("0_settings.R")
 
 model_file <- "full_model.bug" 
 
-temp_var <- "tmp_meanannual"
+temp_var <- "tmn_meanannual"
+# temp_var <- "tmp_meanannual"
+# temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
-#model_type <- "full"
-model_type <- "testing"
+model_type <- "full"
+#model_type <- "testing"
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
