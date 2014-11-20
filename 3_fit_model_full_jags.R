@@ -24,7 +24,8 @@ load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
 
 monitored <- c("B",
-               "B_T",
+               "B_T_int",
+               "B_T_lapse",
                "sigma_obs",
                "sigma_proc",
                "sigma_int_ijk",
@@ -92,9 +93,15 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=500,
-                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
+                     burnin=2500, sample=2500, thin=8, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
+
+print(paste("Starting autorun", out_name))
+jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="2 weeks") 
+autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
+save(jags_fit, file=autorun_out_name)
+print(paste("Finished", autorun_out_name))
