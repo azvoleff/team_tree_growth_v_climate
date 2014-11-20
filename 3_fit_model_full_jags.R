@@ -95,7 +95,7 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=2500,
-                     burnin=2500, sample=30000, thin=8, summarise=FALSE)
+                     burnin=2500, sample=20000, thin=8, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
