@@ -92,16 +92,16 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
-                     n.chains=3, method="parallel", adapt=250,
-                     burnin=25, sample=25, thin=8, summarise=FALSE)
+                     n.chains=3, method="parallel", adapt=2500,
+                     burnin=2500, sample=30000, thin=8, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
 
-print(paste("Starting autorun", out_name))
-jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="30 minutes", startburnin=200, startsample=200) 
-autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
-save(jags_fit, file=autorun_out_name)
-print(paste("Finished", autorun_out_name))
+# print(paste("Starting autorun", out_name))
+# jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="10 days")
+# autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
+# save(jags_fit, file=autorun_out_name)
+# print(paste("Finished", autorun_out_name))
