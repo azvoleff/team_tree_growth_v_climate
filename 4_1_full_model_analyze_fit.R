@@ -132,7 +132,7 @@ fixefs_comb <- data.frame(combine.mcmc(fixefs))
 
 plot_estimates(fixefs_comb, fixefs_names, fixefs_names_pretty,
                scaling=fixefs_scaling)
-ggsave("growth_model_fixefs.png", width=3, height=1.5, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_fixefs.png"), width=3, height=1.5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot temperature model
@@ -144,7 +144,7 @@ ranefs_B_T_scaling <- c(dbh_sd/WD_sd,
 ranefs_B_T_comb <- data.frame(combine.mcmc(ranefs_B_T))
 
 plot_estimates(ranefs_B_T_comb)
-ggsave("growth_model_ranefs_B_T.png", width=4, height=5, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_B_T.png"), width=4, height=5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot random intercepts and process and observation error
@@ -173,7 +173,7 @@ ranefs_sigmas_comb <- data.frame(combine.mcmc(ranefs_sigmas))
 
 plot_estimates(ranefs_sigmas_comb, ranef_sigmas_names, ranef_sigmas_names_pretty, 
                scaling=ranefs_sigmas_scaling)
-ggsave("growth_model_ranefs_sigmas.png", width=3, height=3.5, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_sigmas.png"), width=3, height=3.5, dpi=img_dpi)
 
 ###############################################################################
 ### Plot genus-level random effects means
@@ -205,7 +205,7 @@ ranefs_mu_B_g_comb <- data.frame(combine.mcmc(ranefs_mu_B_g))
 
 plot_estimates(ranefs_mu_B_g_comb, ranefs_mu_B_g_names,
                ranefs_mu_B_g_names_pretty, scaling=ranef_mu_b_g_scaling)
-ggsave("growth_model_ranefs_mu_B_g.png", width=3, height=3, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_mu_B_g.png"), width=3, height=3, dpi=img_dpi)
 
 ###############################################################################
 ### Plot genus-level random effects variances
@@ -237,7 +237,7 @@ ranefs_sigma_B_g_comb <- data.frame(combine.mcmc(ranefs_sigma_B_g))
 
 plot_estimates(ranefs_sigma_B_g_comb, ranefs_sigma_B_g_names,
                ranefs_sigma_B_g_names_pretty, scaling=ranefs_sigma_B_g_scaling)
-ggsave("growth_model_ranefs_sigma_B_g.png", width=3, height=3, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_sigma_B_g.png"), width=3, height=3, dpi=img_dpi)
 
 ###############################################################################
 ### Plot correlation matrix for genus-level random effects
@@ -289,7 +289,7 @@ ranefs_rho_B_g_comb <- data.frame(combine.mcmc(ranefs_rho_B_g))
 
 plot_estimates(ranefs_rho_B_g_comb, ranefs_rho_B_g_names,
                ranefs_rho_B_g_names_pretty, xmin=-1, xmax=1)
-ggsave("growth_model_ranefs_rho_B_g.png", width=4, height=5, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_rho_B_g.png"), width=4, height=5, dpi=img_dpi)
 
 # Make a color coded plot of the correlation matrix
 corr_matrix_names <- c("Intercept", "P", "P^2", "T", "T^2", "D", "D^2")
@@ -358,4 +358,4 @@ corrplot <- function(corr_mat, labels=NULL, signif=NULL, base_size=10,
 }
 
 corrplot(corr_matrix, corr_matrix_names, base_size=10)
-ggsave("growth_model_ranefs_rho_B_g_corrplot.png", width=4, height=4, dpi=img_dpi)
+ggsave(paste0(suffix, "growth_model_ranefs_rho_B_g_corrplot.png"), width=4, height=4, dpi=img_dpi)
