@@ -113,6 +113,9 @@ foreach (model_type=model_types) %:%
 
     ###########################################################################
     # Inits without period random intercepts
+    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    init_data <- init_data[names(init_data) != "sigma_int_t"]
+    init_data <- init_data[names(init_data) != "int_t"]
     if (runmodels) {
         calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                                  (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
