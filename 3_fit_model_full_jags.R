@@ -6,6 +6,13 @@ source("0_settings.R")
 # Allow block-updating using glm module
 #load.module("glm")
 
+use_period_intercept <- FALSE
+if (use_period_intercept) {
+    model_file <- "full_model.bug" 
+} else {
+    model_file <- "full_model_no_t_effects.bug"
+}
+
 model_file <- "full_model.bug" 
 
 temp_var <- "tmn_meanannual"
@@ -41,6 +48,8 @@ monitored <- c("B",
                "mu_B_g",
                "sigma_B_g",
                "rho_B_g")
+
+if (!use_period_intercept) monitored <- monitored[monitored != "int_t"]
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
