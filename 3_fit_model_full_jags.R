@@ -6,7 +6,8 @@ source("0_settings.R")
 # Allow block-updating using glm module
 #load.module("glm")
 
-model_file <- "full_model.bug" 
+# Include a random intercept by period?
+use_period_intercept <- FALSE
 
 temp_var <- "tmn_meanannual"
 # temp_var <- "tmp_meanannual"
@@ -14,16 +15,6 @@ temp_var <- "tmn_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
 #model_type <- "testing"
-
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-
-data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
-init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
-mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
-
-load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
-load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
-load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
 
 monitored <- c("B",
                "B_T_int",
@@ -41,6 +32,25 @@ monitored <- c("B",
                "mu_B_g",
                "sigma_B_g",
                "rho_B_g")
+
+suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+
+data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
+mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
+
+load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
+
+if (use_period_intercept) {
+    model_file <- "full_model.bug" 
+    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+} else {
+    model_file <- "full_model_no_t_effects.bug"
+    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
+    monitored <- monitored[monitored != "int_t"]
+    monitored <- monitored[monitored != "sigma_int_t"]
+}
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
