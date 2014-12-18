@@ -33,24 +33,28 @@ monitored <- c("B",
                "sigma_B_g",
                "rho_B_g")
 
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
-load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
-load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
-
+orig_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (use_period_intercept) {
     model_file <- "full_model.bug" 
-    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", orig_suffix, 
+                                       ".RData")))
 } else {
     model_file <- "full_model_no_t_effects.bug"
-    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", 
+                                       orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
+    model_type <- paste0(model_type, "_no_t_effects")
 }
+
+suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+
+load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
@@ -104,8 +108,8 @@ init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
-                     n.chains=3, method="parallel", adapt=2500,
-                     burnin=2500, sample=30000, thin=8, summarise=FALSE)
+                     n.chains=3, method="parallel", adapt=500,
+                     burnin=1000, sample=2500, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
