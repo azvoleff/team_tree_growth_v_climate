@@ -12,7 +12,7 @@ precip_var <- "mcwd_run12"
 # run_ID <- "vertica1.team.sdsc.edu_20141216061144"
 
 # temp_var <- "tmp_meanannual"
-# run_ID <- "vertica1.team.sdsc.edu_20141120002110"
+# run_ID <- "vertica1.team.sdsc.edu_20141216195846"
 
 temp_var <- "tmn_meanannual"
 run_ID <- "vertica1.team.sdsc.edu_20141210230655"
@@ -40,6 +40,9 @@ save(ranefs_B_T, file=file.path(params_folder, paste0(suffix, "jags_fit_full_mod
 
 ranefs_mu_B_g <- as.mcmc.list(jags_fit, c("mu_B_g"))
 save(ranefs_mu_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_mu_B_g.RData")))
+
+ranefs_all_vars <- as.mcmc.list(jags_fit, c("mu_B_g", "B[1]", "B[2]"))
+save(ranefs_all_vars, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_all_vars.RData")))
 
 ranefs_B_g <- as.mcmc.list(jags_fit, c("^B_g"))
 save(ranefs_B_g, file=file.path(params_folder, paste0(suffix, "jags_fit_full_model_ranefs_B_g.RData")))

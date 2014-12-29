@@ -11,6 +11,9 @@ library(doParallel)
 
 source("0_settings.R")
 
+img_dpi <- 300
+img_width <- 9.5
+
 cl <- makeCluster(3)
 registerDoParallel(cl)
 
@@ -18,15 +21,18 @@ model_type <- "full"
 #model_type <- "testing"
 precip_var <- "mcwd_run12"
 
-temp_var <- "tmx_meanannual"
-run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+# temp_var <- "tmx_meanannual"
+# run_ID <- "vertica1.team.sdsc.edu_20141110224426_extend3" 
+
+start_val <- 20000
+thin_val <- 120
 
 suffix <- paste0(model_type, '-', temp_var, '-', precip_var)
 
 params_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Extracted_Parameters")
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 
-load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_wide_", suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing_", suffix, ".RData")))
 
 load(file.path(params_folder, paste0(suffix, "jags_fit_full_model_fixefs.RData")))
