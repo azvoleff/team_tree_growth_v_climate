@@ -18,9 +18,9 @@ model_types <- c("full", "testing")
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-temp_var <- 'tmp_meanannual'
-precip_var <- 'mcwd_run12'
-model_type <- 'full'
+# temp_var <- 'tmn_meanannual'
+# precip_var <- 'mcwd_run12'
+# model_type <- 'full'
 
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
