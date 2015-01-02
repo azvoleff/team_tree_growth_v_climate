@@ -61,6 +61,7 @@ if (model_structure == "full_model") {
                                        orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
+    monitored <- monitored[monitored != "rho_B_g"]
     model_type <- paste0(model_type, "_no_t_effects_interact")
     n_B_g <- 11
 } else {

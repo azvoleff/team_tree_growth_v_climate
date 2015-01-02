@@ -25,9 +25,8 @@ model {
     #   sigma_jk: std. dev. of plot-level random intercept
     #   sigma_k: std. dev. of site-level random intercept
     #   sigma_t: std. dev. of period random intercept
-    #   sigma_B_g: variance-covariance matrix of genus-level random effects
+    #   sigma_B_g: variances of genus-level random effects (uncorrelated)
     #   mu_B_g: mean of genus-level random effects
-    #   rho_B_g: correlation matrix of genus-level random effects
     ###########################################################################
 
     ##########################################################################
@@ -98,31 +97,14 @@ model {
     sigma_int_k ~ dunif(0, 10)
 
     ##########################################################################
-    # Correlated random effects at genus level (crossed). Based on Gelman and 
-    # Hill pg. 377-378.
-    for (g in 1:n_genus) {
-        for (k in 1:n_B_g) {
-            B_g[g, k] <- xi[k] * B_g_raw[g, k]
-        }
-        B_g_raw[g, 1:n_B_g] ~ dmnorm(mu_B_g_raw[], Tau_B_g_raw[ , ])
-    }
-
-    # Set up the means for the multivariate ranef distribution
+    # Random effects at genus level (crossed).
     for (k in 1:n_B_g) {
-        xi[k] ~ dunif(0, 100)
-        mu_B_g_raw[k] ~ dnorm(0, 1.0E-4)
-        mu_B_g[k] <- xi[k] * mu_B_g_raw[k]
-    }
-
-    # Set up the variance-covariance matrix
-    Tau_B_g_raw[1:n_B_g, 1:n_B_g] ~ dwish(W[ , ], df)
-    df <- n_B_g + 1
-    Sigma_B_g_raw[1:n_B_g, 1:n_B_g] <- inverse(Tau_B_g_raw[,])
-    for (k in 1:n_B_g) {
-        for (k_prime in 1:n_B_g) {
-            rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime]/sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime])
+        mu_B_g[k] ~ dnorm(0, 1.0E-4)
+        tau_B_g[k] ~ pow(sigma_B_g[k], -2)
+        sigma_B_g[k] ~ dunif(0, 10)
+        for (g in 1:n_genus) {
+            B_g[g, k] ~ dnorm(mu_B_g[k], tau_B_g[k])
         }
-        sigma_B_g[k] <- abs(xi[k]) * sqrt(Sigma_B_g_raw[k, k])
     }
 
     ##########################################################################
