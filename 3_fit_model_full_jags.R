@@ -9,9 +9,9 @@ source("0_settings.R")
 # Include a random intercept by period?
 use_period_intercept <- FALSE
 
-temp_var <- "tmn_meanannual"
+# temp_var <- "tmn_meanannual"
 # temp_var <- "tmp_meanannual"
-# temp_var <- "tmx_meanannual"
+temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
 #model_type <- "testing"
@@ -53,8 +53,8 @@ if (use_period_intercept) {
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
-load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
-load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_wide", orig_suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", orig_suffix, ".RData")))
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
