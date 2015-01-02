@@ -8,8 +8,8 @@ model {
     #   int_k: random intercept - site level
     #   int_t: random intercept - by period
     #   B_g[g, 1]: random intercept for genus g
-    #   B_g[g, 2]: random slope on mcwd genus g
-    #   B_g[g, 3]: random slope on mcwd (squared) genus g
+    #   B_g[g, 2]: random slope on precip genus g
+    #   B_g[g, 3]: random slope on precip (squared) genus g
     #   B_g[g, 4]: random slope on temperature genus g
     #   B_g[g, 5]: random slope on temperature (squared) genus g
     #   B_g[g, 6]: random slope on initial diameter genus g

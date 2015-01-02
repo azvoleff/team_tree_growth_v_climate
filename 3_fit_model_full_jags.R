@@ -7,7 +7,9 @@ source("0_settings.R")
 #load.module("glm")
 
 # Include a random intercept by period?
-use_period_intercept <- FALSE
+# model_structure <- "full_model"
+# model_structure <- "full_model_no_t_effects"
+model_structure <- "full_model_no_t_effects_interact"
 
 # temp_var <- "tmn_meanannual"
 # temp_var <- "tmp_meanannual"
@@ -38,17 +40,31 @@ init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
 orig_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-if (use_period_intercept) {
+if (model_structure == "full_model") {
     model_file <- "full_model.bug" 
     load(file.path(init_folder, paste0("init_data_with_ranefs", orig_suffix, 
                                        ".RData")))
-} else {
+    # n_B_g is number of genus-level random effects
+    n_B_g <- 7
+} else if (model_structure == "full_model_no_t_effects") {
     model_file <- "full_model_no_t_effects.bug"
     load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", 
                                        orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
     model_type <- paste0(model_type, "_no_t_effects")
+    # n_B_g is number of genus-level random effects
+    n_B_g <- 7
+} else if (model_structure == "full_model_no_t_effects") {
+    model_file <- "full_model_no_t_effects_interact.bug"
+    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", 
+                                       orig_suffix, ".RData")))
+    monitored <- monitored[monitored != "int_t"]
+    monitored <- monitored[monitored != "sigma_int_t"]
+    model_type <- paste0(model_type, "_no_t_effects_interact")
+    n_B_g <- 11
+} else {
+    stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
@@ -59,7 +75,7 @@ load(file.path(data_folder, paste0("model_data_standardizing", orig_suffix, ".RD
 # n_B is number of fixed effects
 model_data$n_B <- 2
 # n_B_g is number of genus-level random effects
-model_data$n_B_g <- 7
+model_data$n_B_g <- n_B_g
 # n_B_T is number of terms in the temperature model
 n_B_T <- 2
 # W is prior scale for the inverse-Wishart
