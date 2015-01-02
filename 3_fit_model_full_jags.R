@@ -64,6 +64,8 @@ if (model_structure == "full_model") {
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[names(init_data) != "B_g_raw"]
     init_data <- init_data[names(init_data) != "sigma_B_g"]
+    init_data <- init_data[!grepl('sigma', names(init_data))]
+    init_data <- init_data[!grepl('int', names(init_data))]
     model_type <- paste0(model_type, "_no_t_effects_interact")
     n_B_g <- 11
 } else {
