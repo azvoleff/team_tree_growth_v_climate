@@ -7,7 +7,7 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(12)
+cl <- makeCluster(6)
 registerDoParallel(cl)
 
 runmodels <- TRUE
@@ -178,7 +178,7 @@ foreach (model_type=model_types) %:%
     init_data$sigma_B_g <- genus_varcorr
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", suffix, ".RData")))
 
-
+    return(TRUE)
 }
 
 stopCluster(cl)
