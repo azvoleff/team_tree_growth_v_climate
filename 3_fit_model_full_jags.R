@@ -55,13 +55,15 @@ if (model_structure == "full_model") {
     model_type <- paste0(model_type, "_no_t_effects")
     # n_B_g is number of genus-level random effects
     n_B_g <- 7
-} else if (model_structure == "full_model_no_t_effects") {
+} else if (model_structure == "full_model_no_t_effects_interact") {
     model_file <- "full_model_no_t_effects_interact.bug"
     load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", 
                                        orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
     monitored <- monitored[monitored != "rho_B_g"]
+    init_data <- init_data[names(init_data) != "B_g_raw"]
+    init_data <- init_data[names(init_data) != "sigma_B_g"]
     model_type <- paste0(model_type, "_no_t_effects_interact")
     n_B_g <- 11
 } else {
@@ -97,15 +99,19 @@ init_data$B <- rnorm(model_data$n_B, 0, 10)
 init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
 init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
-# Initialize xi to the standard deviations of the genus-level effects, in an 
-# effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right ballpark
-init_data$xi <- apply(init_data$B_g_raw, 2, sd)
-init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
-# Center the B_g_raw estimates
-init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, 
-                                                    model_data$n_genus), 
-                                                ncol=model_data$n_B_g, 
-                                                byrow=TRUE)
+
+if (model_structure != "full_model_no_t_effects_interact") {
+    # Initialize xi to the standard deviations of the genus-level effects, in 
+    # an effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right 
+    # ballpark
+    init_data$xi <- apply(init_data$B_g_raw, 2, sd)
+    init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
+    # Center the B_g_raw estimates
+    init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, 
+                                                        model_data$n_genus), 
+                                                    ncol=model_data$n_B_g, 
+                                                    byrow=TRUE)
+}
 
 # Jags uses the inverse of the variance-covariance matrix to parameterize the 
 # wishart.
