@@ -154,7 +154,7 @@ foreach (model_type=model_types) %:%
     if (runmodels) {
         calib_model_no_t_interact <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                                  (precip + I(precip^2) + precip * WD + precip * dbh_latent_start +
-                                  temp + I(temp^2) + temp * WD + temp * dbh_latent_start +
+                                  temp + I(temp^2) + temp * WD - WD + temp * dbh_latent_start +
                                   dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
                                  (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
                                  control=lmerControl(optCtrl=list(maxfun=10*35^2)))
