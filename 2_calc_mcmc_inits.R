@@ -7,7 +7,7 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(6)
+cl <- makeCluster(6, outfile="")
 registerDoParallel(cl)
 
 runmodels <- TRUE
