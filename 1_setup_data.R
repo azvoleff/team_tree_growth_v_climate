@@ -46,6 +46,19 @@ foreach (model_type=model_types) %:%
     # Exclude Pasoh until Pasoh plot coordinates are confirmed
     growth <- filter(growth, !(sitecode %in% c("PSH")))
 
+    # Remove very rare genera (those with fewer than 10 individuals) to avoid
+    # convergence problems.
+    #
+    # n_per_genus <- group_by(growth, Genus) %>%
+    #     summarize(n=length(unique(SamplingUnitName)))
+    # sum(n_per_genus$n > 0)
+    # sum(n_per_genus$n > 5)
+    # sum(n_per_genus$n > 10)
+    # sum(n_per_genus$n > 20)
+    growth <- group_by(growth, Genus) %>%
+        mutate(n_indiv_per_genus=length(unique(SamplingUnitName))) %>%
+        filter(n_indiv_per_genus > 10)
+
     setup_factors <- function(growth) {
         growth$tree_ID_char <- factor(growth$SamplingUnitName)
         growth$plot_ID_char <- factor(growth$plot_ID)
