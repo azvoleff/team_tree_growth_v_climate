@@ -11,6 +11,8 @@ source("0_settings.R")
 # model_structure <- "full_model_no_t_effects"
 model_structure <- "full_model_no_t_effects_interact"
 
+note <- 'genuslimits'
+
 # temp_var <- "tmn_meanannual"
 temp_var <- "tmp_meanannual"
 # temp_var <- "tmx_meanannual"
@@ -72,7 +74,7 @@ if (model_structure == "full_model") {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var, '_', note)
 
 load(file.path(data_folder, paste0("model_data_wide", orig_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", orig_suffix, ".RData")))
