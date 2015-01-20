@@ -85,67 +85,67 @@ ret <- foreach (model_type=model_types) %:%
         }
     }
 
-    ###########################################################################
-    # Inits with period random intercepts
-    test_model  <- lm(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
-                      WD + I(WD^2) + temp + I(temp^2)+ precip + I(precip^2),
-                      data=calib_data)
-    if (runmodels) {
-        calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                             (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                             (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
-                             control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
-    } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
-    }
-
-    init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
-    init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
-    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
-    init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
-    init_data$sigma_int_ijk <- sqrt(get_variance(calib_model, "tree_ID", "(Intercept)"))
-    init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
-    init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
-    init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_ID", "(Intercept)"))
-    # Extract genus-level random effects
-    init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
-    # Extract variance-covariance matrix for genus-level random effects
-    genus_varcorr <- VarCorr(calib_model)$genus_ID
-    # Drop the attributes
-    genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-    init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
-
-    ###########################################################################
-    # Inits without period random intercepts
-    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
-    init_data <- init_data[names(init_data) != "sigma_int_t"]
-    init_data <- init_data[names(init_data) != "int_t"]
-    if (runmodels) {
-        calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-                                 (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                                 (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
-                                 control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model_no_t, file=file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
-    } else {
-        load(file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
-    }
-
-    init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t)$tree_ID))
-    init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t)$plot_ID))
-    init_data$int_k <- as.numeric(unlist(ranef(calib_model_no_t)$site_ID))
-    init_data$sigma_int_ijk <- sqrt(get_variance(calib_model_no_t, "tree_ID", "(Intercept)"))
-    init_data$sigma_int_jk <- sqrt(get_variance(calib_model_no_t, "plot_ID", "(Intercept)"))
-    init_data$sigma_int_k <- sqrt(get_variance(calib_model_no_t, "site_ID", "(Intercept)"))
-    # Extract genus-level random effects
-    init_data$B_g_raw <- as.matrix(ranef(calib_model_no_t)$genus_ID)
-    # Extract variance-covariance matrix for genus-level random effects
-    genus_varcorr <- VarCorr(calib_model_no_t)$genus_ID
-    # Drop the attributes
-    genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-    init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
+    # ###########################################################################
+    # # Inits with period random intercepts
+    # test_model  <- lm(dbh_latent_end ~ dbh_latent_start + I(dbh_latent_start^2) +
+    #                   WD + I(WD^2) + temp + I(temp^2)+ precip + I(precip^2),
+    #                   data=calib_data)
+    # if (runmodels) {
+    #     calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
+    #                          (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+    #                          (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
+    #                          control=lmerControl(optCtrl=list(maxfun=10*35^2)))
+    #     save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
+    # } else {
+    #     load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
+    # }
+    #
+    # init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
+    # init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
+    # init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
+    # init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
+    # init_data$sigma_int_ijk <- sqrt(get_variance(calib_model, "tree_ID", "(Intercept)"))
+    # init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
+    # init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
+    # init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_ID", "(Intercept)"))
+    # # Extract genus-level random effects
+    # init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
+    # # Extract variance-covariance matrix for genus-level random effects
+    # genus_varcorr <- VarCorr(calib_model)$genus_ID
+    # # Drop the attributes
+    # genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+    # init_data$sigma_B_g <- genus_varcorr
+    # save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+    #
+    # ###########################################################################
+    # # Inits without period random intercepts
+    # load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    # init_data <- init_data[names(init_data) != "sigma_int_t"]
+    # init_data <- init_data[names(init_data) != "int_t"]
+    # if (runmodels) {
+    #     calib_model_no_t <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
+    #                              (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+    #                              (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
+    #                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
+    #     save(calib_model_no_t, file=file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
+    # } else {
+    #     load(file.path(init_folder, paste0("calib_model_no_t", suffix, ".RData")))
+    # }
+    #
+    # init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t)$tree_ID))
+    # init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t)$plot_ID))
+    # init_data$int_k <- as.numeric(unlist(ranef(calib_model_no_t)$site_ID))
+    # init_data$sigma_int_ijk <- sqrt(get_variance(calib_model_no_t, "tree_ID", "(Intercept)"))
+    # init_data$sigma_int_jk <- sqrt(get_variance(calib_model_no_t, "plot_ID", "(Intercept)"))
+    # init_data$sigma_int_k <- sqrt(get_variance(calib_model_no_t, "site_ID", "(Intercept)"))
+    # # Extract genus-level random effects
+    # init_data$B_g_raw <- as.matrix(ranef(calib_model_no_t)$genus_ID)
+    # # Extract variance-covariance matrix for genus-level random effects
+    # genus_varcorr <- VarCorr(calib_model_no_t)$genus_ID
+    # # Drop the attributes
+    # genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+    # init_data$sigma_B_g <- genus_varcorr
+    # save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
 
     ###########################################################################
     # Inits without period random intercepts, with interactions and without 
