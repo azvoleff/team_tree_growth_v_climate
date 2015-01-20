@@ -7,29 +7,27 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(12)
-registerDoParallel(cl)
+# cl <- makeCluster(12)
+# registerDoParallel(cl)
 
 runmodels <- TRUE
 
 temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
-# precip_vars <- c("mcwd_run12", "spi_24")
-# model_types <- c("full", "testing")
-precip_vars <- c("mcwd_run12")
-model_types <- c("full")
+precip_vars <- c("mcwd_run12", "spi_24")
+model_types <- c("full", "testing")
 
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-# model_type <- model_types[1]
-# temp_var <- temp_vars[1]
-# precip_var <- precip_vars[1]
+model_type <- model_types[1]
+temp_var <- temp_vars[1]
+precip_var <- precip_vars[1]
 
-ret <- foreach (model_type=model_types) %:%
-    foreach (temp_var=temp_vars) %:%
-        foreach (precip_var=precip_vars,
-                 .packages=c("reshape2", "dplyr", "lme4"),
-                 .inorder=FALSE) %dopar% {
+# ret <- foreach (model_type=model_types) %:%
+#     foreach (temp_var=temp_vars) %:%
+#         foreach (precip_var=precip_vars,
+#                  .packages=c("reshape2", "dplyr", "lme4"),
+#                  .inorder=FALSE) %dopar% {
 
     suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
@@ -180,7 +178,7 @@ ret <- foreach (model_type=model_types) %:%
     init_data$sigma_B_g <- genus_varcorr
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", suffix, ".RData")))
 
-    return(TRUE)
-}
-
-stopCluster(cl)
+#     return(TRUE)
+# }
+#
+# stopCluster(cl)
