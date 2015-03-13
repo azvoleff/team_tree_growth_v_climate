@@ -11,10 +11,6 @@ source("0_settings.R")
 cl <- makeCluster(4)
 registerDoParallel(cl)
 
-temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
-precip_vars <- c("mcwd_run12", "spi_24")
-model_types <- c("full", "testing")
-
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
@@ -46,7 +42,7 @@ foreach (model_type=model_types) %:%
     # Exclude Pasoh until Pasoh plot coordinates are confirmed
     growth <- filter(growth, !(sitecode %in% c("PSH")))
 
-    # Remove very rare genera (those with fewer than 10 individuals) to avoid
+    # Remove very rare genera (those with fewer than 20 individuals) to avoid
     # convergence problems.
     #
     # n_per_genus <- group_by(growth, Genus) %>%
@@ -57,7 +53,7 @@ foreach (model_type=model_types) %:%
     # sum(n_per_genus$n > 20)
     growth <- group_by(growth, Genus) %>%
         mutate(n_indiv_per_genus=length(unique(SamplingUnitName))) %>%
-        filter(n_indiv_per_genus > 10)
+        filter(n_indiv_per_genus > 20)
 
     setup_factors <- function(growth) {
         growth$tree_ID_char <- factor(growth$SamplingUnitName)

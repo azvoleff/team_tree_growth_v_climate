@@ -1,3 +1,8 @@
+temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
+#precip_vars <- c("mcwd_run12", "spi_24")
+precip_vars <- c("mcwd_run12")
+model_types <- c("full", "testing")
+
 prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               'H:/Data', # Buffalo drive
               'O:/Data', # Blue drive

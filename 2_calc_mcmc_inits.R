@@ -7,27 +7,23 @@ library(doParallel)
 
 source("0_settings.R")
 
-# cl <- makeCluster(12)
-# registerDoParallel(cl)
+cl <- makeCluster(4)
+registerDoParallel(4)
 
 runmodels <- TRUE
-
-temp_vars <- c("tmn_meanannual", "tmp_meanannual", "tmx_meanannual")
-precip_vars <- c("mcwd_run12", "spi_24")
-model_types <- c("full", "testing")
 
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-model_type <- model_types[1]
-precip_var <- precip_vars[1]
-temp_var <- temp_vars[3]
+# model_type <- model_types[1]
+# precip_var <- precip_vars[1]
+# temp_var <- temp_vars[3]
 
-# ret <- foreach (model_type=model_types) %:%
-#     foreach (temp_var=temp_vars) %:%
-#         foreach (precip_var=precip_vars,
-#                  .packages=c("reshape2", "dplyr", "lme4"),
-#                  .inorder=FALSE) %dopar% {
+ret <- foreach (model_type=model_types) %:%
+    foreach (temp_var=temp_vars) %:%
+        foreach (precip_var=precip_vars,
+                 .packages=c("reshape2", "dplyr", "lme4"),
+                 .inorder=FALSE) %dopar% {
 
     suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
