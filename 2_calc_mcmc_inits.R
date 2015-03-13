@@ -141,40 +141,40 @@ ret <- foreach (model_type=model_types) %:%
     init_data$sigma_B_g <- genus_varcorr
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", suffix, ".RData")))
 
-    # ###########################################################################
-    # # Inits without period random intercepts, with interactions and without 
-    # # correlated random effects
-    # load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
-    # init_data <- init_data[names(init_data) != "sigma_int_t"]
-    # init_data <- init_data[names(init_data) != "int_t"]
-    # if (runmodels) {
-    #     calib_model_no_t_interact <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
-    #                              (precip + I(precip^2) + precip * WD + precip * dbh_latent_start +
-    #                               temp + I(temp^2) + temp * WD - WD + temp * dbh_latent_start +
-    #                               dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-    #                              (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
-    #                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-    #     save(calib_model_no_t_interact, file=file.path(init_folder, paste0("calib_model_no_t_interact", suffix, ".RData")))
-    # } else {
-    #     load(file.path(init_folder, paste0("calib_model_no_t_interact", suffix, ".RData")))
-    # }
-    #
-    # init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t_interact)$tree_ID))
-    # init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t_interact)$plot_ID))
-    # init_data$int_k <- as.numeric(unlist(ranef(calib_model_no_t_interact)$site_ID))
-    # init_data$sigma_int_ijk <- sqrt(get_variance(calib_model_no_t_interact, "tree_ID", "(Intercept)"))
-    # init_data$sigma_int_jk <- sqrt(get_variance(calib_model_no_t_interact, "plot_ID", "(Intercept)"))
-    # init_data$sigma_int_k <- sqrt(get_variance(calib_model_no_t_interact, "site_ID", "(Intercept)"))
-    # # Extract genus-level random effects
-    # init_data$B_g_raw <- as.matrix(ranef(calib_model_no_t_interact)$genus_ID)
-    # # Extract variance-covariance matrix for genus-level random effects
-    # genus_varcorr <- VarCorr(calib_model_no_t_interact)$genus_ID
-    # # Drop the attributes
-    # genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
-    # init_data$sigma_B_g <- genus_varcorr
-    # save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", suffix, ".RData")))
+    ###########################################################################
+    # Inits without period random intercepts, with interactions and without 
+    # correlated random effects
+    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    init_data <- init_data[names(init_data) != "sigma_int_t"]
+    init_data <- init_data[names(init_data) != "int_t"]
+    if (runmodels) {
+        calib_model_no_t_interact <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
+                                 (precip + I(precip^2) + precip * WD + precip * dbh_latent_start +
+                                  temp + I(temp^2) + temp * WD - WD + temp * dbh_latent_start +
+                                  dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
+                                 (1|site_ID) + (1|plot_ID) + (1|tree_ID), data=calib_data,
+                                 control=lmerControl(optCtrl=list(maxfun=10*35^2)))
+        save(calib_model_no_t_interact, file=file.path(init_folder, paste0("calib_model_no_t_interact", suffix, ".RData")))
+    } else {
+        load(file.path(init_folder, paste0("calib_model_no_t_interact", suffix, ".RData")))
+    }
 
-#     return(TRUE)
-# }
-#
-# stopCluster(cl)
+    init_data$int_ijk <- as.numeric(unlist(ranef(calib_model_no_t_interact)$tree_ID))
+    init_data$int_jk <- as.numeric(unlist(ranef(calib_model_no_t_interact)$plot_ID))
+    init_data$int_k <- as.numeric(unlist(ranef(calib_model_no_t_interact)$site_ID))
+    init_data$sigma_int_ijk <- sqrt(get_variance(calib_model_no_t_interact, "tree_ID", "(Intercept)"))
+    init_data$sigma_int_jk <- sqrt(get_variance(calib_model_no_t_interact, "plot_ID", "(Intercept)"))
+    init_data$sigma_int_k <- sqrt(get_variance(calib_model_no_t_interact, "site_ID", "(Intercept)"))
+    # Extract genus-level random effects
+    init_data$B_g_raw <- as.matrix(ranef(calib_model_no_t_interact)$genus_ID)
+    # Extract variance-covariance matrix for genus-level random effects
+    genus_varcorr <- VarCorr(calib_model_no_t_interact)$genus_ID
+    # Drop the attributes
+    genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+    init_data$sigma_B_g <- genus_varcorr
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", suffix, ".RData")))
+
+    return(TRUE)
+}
+
+stopCluster(cl)
