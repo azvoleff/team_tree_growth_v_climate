@@ -8,7 +8,7 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(4)
+cl <- makeCluster(3)
 registerDoParallel(cl)
 
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
@@ -23,7 +23,6 @@ foreach (model_type=model_types) %:%
         foreach (precip_var=precip_vars,
                  .packages=c("dplyr", "Rcpp", "inline", "zoo", "reshape2"),
                  .inorder=FALSE) %dopar% {
-
     sourceCpp('calc_missings.cpp')
     sourceCpp('left_align.cpp')
 
@@ -33,14 +32,11 @@ foreach (model_type=model_types) %:%
 
     growth <- tbl_df(growth)
 
-    #TODO Fix WD data
-    growth <- filter(growth, !is.na(WD))
-
     # table(growth$ctfs_accept)
     growth <- filter(growth, ctfs_accept)
 
-    # Exclude Pasoh until Pasoh plot coordinates are confirmed
-    growth <- filter(growth, !(sitecode %in% c("PSH")))
+    # Exclude CSN, YAN, and NAK as genera are poorly identified
+    growth <- filter(growth, !(sitecode %in% c('NAK', 'CSN', 'YAN')))
 
     # Remove very rare genera (those with fewer than 20 individuals) to avoid
     # convergence problems.
@@ -53,7 +49,7 @@ foreach (model_type=model_types) %:%
     # sum(n_per_genus$n > 20)
     growth <- group_by(growth, Genus) %>%
         mutate(n_indiv_per_genus=length(unique(SamplingUnitName))) %>%
-        filter(n_indiv_per_genus > 20)
+        filter(n_indiv_per_genus >= 20)
 
     setup_factors <- function(growth) {
         growth$tree_ID_char <- factor(growth$SamplingUnitName)
@@ -80,6 +76,9 @@ foreach (model_type=model_types) %:%
             group_by(site_ID) %>%
             sample_frac(.1)
         growth <- filter(growth, tree_ID %in% initial_trees$tree_ID)
+        growth <- group_by(growth, Genus) %>%
+            mutate(n_indiv_per_genus=length(unique(SamplingUnitName))) %>%
+            filter(n_indiv_per_genus >= 20)
         growth <- setup_factors(growth)
     }
 
