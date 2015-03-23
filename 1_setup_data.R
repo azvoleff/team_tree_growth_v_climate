@@ -52,11 +52,6 @@ foreach (model_type=model_types) %:%
         filter(n_indiv_per_genus >= 20)
 
     setup_factors <- function(growth) {
-        growth$tree_ID_char <- factor(growth$SamplingUnitName)
-        growth$plot_ID_char <- factor(growth$plot_ID)
-        growth$site_ID_char <- factor(growth$sitecode)
-        growth$period_ID_char <- factor(growth$SamplingPeriodEnd)
-        growth$genus_ID_char <- factor(growth$Genus)
         growth$tree_ID <- factor(growth$SamplingUnitName)
         growth$plot_ID <- factor(growth$plot_ID)
         growth$site_ID <- factor(growth$sitecode)
