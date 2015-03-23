@@ -55,8 +55,6 @@ parameters {
 
 transformed parameters {
     matrix[n_tree, n_period + 1] dbh;
-    // Don't need + 1 for dbh_pred since can't predict dbh for first period
-    matrix[n_tree, n_period] dbh_pred;
     vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
@@ -79,6 +77,12 @@ transformed parameters {
     int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
 
     B_g <- transpose(rep_matrix(gamma_B_g, n_genus) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g) * B_g_std);
+
+}
+
+model {
+    // Don't need + 1 for dbh_pred since can't predict dbh for first period
+    matrix[n_tree, n_period] dbh_pred;
 
     { // block to allow local variables
         real temp_model;
@@ -110,9 +114,7 @@ transformed parameters {
             }
         }
     }
-}
 
-model {
     //########################################################################
     // Fixed effects
     B ~ normal(0, 10);

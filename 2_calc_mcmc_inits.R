@@ -15,9 +15,11 @@ runmodels <- TRUE
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-# model_type <- model_types[1]
-# precip_var <- precip_vars[1]
-# temp_var <- temp_vars[3]
+model_types <- c("testing")
+
+model_type <- model_types[1]
+precip_var <- precip_vars[1]
+temp_var <- temp_vars[3]
 
 ret <- foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
@@ -31,14 +33,14 @@ ret <- foreach (model_type=model_types) %:%
     load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
     load(file.path(data_folder, paste0("model_data_long", suffix, ".RData")))
 
-    precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_ID"), 
+    precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_num"), 
                       value.name="precip")
-    dbh_latent_long <- melt(init_data$dbh_latent, varnames=c("tree_ID", "period_ID"), 
+    dbh_latent_long <- melt(init_data$dbh_latent, varnames=c("tree_ID", "period_num"), 
                             value.name="dbh_latent_end")
-    temp_long <- melt(model_data$temp, varnames=c("tree_ID", "period_ID"), 
+    temp_long <- melt(model_data$temp, varnames=c("tree_ID", "period_num"), 
                       value.name="temp")
     dbh_latent_long <- group_by(dbh_latent_long, tree_ID) %>%
-        arrange(period_ID) %>%
+        arrange(period_num) %>%
         mutate(dbh_latent_start=c(NA, dbh_latent_end[1:length(dbh_latent_end) - 1]))
     calib_data <- merge(dbh_latent_long, precip_long)
     calib_data <- merge(calib_data, temp_long)
@@ -87,7 +89,7 @@ ret <- foreach (model_type=model_types) %:%
     if (runmodels) {
         calib_model  <- lmer(dbh_latent_end ~ WD + I(WD^2) + 
                              (precip + I(precip^2) + temp + I(temp^2) + dbh_latent_start + I(dbh_latent_start^2)|genus_ID) +
-                             (1|site_ID) + (1|plot_ID) + (1|tree_ID) + (1|period_ID), data=calib_data,
+                             (1|site_ID) + (1|plot_id) + (1|tree_ID) + (1|period_num), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     } else {
@@ -101,7 +103,7 @@ ret <- foreach (model_type=model_types) %:%
     init_data$sigma_int_ijk <- sqrt(get_variance(calib_model, "tree_ID", "(Intercept)"))
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
-    init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_ID", "(Intercept)"))
+    init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
     # Extract genus-level random effects
     init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
     # Extract variance-covariance matrix for genus-level random effects

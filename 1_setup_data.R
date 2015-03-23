@@ -56,7 +56,7 @@ foreach (model_type=model_types) %:%
         growth$plot_ID <- factor(growth$plot_ID)
         growth$site_ID <- factor(growth$sitecode)
         growth$genus_ID <- factor(growth$Genus)
-        growth$period_ID <- as.integer(ordered(growth$SamplingPeriodEnd))
+        growth$period_num <- as.integer(ordered(growth$SamplingPeriodEnd))
         return(growth)
     }
     growth <- setup_factors(growth)
@@ -67,7 +67,7 @@ foreach (model_type=model_types) %:%
         # Generate a subsample including only 5% of the trees included in the 
         # initial sampling period at each site
         initial_trees <- group_by(growth, site_ID) %>%
-            filter(period_ID == min(period_ID)) %>%
+            filter(period_num == min(period_num)) %>%
             group_by(site_ID) %>%
             sample_frac(.1)
         growth <- filter(growth, tree_ID %in% initial_trees$tree_ID)
@@ -88,27 +88,27 @@ foreach (model_type=model_types) %:%
 
     # Setup timeseries formatted dataframe (with NAs for covariates at time 1 since 
     # first growth measurement can only be calculated from time 1 to time 2)
-    dbh_ts <- arrange(growth, tree_ID, period_ID) %>%
-        select(tree_ID, plot_ID, site_ID, period_ID, genus_ID, WD, 
+    dbh_ts <- arrange(growth, tree_ID, period_num) %>%
+        select(tree_ID, plot_ID, site_ID, period_num, genus_ID, WD, 
                dbh=diameter_end, diameter_start, precip, temp)
 
     # Setup an array of initial diameters for all the trees, by taking the 
     # dbh_start
     # value from the first period with an available observation
-    dbh_time_0 <- arrange(dbh_ts, tree_ID, period_ID) %>%
+    dbh_time_0 <- arrange(dbh_ts, tree_ID, period_num) %>%
         group_by(tree_ID) %>%
-        filter(period_ID==min(period_ID)) %>%
-        select(tree_ID, plot_ID, site_ID, period_ID, genus_ID, WD, diameter_start)
+        filter(period_num==min(period_num)) %>%
+        select(tree_ID, plot_ID, site_ID, period_num, genus_ID, WD, diameter_start)
     dbh_time_0$dbh <- dbh_time_0$diameter_start
     dbh_time_0 <- select(dbh_time_0, -diameter_start)
     dbh_ts <- select(dbh_ts, -diameter_start)
 
     dbh_time_0$precip <- NA
     dbh_time_0$temp <- NA
-    dbh_time_0$period_ID <- dbh_time_0$period_ID - 1
+    dbh_time_0$period_num <- dbh_time_0$period_num - 1
 
     dbh_ts <- merge(dbh_ts, dbh_time_0, all=TRUE)
-    dbh_ts <- arrange(dbh_ts, tree_ID, period_ID)
+    dbh_ts <- arrange(dbh_ts, tree_ID, period_num)
 
     #dbh_ts$precip <- log(1 + dbh_ts$precip)
 
@@ -138,9 +138,9 @@ foreach (model_type=model_types) %:%
     sum(genus_ID == "Unknown") / length(genus_ID)
 
     # Setup wide format dbh, precip, and temp dataframes
-    dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
-    precip <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="precip")
-    temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="temp")
+    dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="dbh")
+    precip <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="precip")
+    temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="temp")
     tree_ID <- dbh$tree_ID
     plot_ID <- dbh$plot_ID
     site_ID <- dbh$site_ID
@@ -175,14 +175,14 @@ foreach (model_type=model_types) %:%
     n_plot <- length(unique(dbh_ts$plot_ID))
     # One less period than there are max number of observations (since n_period
     # relates to number of growth measurements).
-    n_period <- length(unique(dbh_ts$period_ID)) - 1
+    n_period <- length(unique(dbh_ts$period_num)) - 1
     n_genus <- length(unique(dbh_ts$genus_ID))
 
     # Calculate the first and last observation for each tree. The +1's below are 
-    # because the period_ID variable starts at zero.
+    # because the period_num variable starts at zero.
     obs_per_tree <- group_by(dbh_ts, tree_ID) %>%
-        summarize(first_obs_period=(min(period_ID) + 1),
-                  last_obs_period=(max(period_ID) + 1))
+        summarize(first_obs_period=(min(period_num) + 1),
+                  last_obs_period=(max(period_num) + 1))
 
     # precip observations are missing for periods when dbh observations are 
     # missing.  Fill these observations using the mean precip for the appropriate 
@@ -190,7 +190,7 @@ foreach (model_type=model_types) %:%
     #
     # Note that the same centering and scaling needs to be done here (and log) that 
     # was done for the other precip data.
-    precip_means <- group_by(growth, plot_ID, period_ID) %>%
+    precip_means <- group_by(growth, plot_ID, period_num) %>%
          summarize(precip_means=mean((precip - precip_mean) / precip_sd, na.rm=TRUE))
     precip_means <- data.frame(precip_means) # Fix for indexing bug in dplyr 0.3.2
     precip <- as.matrix(precip)
@@ -198,11 +198,11 @@ foreach (model_type=model_types) %:%
     # Use linear indexing to replace NAs in precips
     precip_miss_linear_ind <- (precip_missings[, 2] - 1) * nrow(precip) + precip_missings[, 1] # From http://bit.ly/1rnKrC3
     precip[precip_miss_linear_ind] <- precip_means[match(paste(plot_ID[precip_missings[, 1]], precip_missings[, 2]),
-                                                paste(precip_means$plot_ID, precip_means$period_ID)), 3]
+                                                paste(precip_means$plot_ID, precip_means$period_num)), 3]
     stopifnot(is.null(calc_missings(precip)$miss))
 
     # Fill in temp (same issue as above)
-    temp_means <- group_by(growth, plot_ID, period_ID) %>%
+    temp_means <- group_by(growth, plot_ID, period_num) %>%
          summarize(temp_means=mean((temp - temp_mean) / temp_sd, na.rm=TRUE))
     temp_means <- data.frame(temp_means) # Fix for indexing bug in dplyr 0.3.2
     temp <- as.matrix(temp)
@@ -210,7 +210,7 @@ foreach (model_type=model_types) %:%
     # Use linear indexing to replace NAs in temps
     temp_miss_linear_ind <- (temp_missings[, 2] - 1) * nrow(temp) + temp_missings[, 1] # From http://bit.ly/1rnKrC3
     temp[temp_miss_linear_ind] <- temp_means[match(paste(plot_ID[temp_missings[, 1]], temp_missings[, 2]),
-                                                paste(temp_means$plot_ID, temp_means$period_ID)), 3]
+                                                paste(temp_means$plot_ID, temp_means$period_num)), 3]
     stopifnot(is.null(calc_missings(temp)$miss))
 
     # Calculate indices of missing and observed data (using the function 
@@ -287,23 +287,23 @@ foreach (model_type=model_types) %:%
                                                         suffix, ".csv")), 
                                                  row.names=FALSE)
 
-    period_ID_factor_levels <- levels(ordered(growth$SamplingPeriodEnd))
-    period_ID_factor_key <- data.frame(period_ID_char=as.character(period_ID_factor_levels), 
-                                       period_ID_numeric=seq(1:length(period_ID_factor_levels)),
+    period_num_factor_levels <- levels(ordered(growth$SamplingPeriodEnd))
+    period_num_factor_key <- data.frame(period_num_char=as.character(period_num_factor_levels), 
+                                       period_num_numeric=seq(1:length(period_num_factor_levels)),
                                        stringsAsFactors=FALSE)
     # Add in initial period (coded as zero, but not in the SamplingPeriodEnd 
     # vector)
-    initial_period <- paste0(as.numeric(substr(period_ID_factor_key$period_ID_char[1], 1, 4)) - 1, ".01")
-    period_ID_factor_key <- rbind(c(initial_period, 0), period_ID_factor_key)
-    write.csv(period_ID_factor_key,
-              file=file.path(data_folder, paste0("period_ID_factor_key", suffix, 
+    initial_period <- paste0(as.numeric(substr(period_num_factor_key$period_num_char[1], 1, 4)) - 1, ".01")
+    period_num_factor_key <- rbind(c(initial_period, 0), period_num_factor_key)
+    write.csv(period_num_factor_key,
+              file=file.path(data_folder, paste0("period_num_factor_key", suffix, 
                                                 ".csv")), row.names=FALSE)
 
     ###############################################################################
     # Setup inits
 
     # Setup wide format dbh_latent dataframes
-    dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_ID, value.var="dbh")
+    dbh_latent <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="dbh")
     dbh_latent <- dbh_latent[!grepl('_ID$', names(dbh_latent))]
     # Smooth dbh observations with spline to calculate latent dbh
     smooth_dbh_obs <- function(x) {
