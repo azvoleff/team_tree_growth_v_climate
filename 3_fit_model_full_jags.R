@@ -62,11 +62,6 @@ if (model_structure == "full_model") {
     load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", 
                                        orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
-    monitored <- monitored[monitored != "sigma_int_t"]
-    monitored <- monitored[monitored != "rho_B_g"]
-    init_data <- init_data[names(init_data) != "B_g_raw"]
-    init_data <- init_data[names(init_data) != "sigma_B_g"]
-    init_data <- init_data[!grepl('sigma', names(init_data))]
     init_data <- init_data[!grepl('int', names(init_data))]
     model_type <- paste0(model_type, "_no_t_effects_interact")
     n_B_g <- 11
@@ -85,10 +80,6 @@ model_data$n_B <- 2
 model_data$n_B_g <- n_B_g
 # n_B_T is number of terms in the temperature model
 n_B_T <- 2
-# W is prior scale for the inverse-Wishart
-model_data$W <- diag(model_data$n_B_g)
-model_data$WD_sq <- model_data$WD^2
-model_data$precip_sq <- model_data$precip^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
@@ -103,24 +94,6 @@ init_data$B <- rnorm(model_data$n_B, 0, 10)
 init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
 init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
-
-if (model_structure != "full_model_no_t_effects_interact") {
-    # Initialize xi to the standard deviations of the genus-level effects, in 
-    # an effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right 
-    # ballpark
-    init_data$xi <- apply(init_data$B_g_raw, 2, sd)
-    init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
-    # Center the B_g_raw estimates
-    init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, 
-                                                         model_data$n_genus), 
-                                                    ncol=model_data$n_B_g, 
-                                                    byrow=TRUE)
-}
-
-# Jags uses the inverse of the variance-covariance matrix to parameterize the 
-# wishart.
-#init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
-init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
