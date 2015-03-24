@@ -14,11 +14,11 @@ model_structure <- "full_model_no_t_effects"
 note <- 'genuslimits'
 
 temp_var <- "tmn_meanannual"
-# temp_var <- "tmp_meanannual"
-# temp_var <- "tmx_meanannual"
+#temp_var <- "tmp_meanannual"
+#temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
-#model_type <- "full"
-model_type <- "testing"
+model_type <- "full"
+#model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 out_suffix <- paste0(in_suffix, '_', note)
