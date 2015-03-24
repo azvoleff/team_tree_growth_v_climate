@@ -41,17 +41,15 @@ data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
+load(file.path(init_folder, paste0("init_data_with_ranefs", orig_suffix,  ".RData")))
+
 orig_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (model_structure == "full_model") {
     model_file <- "full_model.bug" 
-    load(file.path(init_folder, paste0("init_data_with_ranefs", orig_suffix, 
-                                       ".RData")))
     # n_B_g is number of genus-level random effects
     n_B_g <- 7
 } else if (model_structure == "full_model_no_t_effects") {
     model_file <- "full_model_no_t_effects.bug"
-    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects", 
-                                       orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
     model_type <- paste0(model_type, "_no_t_effects")
@@ -59,8 +57,6 @@ if (model_structure == "full_model") {
     n_B_g <- 7
 } else if (model_structure == "full_model_no_t_effects_interact") {
     model_file <- "full_model_no_t_effects_interact.bug"
-    load(file.path(init_folder, paste0("init_data_with_ranefs_no_t_effects_interact", 
-                                       orig_suffix, ".RData")))
     monitored <- monitored[monitored != "int_t"]
     init_data <- init_data[!grepl('int', names(init_data))]
     model_type <- paste0(model_type, "_no_t_effects_interact")
@@ -69,10 +65,10 @@ if (model_structure == "full_model") {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var, '_', note)
-
 load(file.path(data_folder, paste0("model_data_wide", orig_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", orig_suffix, ".RData")))
+
+suffix <- paste0(orig_suffix, '_', note)
 
 # n_B is number of fixed effects
 model_data$n_B <- 2
