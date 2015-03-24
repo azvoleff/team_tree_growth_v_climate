@@ -8,7 +8,7 @@ source("0_settings.R")
 
 # Include a random intercept by period?
 # model_structure <- "full_model"
-# model_structure <- "full_model_no_t_effects"
+model_structure <- "full_model_no_t_effects"
 model_structure <- "full_model_no_t_effects_interact"
 
 note <- 'genuslimits'
@@ -19,6 +19,8 @@ temp_var <- "tmn_meanannual"
 precip_var <- "mcwd_run12"
 model_type <- "full"
 #model_type <- "testing"
+
+orig_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 
 monitored <- c("B",
                "B_T_int",
@@ -43,7 +45,6 @@ mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
 load(file.path(init_folder, paste0("init_data_with_ranefs", orig_suffix,  ".RData")))
 
-orig_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (model_structure == "full_model") {
     model_file <- "full_model.bug" 
     # n_B_g is number of genus-level random effects
