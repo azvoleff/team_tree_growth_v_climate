@@ -7,8 +7,8 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(4)
-registerDoParallel(4)
+cl <- makeCluster(8)
+registerDoParallel(cl)
 
 runmodels <- TRUE
 
@@ -19,7 +19,7 @@ model_type <- model_types[1]
 precip_var <- precip_vars[1]
 temp_var <- temp_vars[3]
 
-ret <- foreach (model_type=model_types) %:%gs pa
+ret <- foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
         foreach (precip_var=precip_vars,
                  .packages=c("reshape2", "dplyr", "lme4"),
