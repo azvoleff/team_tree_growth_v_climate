@@ -1,19 +1,46 @@
 model {
+    ###########################################################################
+    # Parameters:
+    #   int_ijk: random intercept - tree level
+    #   int_jk: random intercept - plot level
+    #   int_k: random intercept - site level
+    #   int_t: random intercept - by period
+    #   B[1]: fixed intercept
+    #   B[2]: fixed effect - wood density
+    #   B[3]: fixed effect - wood density (squared)
+    #   B[4]: slope on precip
+    #   B[5]: slope on precip (squared)
+    #   B[6]: slope on temperature
+    #   B[7]: slope on temperature (squared)
+    #   B[8]: slope on initial diameter
+    #   B[9]: slope on initial diameter (squared)
+    #   B_T[k, 1]: intercept in temperature model for site k
+    #   B_T[k, 2]: lapse rate in temperature model for site k
+    #   sigma_obs: std. dev. of observation error
+    #   sigma_proc: std. dev. of residual error
+    #   sigma_ijk: std. dev. of tree-level random intercept
+    #   sigma_jk: std. dev. of plot-level random intercept
+    #   sigma_k: std. dev. of site-level random intercept
+    #   sigma_t: std. dev. of period random intercept
+    ###########################################################################
+
     ##########################################################################
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- int +
-                slp_dbh * dbh_latent[i, t - 1] +
-                slp_dbh_sq * pow(dbh_latent[i, t - 1], 2) +
-                slp_WD * WD[i] +
-                slp_WD_sq * WD_sq[i] +
-                slp_spi * spi[i, t] +
-                int_ijk[i] +
+            dbh_predicted[i, t] <- int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
-                int_g[genus_ID[i]] +
-                int_t[t]
+                int_t[t - 1] +
+                B[1] +
+                B[2] * WD[i] +
+                B[3] * WD_sq[i] +
+                B[4] * precip[i, t] +
+                B[5] * precip_sq[i, t] +
+                B[6] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
+                B[7] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
+                B[8] * dbh_latent[i, t - 1] +
+                B[9] * pow(dbh_latent[i, t - 1], 2)
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -21,28 +48,25 @@ model {
         for (t in (first_obs_period[i]):last_obs_period[i]) {
             dbh[i, t] ~ dnorm(dbh_latent[i, t], prec_obs)
         }
-        # Specially handle first latent dbh (following Eitzen, 2013):
-        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-6)
+
+        # Handle first latent dbh (for which there is no prediction)
+        dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
     }
 
     ##########################################################################
     # Fixed effects
-    int ~ dnorm(0, 1.0E-6)
-    slp_dbh ~ dnorm(0, 1.0E-6)
-    slp_dbh_sq ~ dnorm(0, 1.0E-6)
-    slp_WD ~ dnorm(0, 1.0E-6)
-    slp_WD_sq ~ dnorm(0, 1.0E-6)
-    slp_spi ~ dnorm(0, 1.0E-6)
-    inter_spi_dbh ~ dnorm(0, 1.0E-6)
-    inter_spi_WD ~ dnorm(0, 1.0E-6)
+    for (k in 1:n_B) {
+        B[k] ~ dnorm(0, 1.0E-4)
+    }
 
+    ##########################################################################
+    # Observation and process error
     prec_obs <- pow(sigma_obs, -2)
-    # Base observation sigma on precision of diameter measurements, following 
-    # Eitzel 2013
-    sigma_obs ~ dunif(0.007034428, 100)
+    # Base sigma_obs on precision of dbh measurements (following Eitzel 2013)
+    sigma_obs ~ dunif(sigma_obs_lower, 1)
 
     prec_proc <- pow(sigma_proc, -2)
-    sigma_proc ~ dunif(0, 100)
+    sigma_proc ~ dunif(0, 10)
 
     ##########################################################################
     # Nested random effects
@@ -50,32 +74,37 @@ model {
         int_ijk[i] ~ dnorm(0, tau_int_ijk)
     }
     tau_int_ijk <- pow(sigma_int_ijk, -2)
-    sigma_int_ijk ~ dunif(0, 100)
+    sigma_int_ijk ~ dunif(0, 10)
 
     for (j in 1:n_plot) {
         int_jk[j] ~ dnorm(0, tau_int_jk)
     }
     tau_int_jk <- pow(sigma_int_jk, -2)
-    sigma_int_jk ~ dunif(0, 100)
+    sigma_int_jk ~ dunif(0, 10)
 
     for (k in 1:n_site) {
         int_k[k] ~ dnorm(0, tau_int_k)
     }
     tau_int_k <- pow(sigma_int_k, -2)
-    sigma_int_k ~ dunif(0, 100)
+    sigma_int_k ~ dunif(0, 10)
 
     ##########################################################################
-    # Crossed random effects
-    
+    # Period random effects (crossed)
     for (t in 1:n_period) {
         int_t[t] ~ dnorm(0, tau_int_t)
     }
     tau_int_t <- pow(sigma_int_t, -2)
-    sigma_int_t ~ dunif(0, 100)
+    sigma_int_t ~ dunif(0, 10)
 
-    for (g in 1:n_genus) {
-        int_g[g] ~ dnorm(0, tau_int_g)
+    ##########################################################################
+    # Temperature model
+    for (k in 1:n_site) {
+        # Prior on intercept
+        B_T_int[k] ~ dnorm(0, 1.0E-4)
+        # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
+        # of temp with increase in elevation, so the below truncation to make 
+        # B_T[k, 2] less than zero means that lapse rate is constrained to be 
+        # positive).
+        B_T_lapse[k] ~ dnorm(lapse_mean, lapse_prec) I(, 0)
     }
-    tau_int_g <- pow(sigma_int_g, -2)
-    sigma_int_g ~ dunif(0, 100)
 }
