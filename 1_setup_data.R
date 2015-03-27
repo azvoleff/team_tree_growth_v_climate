@@ -18,6 +18,9 @@ init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 # precip_var <- 'mcwd_run12'
 # model_type <- 'full'
 
+#note <- ""
+note <- "highelev"
+
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
         foreach (precip_var=precip_vars,
@@ -29,6 +32,7 @@ foreach (model_type=model_types) %:%
     load("growth_ctfsflagged_merged_detrended.RData")
 
     suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+    if (note != "") suffix <- paste0(suffix, '_', note)
 
     growth <- tbl_df(growth)
 
@@ -37,6 +41,8 @@ foreach (model_type=model_types) %:%
 
     # Exclude CSN, YAN, and NAK as genera are poorly identified
     growth <- filter(growth, !(sitecode %in% c('NAK', 'CSN', 'YAN')))
+
+    if (note == "highelev") growth <- filter(growth, sitecode %in% c('VB', 'UDZ', 'BIF', 'YAN', 'NAK'))
 
     # Remove very rare genera (those with fewer than 20 individuals) to avoid
     # convergence problems.

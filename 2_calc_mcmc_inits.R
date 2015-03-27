@@ -19,7 +19,8 @@ model_type <- model_types[1]
 precip_var <- precip_vars[1]
 temp_var <- temp_vars[3]
 
-#note <- "VBOnly"
+#note <- ""
+note <- "highelev"
 
 ret <- foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
@@ -28,8 +29,7 @@ ret <- foreach (model_type=model_types) %:%
                  .inorder=FALSE) %dopar% {
 
     in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-
-    out_suffix <- paste0(in_suffix, '_', note)
+    if (note != "") out_suffix <- paste0(in_suffix, '_', note)
 
     load(file.path(init_folder, paste0("init_data", in_suffix, ".RData")))
     load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
