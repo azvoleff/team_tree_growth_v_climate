@@ -7,17 +7,17 @@ source("0_settings.R")
 #load.module("glm")
 
 # Include a random intercept by period?
-#model_structure <- "simple"
+model_structure <- "simple"
 #model_structure <- "full_model"
 #model_structure <- "full_model_no_t_effects"
-model_structure <- "full_model_no_t_effects_interact"
+#model_structure <- "full_model_no_t_effects_interact"
 
-#note <- 'genuslimits'
-note <- "highelev"
+note <- ''
+#note <- "highelev"
 
-# temp_var <- "tmn_meanannual"
-# temp_var <- "tmp_meanannual"
-temp_var <- "tmx_meanannual"
+temp_var <- "tmn_meanannual"
+#temp_var <- "tmp_meanannual"
+#temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
 
 model_type <- "full"
