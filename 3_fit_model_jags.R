@@ -7,9 +7,10 @@ source("0_settings.R")
 #load.module("glm")
 
 # Include a random intercept by period?
-# model_structure <- "full_model"
+model_structure <- "simple"
+#model_structure <- "full_model"
 #model_structure <- "full_model_no_t_effects"
-model_structure <- "full_model_no_t_effects_interact"
+#model_structure <- "full_model_no_t_effects_interact"
 
 note <- 'genuslimits'
 
@@ -18,8 +19,8 @@ note <- 'genuslimits'
 temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
 
-model_type <- "full"
-#model_type <- "testing"
+#model_type <- "full"
+model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 out_suffix <- paste0(in_suffix, '_', note)
@@ -50,11 +51,15 @@ load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
-    model_file <- "simple_model.buf" 
-    # n_B_g is number of genus-level random effects
-    n_B_g <- 7
-    # W is the prior scale for the inverse-wishart
-    model_data$W <- diag(n_B_g)
+    model_file <- "simple_model.bug" 
+    # n_B is number of fixed effects
+    model_data$n_B <- 9
+    monitored <- monitored[monitored != "B_g"]
+    monitored <- monitored[monitored != "mu_B_g"]
+    monitored <- monitored[monitored != "rho_B_g"]
+    monitored <- monitored[monitored != "sigma_B_g"]
+    model_data <- model_data[names(model_data) != "genus_ID"]
+    model_data <- model_data[names(model_data) != "n_genus"]
 } else if (model_structure == "full_model") {
     model_file <- "full_model.bug" 
     # n_B_g is number of genus-level random effects
@@ -84,14 +89,19 @@ if (model_structure == "simple") {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
-# n_B is number of fixed effects
-model_data$n_B <- 2
-# n_B_g is number of genus-level random effects
-model_data$n_B_g <- n_B_g
+if (model_structure != "simple") {
+    # n_B_g is number of genus-level random effects
+    model_data$n_B_g <- n_B_g
+    # n_B is number of fixed effects
+    model_data$n_B <- 2
+}
+
 # n_B_T is number of terms in the temperature model
 n_B_T <- 2
+
 model_data$WD_sq <- model_data$WD^2
 model_data$precip_sq <- model_data$precip^2
+
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 model_data <- model_data[!(names(model_data) %in% c("spi"))]
@@ -111,7 +121,7 @@ init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (mod
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
 #                      inits=rep(list(init_data), seq_n_chains), 
 #                      n.chains=seq_n_chains, adapt=200, burnin=200, 
-#                      sample=200, summarise=FALSE)
+#                      sample=200)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 # out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
