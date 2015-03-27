@@ -17,6 +17,7 @@ note <- 'genuslimits'
 # temp_var <- "tmp_meanannual"
 temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
+
 model_type <- "full"
 #model_type <- "testing"
 
