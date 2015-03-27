@@ -9,8 +9,8 @@ source("0_settings.R")
 # Include a random intercept by period?
 #model_structure <- "simple"
 #model_structure <- "full_model"
-model_structure <- "full_model_no_t_effects"
-#model_structure <- "full_model_no_t_effects_interact"
+#model_structure <- "full_model_no_t_effects"
+model_structure <- "full_model_no_t_effects_interact"
 
 #note <- 'genuslimits'
 note <- "highelev"
@@ -20,8 +20,8 @@ note <- "highelev"
 temp_var <- "tmx_meanannual"
 precip_var <- "mcwd_run12"
 
-#model_type <- "full"
-model_type <- "testing"
+model_type <- "full"
+#model_type <- "testing"
 
 suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") suffix <- paste0(suffix, '_', note)
@@ -134,7 +134,7 @@ init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (mod
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=1000,
-                     burnin=250, sample=250, thin=4, summarise=FALSE)
+                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
