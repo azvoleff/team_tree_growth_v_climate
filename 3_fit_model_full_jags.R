@@ -48,7 +48,13 @@ load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix,  ".RData"
 load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
-if (model_structure == "full_model") {
+if (model_structure == "simple") {
+    model_file <- "simple_model.buf" 
+    # n_B_g is number of genus-level random effects
+    n_B_g <- 7
+    # W is the prior scale for the inverse-wishart
+    model_data$W <- diag(n_B_g)
+} else if (model_structure == "full_model") {
     model_file <- "full_model.bug" 
     # n_B_g is number of genus-level random effects
     n_B_g <- 7
