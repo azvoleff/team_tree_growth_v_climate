@@ -1,5 +1,3 @@
-# temp_var <- 'tmn_meanannual'
-# precip_var <- 'mcwd_run12'
 note <- ""
 #note <- "highelev"
 
