@@ -22,8 +22,8 @@ precip_var <- 'mcwd_run12'
 model_type <- "full"
 #model_type <- "testing"
 
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-if (note != "") suffix <- paste0(suffix, '_', note)
+in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+if (note != "") in_suffix <- paste0(in_suffix, '_', note)
 
 monitored <- c("B",
                "B_T_int",
@@ -46,9 +46,9 @@ data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
-load(file.path(init_folder, paste0("init_data_with_ranefs", suffix,  ".RData")))
-load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
-load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
+load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix,  ".RData")))
+load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
     model_file <- "simple_model.bug" 
@@ -91,6 +91,8 @@ if (model_structure == "simple") {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
+out_suffix <- paste0(in_suffix, '_', model_structure)
+
 if (model_structure != "simple") {
     # n_B_g is number of genus-level random effects
     model_data$n_B_g <- n_B_g
@@ -126,7 +128,7 @@ init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (mod
 #                      sample=200)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
+# out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
 # save(jags_fit, file=out_name)
 # print(paste("Finished", out_name))
 
@@ -136,12 +138,12 @@ jags_fit <- run.jags(model=model_file, monitor=monitored,
                      burnin=2500, sample=2500, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, ".RData"))
+out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
 
 # print(paste("Starting autorun", out_name))
 # jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="10 days")
-# autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", suffix, '-', run_id, "_autorun.RData"))
+# autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, "_autorun.RData"))
 # save(jags_fit, file=autorun_out_name)
 # print(paste("Finished", autorun_out_name))
