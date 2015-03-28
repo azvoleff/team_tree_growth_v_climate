@@ -15,13 +15,6 @@ runmodels <- TRUE
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-model_type <- model_types[1]
-precip_var <- precip_vars[1]
-temp_var <- temp_vars[3]
-
-note <- ""
-#note <- "highelev"
-
 ret <- foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
         foreach (precip_var=precip_vars,

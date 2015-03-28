@@ -14,13 +14,6 @@ registerDoParallel(cl)
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-# temp_var <- 'tmn_meanannual'
-# precip_var <- 'mcwd_run12'
-# model_type <- 'full'
-
-note <- ""
-#note <- "highelev"
-
 foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
         foreach (precip_var=precip_vars,
