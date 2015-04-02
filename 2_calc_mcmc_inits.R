@@ -21,16 +21,12 @@ ret <- foreach (model_type=model_types) %:%
                  .packages=c("reshape2", "dplyr", "lme4"),
                  .inorder=FALSE) %dopar% {
 
-    in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
-    if (note != "") {
-        out_suffix <- paste0(in_suffix, '_', note)
-    } else {
-        out_suffix <- in_suffix
-    }
+    suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+    if (note != "") suffix <- paste0(suffix, '_', note)
 
-    load(file.path(init_folder, paste0("init_data", in_suffix, ".RData")))
-    load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
-    load(file.path(data_folder, paste0("model_data_long", in_suffix, ".RData")))
+    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
+    load(file.path(data_folder, paste0("model_data_long", suffix, ".RData")))
 
     precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_num"), 
                       value.name="precip")
@@ -78,9 +74,9 @@ ret <- foreach (model_type=model_types) %:%
         calib_model  <- lmer(dbh_latent_end ~ (1|site_ID) + (1|plot_ID) + 
                              (1|tree_ID) + (1|period_num), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", out_suffix, ".RData")))
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", out_suffix, ".RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     }
 
     init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
@@ -91,7 +87,7 @@ ret <- foreach (model_type=model_types) %:%
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
     init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", out_suffix, ".RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
 
     return(TRUE)
 }

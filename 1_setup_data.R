@@ -8,7 +8,7 @@ library(doParallel)
 
 source("0_settings.R")
 
-cl <- makeCluster(3)
+cl <- makeCluster(6)
 registerDoParallel(cl)
 
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
