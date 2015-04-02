@@ -71,19 +71,23 @@ ret <- foreach (model_type=model_types) %:%
     }
 
     ###########################################################################
-    # Inits with period random intercepts
+    # Inits with correlated random effects
     if (runmodels) {
         calib_model <- lmer(dbh_latent_end ~ WD +
                             I(WD^2) +
-                            (precip + I(precip^2) +
-                             temp + I(temp^2) +
-                             dbh_latent_start + I(dbh_latent_start^2) | genus_ID) +
-                            (1|site_ID) + (1|plot_ID) + (1|period_num), data=calib_data)
+                            (precip +
+                             I(precip^2) +
+                             temp +
+                             I(temp^2) +
+                             dbh_latent_start +
+                             I(dbh_latent_start^2) | genus_ID) +
+                            (1|site_ID) +
+                            (1|plot_ID) +
+                            (1|period_num), data=calib_data)
         save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
     } else {
         load(file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
     }
-
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
     init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
@@ -100,8 +104,7 @@ ret <- foreach (model_type=model_types) %:%
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
 
     ###########################################################################
-    # Inits without period random intercepts, with interactions and without
-    # correlated random effects
+    # Inits without with interactions
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
     if (runmodels) {
         calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
@@ -117,7 +120,8 @@ ret <- foreach (model_type=model_types) %:%
                             I(dbh_latent_start^2) -
                             WD | genus_ID) +
                             (1|site_ID) +
-                            (1|plot_ID), data=calib_data)
+                            (1|plot_ID) +
+                            (1|period_num), data=calib_data)
         save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
     } else {
         load(file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData"))
