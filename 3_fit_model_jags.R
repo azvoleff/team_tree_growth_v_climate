@@ -4,7 +4,7 @@ library(rjags)
 source("0_settings.R")
 
 # Allow block-updating using glm module
-#load.module("glm")
+load.module("glm")
 
 # Include a random intercept by period?
 #model_structure <- "simple"
@@ -19,8 +19,8 @@ temp_var <- 'tmx_meanannual'
 precip_var <- 'mcwd_run12'
 
 
-model_type <- "full"
-#model_type <- "testing"
+#model_type <- "full"
+model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") in_suffix <- paste0(in_suffix, '_', note)
@@ -30,7 +30,6 @@ monitored <- c("B",
                "B_T_lapse",
                "sigma_obs",
                "sigma_proc",
-               "sigma_int_ijk",
                "sigma_int_jk",
                "sigma_int_k",
                "sigma_int_t",
@@ -121,26 +120,26 @@ init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
 init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
 
-# seq_n_chains <- 1
-# jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                      inits=rep(list(init_data), seq_n_chains), 
-#                      n.chains=seq_n_chains, adapt=200, burnin=200, 
-#                      sample=200)
-# print("finished running single JAGS chain")
-# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
-# save(jags_fit, file=out_name)
-# print(paste("Finished", out_name))
-
-jags_fit <- run.jags(model=model_file, monitor=monitored,
-                     data=model_data, inits=rep(list(init_data), 3),
-                     n.chains=3, method="parallel", adapt=1000,
-                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
-print("finished running JAGS chains in parallel")
+seq_n_chains <- 1
+jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
+                     inits=rep(list(init_data), seq_n_chains), 
+                     n.chains=seq_n_chains, adapt=200, burnin=200, 
+                     sample=200)
+print("finished running single JAGS chain")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
+
+# jags_fit <- run.jags(model=model_file, monitor=monitored,
+#                      data=model_data, inits=rep(list(init_data), 3),
+#                      n.chains=3, method="parallel", adapt=1000,
+#                      burnin=2500, sample=2500, thin=4, summarise=FALSE)
+# print("finished running JAGS chains in parallel")
+# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+# out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
+# save(jags_fit, file=out_name)
+# print(paste("Finished", out_name))
 
 # print(paste("Starting autorun", out_name))
 # jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="10 days")

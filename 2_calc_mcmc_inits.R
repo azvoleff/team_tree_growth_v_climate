@@ -72,18 +72,16 @@ ret <- foreach (model_type=model_types) %:%
     # Inits with period random intercepts
     if (runmodels) {
         calib_model  <- lmer(dbh_latent_end ~ (1|site_ID) + (1|plot_ID) + 
-                             (1|tree_ID) + (1|period_num), data=calib_data,
+                             (1|period_num), data=calib_data,
                              control=lmerControl(optCtrl=list(maxfun=10*35^2)))
         save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     } else {
         load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
     }
 
-    init_data$int_ijk <- as.numeric(unlist(ranef(calib_model)$tree_ID))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
     init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
-    init_data$sigma_int_ijk <- sqrt(get_variance(calib_model, "tree_ID", "(Intercept)"))
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
     init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
