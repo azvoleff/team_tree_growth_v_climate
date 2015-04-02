@@ -10,7 +10,7 @@ load.module("glm")
 #model_structure <- "simple"
 #model_structure <- "full_model"
 #model_structure <- "full_model_no_t_effects"
-model_structure <- "full_model_no_t_effects_interact"
+model_structure <- "full_model_interact"
 
 #temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
@@ -45,11 +45,11 @@ data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
-load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix,  ".RData")))
 load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
     model_file <- "simple_model.bug" 
     # n_B is number of fixed effects
     model_data$n_B <- 9
@@ -60,12 +60,14 @@ if (model_structure == "simple") {
     model_data <- model_data[names(model_data) != "genus_ID"]
     model_data <- model_data[names(model_data) != "n_genus"]
 } else if (model_structure == "full_model") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
     model_file <- "full_model.bug" 
     # n_B_g is number of genus-level random effects
     n_B_g <- 7
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(n_B_g)
 } else if (model_structure == "full_model_no_t_effects") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
     model_file <- "full_model_no_t_effects.bug"
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
@@ -77,17 +79,31 @@ if (model_structure == "simple") {
     n_B_g <- 7
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(n_B_g)
-} else if (model_structure == "full_model_no_t_effects_interact") {
-    model_file <- "full_model_no_t_effects_interact.bug"
+} else if (model_structure == "full_model_interact") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model_interact.RData")))
+    model_file <- "full_model_interact.bug"
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[!grepl('int', names(init_data))]
     model_data <- model_data[names(model_data) != "n_period"]
-    model_type <- paste0(model_type, "_no_t_effects_interact")
+    model_type <- paste0(model_type, "_interact")
     n_B_g <- 11
 } else {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
+}
+
+if (model_structure != "full_model_interact") {
+    # Initialize xi to the standard deviations of the genus-level effects, in
+    # an effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right
+    # ballpark
+    init_data$xi <- apply(init_data$B_g_raw, 2, sd)
+    init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
+    # Center the B_g_raw estimates
+    init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, model_data$n_genus), ncol=model_data$n_B_g, byrow=TRUE)
+    # Jags uses the inverse of the variance-covariance matrix to parameterize 
+    # the wishart.
+    init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
 }
 
 out_suffix <- paste0(in_suffix, '_', model_structure)
