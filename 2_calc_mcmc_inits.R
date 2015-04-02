@@ -124,7 +124,7 @@ ret <- foreach (model_type=model_types) %:%
                             (1|period_num), data=calib_data)
         save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData"))
+        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
     }
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
