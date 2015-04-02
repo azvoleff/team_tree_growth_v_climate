@@ -47,6 +47,8 @@ ret <- foreach (model_type=model_types) %:%
     calib_data <- merge(calib_data, site_ID)
     plot_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), plot_ID=model_data$plot_ID)
     calib_data <- merge(calib_data, plot_ID)
+    genus_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), genus_ID=model_data$genus_ID)
+    calib_data <- merge(calib_data, genus_ID)
 
     get_variance <- function(model, grp, var1, var2) {
         vc <- as.data.frame(VarCorr(model))
@@ -71,12 +73,15 @@ ret <- foreach (model_type=model_types) %:%
     ###########################################################################
     # Inits with period random intercepts
     if (runmodels) {
-        calib_model  <- lmer(dbh_latent_end ~ (1|site_ID) + (1|plot_ID) + 
-                             (1|period_num), data=calib_data,
-                             control=lmerControl(optCtrl=list(maxfun=10*35^2)))
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, ".RData")))
+        calib_model <- lmer(dbh_latent_end ~ WD +
+                            I(WD^2) +
+                            (precip + I(precip^2) +
+                             temp + I(temp^2) +
+                             dbh_latent_start + I(dbh_latent_start^2) | genus_ID) +
+                            (1|site_ID) + (1|plot_ID) + (1|period_num), data=calib_data)
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, ".RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
     }
 
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
@@ -85,7 +90,50 @@ ret <- foreach (model_type=model_types) %:%
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
     init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
+     # Extract genus-level random effects
+    init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
+    # Extract variance-covariance matrix for genus-level random effects
+    genus_varcorr <- VarCorr(calib_model)$genus_ID
+    # Drop the attributes
+    genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+    init_data$sigma_B_g <- genus_varcorr
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
+
+    ###########################################################################
+    # Inits without period random intercepts, with interactions and without
+    # correlated random effects
+    load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
+    if (runmodels) {
+        calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
+                            (precip +
+                            I(precip^2) +
+                            precip * WD +
+                            precip * dbh_latent_start +
+                            temp +
+                            I(temp^2) +
+                            temp * WD +
+                            temp * dbh_latent_start +
+                            dbh_latent_start +
+                            I(dbh_latent_start^2) -
+                            WD | genus_ID) +
+                            (1|site_ID) +
+                            (1|plot_ID), data=calib_data)
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
+    } else {
+        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData"))
+    }
+    init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
+    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
+    init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
+    init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
+    # Extract genus-level random effects
+    init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
+    # Extract variance-covariance matrix for genus-level random effects
+    genus_varcorr <- VarCorr(calib_model)$genus_ID
+    # Drop the attributes
+    genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
+    init_data$sigma_B_g <- genus_varcorr
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model_interact.RData")))
 
     return(TRUE)
 }
