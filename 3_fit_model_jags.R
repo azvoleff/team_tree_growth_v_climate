@@ -49,7 +49,7 @@ load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
     model_file <- "simple_model.bug" 
     # n_B is number of fixed effects
     model_data$n_B <- 9
@@ -60,14 +60,14 @@ if (model_structure == "simple") {
     model_data <- model_data[names(model_data) != "genus_ID"]
     model_data <- model_data[names(model_data) != "n_genus"]
 } else if (model_structure == "full_model") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
     model_file <- "full_model.bug" 
     # n_B_g is number of genus-level random effects
     n_B_g <- 7
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(n_B_g)
 } else if (model_structure == "full_model_no_t_effects") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
     model_file <- "full_model_no_t_effects.bug"
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
@@ -80,12 +80,13 @@ if (model_structure == "simple") {
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(n_B_g)
 } else if (model_structure == "full_model_interact") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model_interact.RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model_interact.RData")))
     model_file <- "full_model_interact.bug"
     monitored <- monitored[monitored != "int_t"]
     monitored <- monitored[monitored != "sigma_int_t"]
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[!grepl('int', names(init_data))]
+    init_data <- init_data[!grepl('sigma_B_g', names(init_data))]
     model_data <- model_data[names(model_data) != "n_period"]
     model_type <- paste0(model_type, "_interact")
     n_B_g <- 11
