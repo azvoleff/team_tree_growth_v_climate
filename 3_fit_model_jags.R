@@ -8,9 +8,9 @@ load.module("glm")
 
 # Include a random intercept by period?
 #model_structure <- "simple"
-#model_structure <- "full_model"
+model_structure <- "full_model"
 #model_structure <- "full_model_no_t_effects"
-model_structure <- "full_model_interact"
+#model_structure <- "full_model_interact"
 
 #temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
@@ -86,12 +86,22 @@ if (model_structure == "simple") {
     monitored <- monitored[monitored != "sigma_int_t"]
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[!grepl('int', names(init_data))]
+    init_data <- init_data[!grepl('B_g_raw', names(init_data))]
     init_data <- init_data[!grepl('sigma_B_g', names(init_data))]
     model_data <- model_data[names(model_data) != "n_period"]
     model_type <- paste0(model_type, "_interact")
     n_B_g <- 11
 } else {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
+}
+
+out_suffix <- paste0(in_suffix, '_', model_structure)
+
+if (model_structure != "simple") {
+    # n_B_g is number of genus-level random effects
+    model_data$n_B_g <- n_B_g
+    # n_B is number of fixed effects
+    model_data$n_B <- 2
 }
 
 if (model_structure != "full_model_interact") {
@@ -105,15 +115,6 @@ if (model_structure != "full_model_interact") {
     # Jags uses the inverse of the variance-covariance matrix to parameterize 
     # the wishart.
     init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
-}
-
-out_suffix <- paste0(in_suffix, '_', model_structure)
-
-if (model_structure != "simple") {
-    # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- n_B_g
-    # n_B is number of fixed effects
-    model_data$n_B <- 2
 }
 
 # n_B_T is number of terms in the temperature model
