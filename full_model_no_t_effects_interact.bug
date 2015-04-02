@@ -38,17 +38,17 @@ model {
                 int_ijk[i] +
                 int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
-                (mu_B_g[1] + B_g[genus_ID[i], 1]) +
-                (mu_B_g[2] + B_g[genus_ID[i], 2]) * precip[i, t] +
-                (mu_B_g[3] + B_g[genus_ID[i], 3]) * precip_sq[i, t] +
-                (mu_B_g[4] + B_g[genus_ID[i], 4]) * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
-                (mu_B_g[5] + B_g[genus_ID[i], 5]) * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
-                (mu_B_g[6] + B_g[genus_ID[i], 6]) * dbh_latent[i, t - 1] +
-                (mu_B_g[7] + B_g[genus_ID[i], 7]) * pow(dbh_latent[i, t - 1], 2) +
-                (mu_B_g[8] + B_g[genus_ID[i], 8]) * precip[i, t] * WD[i] +
-                (mu_B_g[9] + B_g[genus_ID[i], 9]) * precip[i, t] * dbh_latent[i, t - 1] +
-                (mu_B_g[10] + B_g[genus_ID[i], 10]) * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * WD[i] +
-                (mu_B_g[11] + B_g[genus_ID[i], 11]) * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * dbh_latent[i, t - 1]
+                B_g[genus_ID[i], 1] +
+                B_g[genus_ID[i], 2] * precip[i, t] +
+                B_g[genus_ID[i], 3] * precip_sq[i, t] +
+                B_g[genus_ID[i], 4] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
+                B_g[genus_ID[i], 5] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 6]* dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
+                B_g[genus_ID[i], 8] * precip[i, t] * WD[i] +
+                B_g[genus_ID[i], 9] * precip[i, t] * dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 10] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * WD[i] +
+                B_g[genus_ID[i], 11] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * dbh_latent[i, t - 1]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
