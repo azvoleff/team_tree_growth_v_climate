@@ -1,7 +1,6 @@
 model {
     ###########################################################################
     # Parameters:
-    #   int_ijk: random intercept - tree level
     #   int_jk: random intercept - plot level
     #   int_k: random intercept - site level
     #   int_t: random intercept - by period
@@ -18,7 +17,6 @@ model {
     #   B_T[k, 2]: lapse rate in temperature model for site k
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
-    #   sigma_ijk: std. dev. of tree-level random intercept
     #   sigma_jk: std. dev. of plot-level random intercept
     #   sigma_k: std. dev. of site-level random intercept
     #   sigma_t: std. dev. of period random intercept
@@ -28,8 +26,7 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- int_ijk[i] +
-                int_jk[plot_ID[i]] +
+            dbh_predicted[i, t] <- int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
                 int_t[t - 1] +
                 B[1] +
@@ -70,12 +67,6 @@ model {
 
     ##########################################################################
     # Nested random effects
-    for (i in 1:n_tree) {
-        int_ijk[i] ~ dnorm(0, tau_int_ijk)
-    }
-    tau_int_ijk <- pow(sigma_int_ijk, -2)
-    sigma_int_ijk ~ dunif(0, 10)
-
     for (j in 1:n_plot) {
         int_jk[j] ~ dnorm(0, tau_int_jk)
     }
