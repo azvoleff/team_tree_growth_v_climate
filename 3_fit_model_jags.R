@@ -19,8 +19,8 @@ temp_var <- 'tmx_meanannual'
 precip_var <- 'mcwd_run12'
 
 
-#model_type <- "full"
-model_type <- "testing"
+model_type <- "full"
+#model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") in_suffix <- paste0(in_suffix, '_', note)
@@ -111,10 +111,15 @@ if (model_structure != "full_model_interact") {
     init_data$xi <- apply(init_data$B_g_raw, 2, sd)
     init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
     # Center the B_g_raw estimates
-    init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw, model_data$n_genus), ncol=model_data$n_B_g, byrow=TRUE)
+    init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw,
+                                                        model_data$n_genus),
+                                                    ncol=model_data$n_B_g,
+                                                    byrow=TRUE)
     # Jags uses the inverse of the variance-covariance matrix to parameterize 
     # the wishart.
-    init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
+    #init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
+    init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
+    init_data <- init_data[!(names(init_data) %in% c("Tau_B_g_raw"))]
 }
 
 # n_B_T is number of terms in the temperature model
@@ -138,26 +143,26 @@ init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
 # Constrain lapse rate to be negative
 init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
 
-seq_n_chains <- 1
-jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-                     inits=rep(list(init_data), seq_n_chains), 
-                     n.chains=seq_n_chains, adapt=200, burnin=200, 
-                     sample=200)
-print("finished running single JAGS chain")
-run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
-save(jags_fit, file=out_name)
-print(paste("Finished", out_name))
-
-# jags_fit <- run.jags(model=model_file, monitor=monitored,
-#                      data=model_data, inits=rep(list(init_data), 3),
-#                      n.chains=3, method="parallel", adapt=1000,
-#                      burnin=2500, sample=2500, thin=4, summarise=FALSE)
-# print("finished running JAGS chains in parallel")
+# seq_n_chains <- 1
+# jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
+#                      inits=rep(list(init_data), seq_n_chains), 
+#                      n.chains=seq_n_chains, adapt=200, burnin=200, 
+#                      sample=200)
+# print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 # out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
 # save(jags_fit, file=out_name)
 # print(paste("Finished", out_name))
+
+jags_fit <- run.jags(model=model_file, monitor=monitored,
+                     data=model_data, inits=rep(list(init_data), 3),
+                     n.chains=3, method="parallel", adapt=1000,
+                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
+print("finished running JAGS chains in parallel")
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
+save(jags_fit, file=out_name)
+print(paste("Finished", out_name))
 
 # print(paste("Starting autorun", out_name))
 # jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="10 days")
