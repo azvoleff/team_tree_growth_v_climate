@@ -6,7 +6,6 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-# Include a random intercept by period?
 model_structure <- "simple"
 #model_structure <- "full_model"
 #model_structure <- "full_model_no_t_effects"
@@ -18,12 +17,12 @@ temp_var <- 'tmx_meanannual'
 
 precip_var <- 'mcwd_run12'
 
-
 model_type <- "full"
 #model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") in_suffix <- paste0(in_suffix, '_', note)
+out_suffix <- paste0(in_suffix, '_', model_structure)
 
 monitored <- c("B",
                "B_T_int",
@@ -97,8 +96,6 @@ if (model_structure == "simple") {
 } else {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
-
-out_suffix <- paste0(in_suffix, '_', model_structure)
 
 if (model_structure != "simple") {
     # n_B_g is number of genus-level random effects
