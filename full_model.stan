@@ -13,8 +13,8 @@ data {
     int<lower=0> genus_ID[n_tree];
     int<lower=0> n_miss;
     int<lower=0> n_obs;
-    int<lower=0> lapse_mean;
-    int<lower=0> lapse_sd;
+    real<lower=0> lapse_mean;
+    real<lower=0> lapse_sd;
     int<lower=0> obs_indices_tree[n_obs];
     int<lower=0> obs_indices_period[n_obs];
     int<lower=0> miss_indices_tree[n_miss];
@@ -41,13 +41,11 @@ parameters {
     vector[n_B_g] gamma_B_g;
     cholesky_factor_corr[n_B_g] L_rho_B_g;
     vector<lower=0>[n_B_g] sigma_B_g_sigma;
-    vector[n_tree] int_ijk_std;
     vector[n_plot] int_jk_std;
     vector[n_site] int_k_std;
     vector[n_period * n_site] int_t_std;
     real<lower=sigma_obs_lower> sigma_obs;
     real<lower=0> sigma_proc;
-    real<lower=0> sigma_int_ijk;
     real<lower=0> sigma_int_jk;
     real<lower=0> sigma_int_k;
     real<lower=0> sigma_int_t;
@@ -55,7 +53,6 @@ parameters {
 
 transformed parameters {
     matrix[n_tree, n_period + 1] dbh;
-    vector[n_tree] int_ijk;
     vector[n_plot] int_jk;
     vector[n_site] int_k;
     vector[n_period * n_site] int_t;
@@ -71,7 +68,6 @@ transformed parameters {
     }
 
     // Matt trick- see http://bit.ly/1qz4NC6
-    int_ijk <- sigma_int_ijk * int_ijk_std; // int_ijk ~ normal(0, sigma_int_ijk)
     int_jk <- sigma_int_jk * int_jk_std; // int_jk ~ normal(0, sigma_int_jk)
     int_k <- sigma_int_k * int_k_std; // int_k ~ normal(0, sigma_int_k)
     int_t <- sigma_int_t * int_t_std; // int_t ~ normal(0, sigma_int_t)
@@ -98,7 +94,6 @@ model {
                     // dbh_latent matrix
                     dbh_pred[row_num, t - 1] <- B[1] * WD[this_tree_ID] +
                         B[2] * square(WD[this_tree_ID]) +
-                        int_ijk[this_tree_ID] +
                         int_jk[plot_ID[this_tree_ID]] +
                         int_k[site_ID[this_tree_ID]] +
                         int_t[(first_obs_period[this_tree_ID] + t - 2) * site_ID[this_tree_ID]] +
@@ -138,9 +133,6 @@ model {
 
     //########################################################################
     // Nested random effects
-    int_ijk_std ~ normal(0, 1); // Matt trick
-    sigma_int_ijk ~ cauchy(0, 1);
-
     int_jk_std ~ normal(0, 1); // Matt trick
     sigma_int_jk ~ cauchy(0, 1);
 

@@ -6,26 +6,38 @@ stan_path <- "C:/cmdstan"
 
 source("0_settings.R")
 
+model_structure <- "simple"
+#model_structure <- "full_model"
+
 model_file <- "full_model.stan" 
 model_name <- "full_model" 
 
-temp_var <- "tmp_meanannual"
+#temp_var <- 'tmn_meanannual'
+temp_var <- 'tmp_meanannual'
+#temp_var <- 'tmx_meanannual'
+
 precip_var <- "mcwd_run12"
+
 #model_type <- "full"
 model_type <- "testing"
 
-suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
+if (note != "") in_suffix <- paste0(in_suffix, '_', note)
+out_suffix <- paste0(in_suffix, '_', model_structure)
 
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 
-load(file.path(data_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
-load(file.path(init_folder, paste0("init_data_with_ranefs", suffix, ".RData")))
-load(file.path(init_folder, paste0("init_data_blocked", suffix, ".RData")))
-load(file.path(data_folder, paste0("model_data_standardizing", suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_wide_blocked", in_suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
+
+load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
+load(file.path(init_folder, paste0("init_data_blocked", in_suffix, ".RData")))
+load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 init_data$dbh_latent <- init_data_blocked$dbh_latent
+init_data$first_obs_period <- init_data_blocked$first_obs_period
 
 # n_B is number of fixed effects
 model_data_blocked$n_B <- 2
@@ -62,7 +74,6 @@ init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
 model_data_blocked$precip[is.na(model_data_blocked$precip)] <- 0
 model_data_blocked$temp[is.na(model_data_blocked$temp)] <- 0
 
-init_data$int_ijk_std <- init_data$int_ijk / init_data$sigma_int_ijk
 init_data$int_jk_std <- init_data$int_jk / init_data$sigma_int_jk
 init_data$int_k_std <- init_data$int_k / init_data$sigma_int_k
 init_data$int_t_std <- init_data$int_t / init_data$sigma_int_t
@@ -116,7 +127,6 @@ model_data_blocked$lapse_mean <- -6.5 / temp_sd
 # have a standard deviation of 5 degrees
 model_data_blocked$lapse_sd <- 5 / temp_sd
 
-init_data <- init_data[names(init_data) != "int_ijk"]
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
@@ -136,13 +146,13 @@ get_inits <- function() {
     ))
 }
 
-# stan_fit <- stan(model_file, data=model_data_blocked, iter=20, chains=2, 
-#                  inits=get_inits)
-# print("finished running test stan model")
-# run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
-# out_name <- file.path(mcmc_folder, paste0("stan_fit", suffix, '-', run_id, ".RData"))
-# save(stan_fit, file=out_name)
-# print(paste("Finished", out_name))
+stan_fit <- stan(model_file, data=model_data_blocked, iter=20, chains=2, 
+                 inits=get_inits)
+print("finished running test stan model")
+run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
+out_name <- file.path(mcmc_folder, paste0("stan_fit", suffix, '-', run_id, ".RData"))
+save(stan_fit, file=out_name)
+print(paste("Finished", out_name))
 
 model_data_blocked <- model_data_blocked[names(model_data_blocked) != "last_obs_period"]
 
