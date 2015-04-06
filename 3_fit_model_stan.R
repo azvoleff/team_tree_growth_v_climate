@@ -44,9 +44,9 @@ if (model_structure == "simple") {
     model_file <- "full_model.stan" 
     model_name <- "full_model" 
     # n_B is number of fixed effects
-    n_B <- 2
+    model_data$n_B <- 2
     # n_B_g is number of genus-level random effects
-    n_B_g <- 7
+    model_data$n_B_g <- 7
 }
 
 ###############################################################################
@@ -100,8 +100,6 @@ init_data$dbh_latent <- as.matrix(dbh_latent_la)
 
 # n_B_T is number of terms in the temperature model
 n_B_T <- 2
-# W is prior scale for the inverse-Wishart
-model_data$W <- diag(model_data$n_B_g)
 
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
@@ -163,7 +161,7 @@ init_data$gamma_B_g <- apply(init_data$B_g_raw, 2, mean)
 init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$B_g_raw - init_data$gamma_B_g)
 
 # Below is to verify this line in Stan code:
-# B_g <- transpose(rep_matrix(gamma_B_g, n_B_g) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g * B_g_std));
+# B_g <- transpose(rep_matrix(gamma_B_g, model_data$n_B_g) + diag_pre_multiply(sigma_B_g_sigma, L_rho_B_g * B_g_std));
 #
 # First redefine as:
 # B_g <- transpose(a + b);
