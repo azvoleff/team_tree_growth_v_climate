@@ -20,7 +20,6 @@ foreach (model_type=model_types) %:%
                  .packages=c("dplyr", "Rcpp", "inline", "zoo", "reshape2"),
                  .inorder=FALSE) %dopar% {
     sourceCpp('calc_missings.cpp')
-    sourceCpp('left_align.cpp')
 
     load("growth_ctfsflagged_merged_detrended.RData")
 
@@ -322,72 +321,6 @@ foreach (model_type=model_types) %:%
     init_data <- list(dbh_latent=as.matrix(dbh_latent))
     save(init_data, file=file.path(init_folder, paste0("init_data", suffix, 
                                                       ".RData")))
-
-    ###############################################################################
-    # Output data in a format that is clustered by the number of periods of 
-    # observations there are per individual - this format allows Stan to run 
-    # faster.
-    head(model_data$temp)
-
-    dbh_la <- left_align(model_data$dbh)
-    dbh_latent_la <- left_align(dbh_latent)
-    temp_la <- left_align(model_data$temp, indent=1)
-    precip_la <- left_align(model_data$precip, indent=1)
-
-    # Reorder covariates and independent variables by number of periods
-    last_obs_dbh_latent <- data.frame(tree_ID=as.integer(factor(tree_ID)),
-                                      last_obs=apply(dbh_latent_la, 1, function(x) match(NA, x) - 1))
-    last_obs_dbh <- data.frame(tree_ID=as.integer(factor(tree_ID)),
-                               last_obs=apply(dbh_latent_la, 1, function(x) match(NA, x) - 1))
-    stopifnot(identical(last_obs_dbh, last_obs_dbh_latent))
-    new_order <- order(last_obs_dbh$last_obs, last_obs_dbh$tree_ID)
-    last_obs_dbh <- last_obs_dbh[new_order, ]
-
-    dbh_la <- dbh_la[new_order, ]
-    dbh_latent_la <- dbh_latent_la[new_order, ]
-    temp_la <- temp_la[new_order, ]
-    precip_la <- precip_la[new_order, ]
-    tree_ID_la <- as.integer(factor(tree_ID))[new_order]
-
-    bl_size <- unique(last_obs_dbh$last_obs)
-    # Drop the NA (which is for rows without ANY missing observations - meaning 
-    # they have no first NA)
-    bl_size <- bl_size[!is.na(bl_size)]
-    bl_st <- match(bl_size, last_obs_dbh$last_obs)
-    bl_end <- c(bl_st[2:length(bl_st)] - 1, nrow(last_obs_dbh))
-
-    missings_wide <- calc_missings(as.matrix(dbh_la))
-
-    model_data_blocked <- list(n_tree=n_tree,
-                               n_plot=n_plot,
-                               n_site=n_site,
-                               n_period=n_period,
-                               n_genus=n_genus,
-                               n_blocks=length(bl_size),
-                               bl_size=bl_size,
-                               bl_st=bl_st,
-                               bl_end=bl_end,
-                               tree_ID=tree_ID_la,
-                               first_obs_period=obs_per_tree$first_obs_period, # doesn't need to be left aligned since it is indexed by tree_ID
-                               last_obs_period=obs_per_tree$last_obs_period, # doesn't need to be left aligned since it is indexed by tree_ID
-                               plot_ID=as.integer(as.factor(plot_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
-                               site_ID=as.integer(as.factor(site_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
-                               genus_ID=as.integer(as.factor(genus_ID)), # doesn't need to be left aligned since it is indexed by tree_ID
-                               sigma_obs_lower=sigma_obs_lower,
-                               dbh=as.matrix(dbh_la),
-                               WD=WD, # doesn't need to be left aligned since it is indexed by tree_ID
-                               elev=elev[plot_ID], # doesn't need to be left aligned since it is indexed by tree_ID
-                               temp=temp_la,
-                               precip=precip_la,
-                               obs_indices=missings_wide$obs,
-                               miss_indices=missings_wide$miss)
-    save(model_data_blocked,
-         file=file.path(data_folder, paste0("model_data_wide_blocked", suffix, ".RData")))
-
-    init_data_blocked <- list(dbh_latent_la=as.matrix(dbh_latent_la))
-    save(init_data_blocked,
-         file=file.path(init_folder, paste0("init_data_blocked", suffix, ".RData")))
-
 }
 
 stopCluster(cl)
