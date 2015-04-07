@@ -46,7 +46,7 @@ load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RDat
 
 if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
-    model_file <- "simple_model.bug" 
+    model_file <- "growth_model_simple.bug" 
     # n_B is number of fixed effects
     model_data$n_B <- 9
     monitored <- monitored[monitored != "B_g"]
@@ -59,7 +59,7 @@ if (model_structure == "simple") {
     init_data <- init_data[names(init_data) != 'sigma_B_g']
 } else if (model_structure == "correlated") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
-    model_file <- "growth_model.bug" 
+    model_file <- "growth_model_correlated.bug" 
     # n_B_g is number of genus-level random effects
     model_data$n_B_g <- 7
     # W is the prior scale for the inverse-wishart

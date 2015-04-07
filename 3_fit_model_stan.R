@@ -12,7 +12,7 @@ stan_path <- "C:/cmdstan"
 source("0_settings.R")
 
 #model_structure <- "simple"
-model_structure <- "full_model"
+model_structure <- "correlated"
 
 #temp_var <- 'tmn_meanannual'
 temp_var <- 'tmp_meanannual'
@@ -35,14 +35,14 @@ load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
-    model_file <- "simple_model.stan" 
-    model_name <- "simple_model" 
     stop("not yet programmed...")
-} else if (model_structure == "full_model") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
-    model_file <- "growth_model.stan" 
-    model_name <- "full_model" 
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_simple.RData")))
+    model_file <- "growth_model_simple.stan" 
+    model_name <- "growth_model_simple" 
+} else if (model_structure == "correlated") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
+    model_file <- "growth_model_correlated.stan" 
+    model_name <- "growth_model_correlated" 
     # n_B is number of fixed effects
     model_data$n_B <- 2
     # n_B_g is number of genus-level random effects
@@ -97,9 +97,6 @@ init_data$dbh_latent <- as.matrix(dbh_latent_la)
 
 ###############################################################################
 # Initialize other data
-
-# n_B_T is number of terms in the temperature model
-n_B_T <- 2
 
 model_data$n_miss <- nrow(model_data$miss_indices)
 model_data$n_obs <- nrow(model_data$obs_indices)
@@ -175,12 +172,6 @@ init_data$B_g_std <- solve(diag(sigma_B_g_sigma) %*% L_rho_B_g) %*% t(init_data$
 # head(B_g_check - init_data$B_g_raw)
 # table(abs(B_g - init_data$B_g_raw) < 1E-12)
 
-# Setup mean for lapse rate prior
-model_data$lapse_mean <- -6.5 / temp_sd
-# Recall the precision is 1 over the variance. Define the lapse rate prior to 
-# have a standard deviation of 5 degrees
-model_data$lapse_sd <- 5 / temp_sd
-
 init_data <- init_data[names(init_data) != "int_jk"]
 init_data <- init_data[names(init_data) != "int_k"]
 init_data <- init_data[names(init_data) != "int_t"]
@@ -191,9 +182,6 @@ get_inits <- function() {
         # Fixed effects
         B=c(rnorm(model_data$n_B, 0, 1)),
         # Temperature model
-        B_T_int=rnorm(model_data$n_site, 0, 10),
-        # Constrain lapse rate to be negative
-        B_T_lapse=-abs(rnorm(model_data$n_site, model_data$lapse_mean, model_data$lapse_sd)),
         # Sigmas
         sigma_obs=runif(1, model_data$sigma_obs_lower, .01), 
         sigma_proc=abs(rnorm(1, 0, 1))
