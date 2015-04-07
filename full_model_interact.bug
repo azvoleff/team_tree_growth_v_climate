@@ -16,8 +16,7 @@ model {
     #   B_g[g, 9]: random slope on interaction of initial diameter and precip
     #   B_g[g, 10]: random slope on interaction of density and temp
     #   B_g[g, 11]: random slope on interaction of initial diameter and temp
-    #   B_T[k, 1]: intercept in temperature model for site k
-    #   B_T[k, 2]: lapse rate in temperature model for site k
+    #   B_g[g, 12]: difference in elev. of plot from mean CRU cell elev.
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
     #   sigma_jk: std. dev. of plot-level random intercept
@@ -38,14 +37,15 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * precip[i, t] +
                 B_g[genus_ID[i], 3] * precip_sq[i, t] +
-                B_g[genus_ID[i], 4] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 5] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 4] * temp[i, t] +
+                B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
                 B_g[genus_ID[i], 6]* dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
                 B_g[genus_ID[i], 8] * precip[i, t] * WD[i] +
                 B_g[genus_ID[i], 9] * precip[i, t] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 10] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * WD[i] +
-                B_g[genus_ID[i], 11] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) * dbh_latent[i, t - 1]
+                B_g[genus_ID[i], 10] * temp[i, t] * WD[i] +
+                B_g[genus_ID[i], 11] * temp[i, t] * dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 12] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -96,17 +96,5 @@ model {
         for (g in 1:n_genus) {
             B_g[g, k] ~ dnorm(mu_B_g[k], tau_B_g[k])
         }
-    }
-
-    ##########################################################################
-    # Temperature model
-    for (k in 1:n_site) {
-        # Prior on intercept
-        B_T_int[k] ~ dnorm(0, 1.0E-4)
-        # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
-        # of temp with increase in elevation, so the below truncation to make 
-        # B_T[k, 2] less than zero means that lapse rate is constrained to be 
-        # positive).
-        B_T_lapse[k] ~ dnorm(lapse_mean, lapse_prec) I(, 0)
     }
 }

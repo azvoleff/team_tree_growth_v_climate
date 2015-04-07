@@ -13,8 +13,7 @@ model {
     #   B[7]: slope on temperature (squared)
     #   B[8]: slope on initial diameter
     #   B[9]: slope on initial diameter (squared)
-    #   B_T[k, 1]: intercept in temperature model for site k
-    #   B_T[k, 2]: lapse rate in temperature model for site k
+    #   B[10]: difference in elevation of plot from mean CRU cell elevation
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
     #   sigma_jk: std. dev. of plot-level random intercept
@@ -34,10 +33,11 @@ model {
                 B[3] * WD_sq[i] +
                 B[4] * precip[i, t] +
                 B[5] * precip_sq[i, t] +
-                B[6] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
-                B[7] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
+                B[6] * temp[i, t] +
+                B[7] * pow(temp[i, t], 2) +
                 B[8] * dbh_latent[i, t - 1] +
                 B[9] * pow(dbh_latent[i, t - 1], 2)
+                B[10] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -86,16 +86,4 @@ model {
     }
     tau_int_t <- pow(sigma_int_t, -2)
     sigma_int_t ~ dunif(0, 10)
-
-    ##########################################################################
-    # Temperature model
-    for (k in 1:n_site) {
-        # Prior on intercept
-        B_T_int[k] ~ dnorm(0, 1.0E-4)
-        # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
-        # of temp with increase in elevation, so the below truncation to make 
-        # B_T[k, 2] less than zero means that lapse rate is constrained to be 
-        # positive).
-        B_T_lapse[k] ~ dnorm(lapse_mean, lapse_prec) I(, 0)
-    }
 }

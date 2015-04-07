@@ -13,8 +13,7 @@ model {
     #   B_g[g, 5]: random slope on temperature (squared) genus g
     #   B_g[g, 6]: random slope on initial diameter genus g
     #   B_g[g, 7]: random slope on initial diameter (squared) genus g
-    #   B_T[k, 1]: intercept in temperature model for site k
-    #   B_T[k, 2]: lapse rate in temperature model for site k
+    #   B_g[g, 8]: difference in elevation of plot from mean CRU cell elevation
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
     #   sigma_jk: std. dev. of plot-level random intercept
@@ -37,10 +36,11 @@ model {
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * precip[i, t] +
                 B_g[genus_ID[i], 3] * precip_sq[i, t] +
-                B_g[genus_ID[i], 4] * (temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]]) +
-                B_g[genus_ID[i], 5] * pow(temp[i, t] + B_T_int[site_ID[i]] + B_T_lapse[site_ID[i]] * elev[plot_ID[i]], 2) +
+                B_g[genus_ID[i], 4] * temp[i, t] +
+                B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2)
+                B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
+                B_g[genus_ID[i], 8] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -116,17 +116,5 @@ model {
             rho_B_g[k, k_prime] <- Sigma_B_g_raw[k, k_prime]/sqrt(Sigma_B_g_raw[k, k] * Sigma_B_g_raw[k_prime, k_prime])
         }
         sigma_B_g[k] <- abs(xi[k]) * sqrt(Sigma_B_g_raw[k, k])
-    }
-
-    ##########################################################################
-    # Temperature model
-    for (k in 1:n_site) {
-        # Prior on intercept
-        B_T_int[k] ~ dnorm(0, 1.0E-4)
-        # Prior on lapse rate (recall lapse rate is defined as rate of decrease 
-        # of temp with increase in elevation, so the below truncation to make 
-        # B_T[k, 2] less than zero means that lapse rate is constrained to be 
-        # positive).
-        B_T_lapse[k] ~ dnorm(lapse_mean, lapse_prec) I(, 0)
     }
 }
