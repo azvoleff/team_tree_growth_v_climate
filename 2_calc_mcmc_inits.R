@@ -26,7 +26,6 @@ ret <- foreach (model_type=model_types) %:%
 
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
     load(file.path(data_folder, paste0("model_data_wide", suffix, ".RData")))
-    load(file.path(data_folder, paste0("model_data_long", suffix, ".RData")))
 
     precip_long <- melt(model_data$precip, varnames=c("tree_ID", "period_num"), 
                       value.name="precip")
@@ -49,6 +48,9 @@ ret <- foreach (model_type=model_types) %:%
     calib_data <- merge(calib_data, plot_ID)
     genus_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), genus_ID=model_data$genus_ID)
     calib_data <- merge(calib_data, genus_ID)
+
+    elev_diff <- data.frame(plot_ID=seq(1, model_data$n_plot), elev_diff=model_data$elev_diff)
+    calib_data <- merge(calib_data, elev_diff)
 
     get_variance <- function(model, grp, var1, var2) {
         vc <- as.data.frame(VarCorr(model))
@@ -140,8 +142,6 @@ ret <- foreach (model_type=model_types) %:%
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model_interact.RData")))
-
-    return(TRUE)
 }
 
 stopCluster(cl)
