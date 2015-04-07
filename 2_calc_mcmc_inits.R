@@ -87,9 +87,9 @@ ret <- foreach (model_type=model_types) %:%
                             (1|site_ID) +
                             (1|plot_ID) +
                             (1|period_num), data=calib_data)
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model.RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
     }
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
@@ -104,7 +104,7 @@ ret <- foreach (model_type=model_types) %:%
     # Drop the attributes
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model.RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_correlated.RData")))
 
     ###########################################################################
     # Inits without with interactions
@@ -126,9 +126,9 @@ ret <- foreach (model_type=model_types) %:%
                             (1|site_ID) +
                             (1|plot_ID) +
                             (1|period_num), data=calib_data)
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "interact.RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "_full_model_interact.RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, "interact.RData")))
     }
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
@@ -141,7 +141,7 @@ ret <- foreach (model_type=model_types) %:%
     # Drop the attributes
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_full_model_interact.RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "interact.RData")))
 }
 
 stopCluster(cl)

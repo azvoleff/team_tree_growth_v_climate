@@ -41,7 +41,7 @@ if (model_structure == "simple") {
     stop("not yet programmed...")
 } else if (model_structure == "full_model") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
-    model_file <- "full_model.stan" 
+    model_file <- "growth_model.stan" 
     model_name <- "full_model" 
     # n_B is number of fixed effects
     model_data$n_B <- 2

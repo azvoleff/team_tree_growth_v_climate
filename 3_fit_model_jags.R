@@ -7,9 +7,8 @@ source("0_settings.R")
 load.module("glm")
 
 model_structure <- "simple"
-#model_structure <- "full_model"
-#model_structure <- "full_model_no_t_effects"
-#model_structure <- "full_model_interact"
+#model_structure <- "correlated"
+#model_structure <- "interact"
 
 #temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
@@ -25,8 +24,6 @@ if (note != "") in_suffix <- paste0(in_suffix, '_', note)
 out_suffix <- paste0(in_suffix, '_', model_structure)
 
 monitored <- c("B",
-               "B_T_int",
-               "B_T_lapse",
                "sigma_obs",
                "sigma_proc",
                "sigma_int_jk",
@@ -48,7 +45,7 @@ load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
 if (model_structure == "simple") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
     model_file <- "simple_model.bug" 
     # n_B is number of fixed effects
     model_data$n_B <- 9
@@ -60,51 +57,16 @@ if (model_structure == "simple") {
     model_data <- model_data[names(model_data) != "n_genus"]
     init_data <- init_data[names(init_data) != 'B_g_raw']
     init_data <- init_data[names(init_data) != 'sigma_B_g']
-} else if (model_structure == "full_model") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
-    model_file <- "full_model.bug" 
+} else if (model_structure == "correlated") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
+    model_file <- "growth_model.bug" 
     # n_B_g is number of genus-level random effects
-    n_B_g <- 7
+    model_data$n_B_g <- 7
     # W is the prior scale for the inverse-wishart
-    model_data$W <- diag(n_B_g)
-} else if (model_structure == "full_model_no_t_effects") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model.RData")))
-    model_file <- "full_model_no_t_effects.bug"
-    monitored <- monitored[monitored != "int_t"]
-    monitored <- monitored[monitored != "sigma_int_t"]
-    init_data <- init_data[names(init_data) != "int_t"]
-    init_data <- init_data[names(init_data) != "sigma_int_t"]
-    model_data <- model_data[names(model_data) != "n_period"]
-    model_type <- paste0(model_type, "_no_t_effects")
-    # n_B_g is number of genus-level random effects
-    n_B_g <- 7
-    # W is the prior scale for the inverse-wishart
-    model_data$W <- diag(n_B_g)
-} else if (model_structure == "full_model_interact") {
-    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_full_model_interact.RData")))
-    model_file <- "full_model_interact.bug"
-    monitored <- monitored[monitored != "int_t"]
-    monitored <- monitored[monitored != "sigma_int_t"]
-    monitored <- monitored[monitored != "rho_B_g"]
-    init_data <- init_data[names(init_data) != "int_t"]
-    init_data <- init_data[names(init_data) != "sigma_int_t"]
-    init_data <- init_data[names(init_data) != 'B_g_raw']
-    init_data <- init_data[names(init_data) != 'sigma_B_g']
-    model_data <- model_data[names(model_data) != "n_period"]
-    model_type <- paste0(model_type, "_interact")
-    n_B_g <- 11
-} else {
-    stop(paste0('Unknown model_structure "', model_structure, '"'))
-}
-
-if (model_structure != "simple") {
-    # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- n_B_g
+    model_data$W <- diag(model_data$n_B_g)
     # n_B is number of fixed effects
     model_data$n_B <- 2
-}
 
-if (!(model_structure %in% c("simple", "full_model_interact"))) {
     # Initialize xi to the standard deviations of the genus-level effects, in
     # an effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right
     # ballpark
@@ -120,28 +82,33 @@ if (!(model_structure %in% c("simple", "full_model_interact"))) {
     #init_data$Tau_B_g_raw <- solve(diag(init_data$xi)) %*% init_data$sigma_B_g %*% solve(diag(init_data$xi))
     init_data <- init_data[!(names(init_data) %in% c("sigma_B_g"))]
     init_data <- init_data[!(names(init_data) %in% c("Tau_B_g_raw"))]
+} else if (model_structure == "interact") {
+    load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_interact.RData")))
+    model_file <- "growth_model_interact.bug"
+    # n_B_g is number of genus-level random effects
+    model_data$n_B_g <- 11
+    # n_B is number of fixed effects
+    model_data$n_B <- 2
+    monitored <- monitored[monitored != "int_t"]
+    monitored <- monitored[monitored != "sigma_int_t"]
+    monitored <- monitored[monitored != "rho_B_g"]
+    init_data <- init_data[names(init_data) != "int_t"]
+    init_data <- init_data[names(init_data) != "sigma_int_t"]
+    init_data <- init_data[names(init_data) != 'B_g_raw']
+    init_data <- init_data[names(init_data) != 'sigma_B_g']
+    model_data <- model_data[names(model_data) != "n_period"]
+    model_type <- paste0(model_type, "_interact")
+} else {
+    stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
-
-# n_B_T is number of terms in the temperature model
-n_B_T <- 2
 
 model_data$WD_sq <- model_data$WD^2
 model_data$precip_sq <- model_data$precip^2
 
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
-model_data <- model_data[!(names(model_data) %in% c("spi"))]
-
-# Setup mean for lapse rate prior
-model_data$lapse_mean <- -6.5 / temp_sd
-# Recall the precision is 1 over the variance. Define the lapse rate prior to 
-# have a standard deviation of 2.5 degrees
-model_data$lapse_prec <- (2.5 / temp_sd)^-2
 
 init_data$B <- rnorm(model_data$n_B, 0, 1)
-init_data$B_T_int <- rnorm(model_data$n_site, 0, 10)
-# Constrain lapse rate to be negative
-init_data$B_T_lapse <- -abs(rnorm(model_data$n_site, model_data$lapse_mean, (model_data$lapse_prec)^-2))
 
 # seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
