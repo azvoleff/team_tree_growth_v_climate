@@ -73,7 +73,7 @@ ret <- foreach (model_type=model_types) %:%
     }
 
     ###########################################################################
-    # Inits with correlated random effects
+    # Inits for model with correlated random effects
     if (runmodels) {
         calib_model <- lmer(dbh_latent_end ~ WD +
                             I(WD^2) +
@@ -107,7 +107,7 @@ ret <- foreach (model_type=model_types) %:%
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_correlated.RData")))
 
     ###########################################################################
-    # Inits without with interactions
+    # Inits for model with interactions
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
     if (runmodels) {
         calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
@@ -126,9 +126,9 @@ ret <- foreach (model_type=model_types) %:%
                             (1|site_ID) +
                             (1|plot_ID) +
                             (1|period_num), data=calib_data)
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "interact.RData")))
+        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
     } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "interact.RData")))
+        load(file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
     }
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
@@ -141,7 +141,7 @@ ret <- foreach (model_type=model_types) %:%
     # Drop the attributes
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
-    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "interact.RData")))
+    save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_interact.RData")))
 }
 
 stopCluster(cl)
