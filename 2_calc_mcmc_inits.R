@@ -119,7 +119,7 @@ ret <- foreach (model_type=model_types) %:%
                             precip * dbh_latent_start +
                             temp * WD +
                             temp * dbh_latent_start +
-                            elev_diff +
+                            elev_diff -
                             WD | genus_ID) +
                             (1|site_ID) +
                             (1|plot_ID) +
