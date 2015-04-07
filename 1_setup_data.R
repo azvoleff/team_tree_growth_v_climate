@@ -158,10 +158,23 @@ foreach (model_type=model_types) %:%
     elev_sd <- sd(elev)
     elev <- (elev - elev_mean) / elev_sd
 
+    # Calculate per-plot elevation as difference mean elevation of CRU grid 
+    # cell (not time-varying)
+    elev_diff <- group_by(growth, plot_ID) %>%
+        summarize(elev_diff=elev_diff[1])
+    stopifnot(levels(plot_ID) == elev_diff$plot_ID)
+    elev_diff <- elev_diff$elev_diff
+    elev_diff_mean <- mean(elev_diff)
+    elev_diff_min <- min(elev_diff)
+    elev_diff_max <- max(elev_diff)
+    elev_diff_sd <- sd(elev_diff)
+    elev_diff <- (elev_diff - elev_diff_mean) / elev_diff_sd
+
     # Save sd and means so the variables can be unstandardized later
     save(dbh_mean, dbh_sd, dbh_min, dbh_max,
          WD_mean, WD_sd, WD_min, WD_max,
          elev_mean, elev_sd, elev_min, elev_max,
+         elev_diff_mean, elev_diff_sd, elev_diff_min, elev_diff_max,
          temp_mean, temp_sd, temp_min, temp_max,
          precip_mean, precip_min, precip_max, precip_sd, 
          file=file.path(data_folder, paste0("model_data_standardizing", suffix, 
@@ -217,6 +230,7 @@ foreach (model_type=model_types) %:%
     missings <- calc_missings(as.matrix(dbh))
 
     stopifnot(length(elev) == n_plot)
+    stopifnot(length(elev_diff) == n_plot)
     stopifnot(length(WD) == n_tree)
     stopifnot(length(genus_ID) == n_tree)
     stopifnot(length(plot_ID) == n_tree)
@@ -241,6 +255,7 @@ foreach (model_type=model_types) %:%
                        dbh=as.matrix(dbh),
                        WD=WD,
                        elev=elev,
+                       elev_diff=elev_diff,
                        temp=temp,
                        precip=precip,
                        obs_indices=missings$obs,
@@ -264,6 +279,7 @@ foreach (model_type=model_types) %:%
                              diameter_end=(growth$diameter_end - dbh_mean) / dbh_sd,
                              n_days=growth$n_days,
                              elev=(growth$elev - elev_mean) / elev_sd,
+                             elev_diff=(growth$elev_diff - elev_diff_mean) / elev_diff_sd,
                              temp=(growth$temp - temp_mean) / temp_sd,
                              precip=(growth$precip - precip_mean) / precip_sd)
     model_data_long <- merge(model_data_long, merge_data, by="tree_ID", all=TRUE)

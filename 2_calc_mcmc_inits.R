@@ -80,7 +80,8 @@ ret <- foreach (model_type=model_types) %:%
                              temp +
                              I(temp^2) +
                              dbh_latent_start +
-                             I(dbh_latent_start^2) | genus_ID) +
+                             I(dbh_latent_start^2) +
+                             elev_diff | genus_ID) +
                             (1|site_ID) +
                             (1|plot_ID) +
                             (1|period_num), data=calib_data)
@@ -110,14 +111,15 @@ ret <- foreach (model_type=model_types) %:%
         calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
                             (precip +
                             I(precip^2) +
-                            precip * WD +
-                            precip * dbh_latent_start +
                             temp +
                             I(temp^2) +
-                            temp * WD +
-                            temp * dbh_latent_start +
                             dbh_latent_start +
                             I(dbh_latent_start^2) -
+                            precip * WD +
+                            precip * dbh_latent_start +
+                            temp * WD +
+                            temp * dbh_latent_start +
+                            elev_diff +
                             WD | genus_ID) +
                             (1|site_ID) +
                             (1|plot_ID) +
