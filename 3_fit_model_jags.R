@@ -6,9 +6,9 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-#model_structure <- "simple"
+model_structure <- "simple"
 #model_structure <- "correlated"
-model_structure <- "interact"
+#model_structure <- "interact"
 
 temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
@@ -110,11 +110,9 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 
 init_data$B <- rnorm(model_data$n_B, 0, 1)
 
-# seq_n_chains <- 1
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                      inits=rep(list(init_data), seq_n_chains), 
-#                      n.chains=seq_n_chains, adapt=200, burnin=200, 
-#                      sample=200)
+#                      inits=rep(list(init_data), 1),  n.chains=1, adapt=200, 
+#                      burnin=200, sample=200)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 # out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
@@ -130,9 +128,3 @@ run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
 save(jags_fit, file=out_name)
 print(paste("Finished", out_name))
-
-# print(paste("Starting autorun", out_name))
-# jags_fit <- autorun.jags(jags_fit, summarise=FALSE, max.time="10 days")
-# autorun_out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, "_autorun.RData"))
-# save(jags_fit, file=autorun_out_name)
-# print(paste("Finished", autorun_out_name))

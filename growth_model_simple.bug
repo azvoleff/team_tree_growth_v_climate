@@ -36,7 +36,7 @@ model {
                 B[6] * temp[i, t] +
                 B[7] * pow(temp[i, t], 2) +
                 B[8] * dbh_latent[i, t - 1] +
-                B[9] * pow(dbh_latent[i, t - 1], 2)
+                B[9] * pow(dbh_latent[i, t - 1], 2) +
                 B[10] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
