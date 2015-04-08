@@ -6,13 +6,13 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-model_structure <- "simple"
+#model_structure <- "simple"
 #model_structure <- "correlated"
-#model_structure <- "interact"
+model_structure <- "interact"
 
-#temp_var <- 'tmn_meanannual'
+temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
-temp_var <- 'tmx_meanannual'
+#temp_var <- 'tmx_meanannual'
 
 precip_var <- 'mcwd_run12'
 
@@ -48,7 +48,7 @@ if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
     model_file <- "growth_model_simple.bug" 
     # n_B is number of fixed effects
-    model_data$n_B <- 9
+    model_data$n_B <- 10
     monitored <- monitored[monitored != "B_g"]
     monitored <- monitored[monitored != "mu_B_g"]
     monitored <- monitored[monitored != "rho_B_g"]
@@ -61,7 +61,7 @@ if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
     model_file <- "growth_model_correlated.bug" 
     # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- 7
+    model_data$n_B_g <- 8
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(model_data$n_B_g)
     # n_B is number of fixed effects
@@ -86,7 +86,7 @@ if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_interact.RData")))
     model_file <- "growth_model_interact.bug"
     # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- 11
+    model_data$n_B_g <- 12
     # n_B is number of fixed effects
     model_data$n_B <- 2
     monitored <- monitored[monitored != "int_t"]
@@ -124,7 +124,7 @@ init_data$B <- rnorm(model_data$n_B, 0, 1)
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=1000,
-                     burnin=2500, sample=2500, thin=4, summarise=FALSE)
+                     burnin=2000, sample=2000, thin=4, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
