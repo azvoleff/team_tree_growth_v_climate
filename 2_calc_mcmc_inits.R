@@ -10,8 +10,6 @@ source("0_settings.R")
 cl <- makeCluster(8)
 registerDoParallel(cl)
 
-runmodels <- TRUE
-
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
@@ -74,23 +72,19 @@ ret <- foreach (model_type=model_types) %:%
 
     ###########################################################################
     # Inits for model with correlated random effects
-    if (runmodels) {
-        calib_model <- lmer(dbh_latent_end ~ WD +
-                            I(WD^2) +
-                            (precip +
-                             I(precip^2) +
-                             temp +
-                             I(temp^2) +
-                             dbh_latent_start +
-                             I(dbh_latent_start^2) +
-                             elev_diff | genus_ID) +
-                            (1|site_ID) +
-                            (1|plot_ID) +
-                            (1|period_num), data=calib_data)
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
-    } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
-    }
+    calib_model <- lmer(dbh_latent_end ~ WD +
+                        I(WD^2) +
+                        (precip +
+                         I(precip^2) +
+                         temp +
+                         I(temp^2) +
+                         dbh_latent_start +
+                         I(dbh_latent_start^2) +
+                         elev_diff | genus_ID) +
+                        (1|site_ID) +
+                        (1|plot_ID) +
+                        (1|period_num), data=calib_data)
+    save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
     init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
@@ -109,27 +103,23 @@ ret <- foreach (model_type=model_types) %:%
     ###########################################################################
     # Inits for model with interactions
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
-    if (runmodels) {
-        calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
-                            (precip +
-                            I(precip^2) +
-                            temp +
-                            I(temp^2) +
-                            dbh_latent_start +
-                            I(dbh_latent_start^2) -
-                            precip * WD +
-                            precip * dbh_latent_start +
-                            temp * WD +
-                            temp * dbh_latent_start +
-                            elev_diff -
-                            WD | genus_ID) +
-                            (1|site_ID) +
-                            (1|plot_ID) +
-                            (1|period_num), data=calib_data)
-        save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
-    } else {
-        load(file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
-    }
+    calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
+                        (precip +
+                        I(precip^2) +
+                        temp +
+                        I(temp^2) +
+                        dbh_latent_start +
+                        I(dbh_latent_start^2) -
+                        precip * WD +
+                        precip * dbh_latent_start +
+                        temp * WD +
+                        temp * dbh_latent_start +
+                        elev_diff -
+                        WD | genus_ID) +
+                        (1|site_ID) +
+                        (1|plot_ID) +
+                        (1|period_num), data=calib_data)
+    save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
     init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
