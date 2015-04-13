@@ -4,18 +4,17 @@ model {
     #   int_jk: random intercept - plot level
     #   int_k: random intercept - site level
     #   int_t: random intercept - by period
-    #   B[1]: fixed intercept
-    #   B[2]: fixed effect - wood density
-    #   B[3]: fixed effect - wood density (squared)
-    #   B[4]: slope on precip
-    #   B[5]: slope on precip (squared)
-    #   B[6]: slope on temperature
-    #   B[7]: slope on temperature (squared)
-    #   B[8]: slope on initial diameter
-    #   B[9]: slope on initial diameter (squared)
-    #   B[10]: difference in elevation of plot from mean CRU cell elevation
+    #   B[1]: intercept
+    #   B[2]: slope on precip
+    #   B[3]: slope on precip (squared)
+    #   B[4]: slope on temperature
+    #   B[5]: slope on temperature (squared)
+    #   B[6]: slope on initial diameter
+    #   B[7]: slope on initial diameter (squared)
+    #   B_k: slope on difference in elev. of plot from mean CRU cell elev.
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
+    #   sigma_B_k: std. dev. of site-level slope on elev. difference
     #   sigma_jk: std. dev. of plot-level random intercept
     #   sigma_k: std. dev. of site-level random intercept
     #   sigma_t: std. dev. of period random intercept
@@ -29,15 +28,13 @@ model {
                 int_k[site_ID[i]] +
                 int_t[t - 1] +
                 B[1] +
-                B[2] * WD[i] +
-                B[3] * WD_sq[i] +
-                B[4] * precip[i, t] +
-                B[5] * precip_sq[i, t] +
-                B[6] * temp[i, t] +
-                B[7] * pow(temp[i, t], 2) +
-                B[8] * dbh_latent[i, t - 1] +
-                B[9] * pow(dbh_latent[i, t - 1], 2) +
-                B[10] * elev_diff[plot_ID[i]]
+                B[2] * precip[i, t] +
+                B[3] * precip_sq[i, t] +
+                B[4] * temp[i, t] +
+                B[5] * pow(temp[i, t], 2) +
+                B[6] * dbh_latent[i, t - 1] +
+                B[7] * pow(dbh_latent[i, t - 1], 2) +
+                B_k[k] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -74,8 +71,11 @@ model {
     sigma_int_jk ~ dunif(0, 10)
 
     for (k in 1:n_site) {
+        B_k[k] ~ dnorm(0, tau_B_k)
         int_k[k] ~ dnorm(0, tau_int_k)
     }
+    tau_B_k <- pow(sigma_B_k, -2)
+    sigma_B_k ~ dunif(0, 10)
     tau_int_k <- pow(sigma_int_k, -2)
     sigma_int_k ~ dunif(0, 10)
 

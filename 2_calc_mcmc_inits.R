@@ -38,8 +38,6 @@ ret <- foreach (model_type=model_types) %:%
     calib_data <- merge(calib_data, temp_long)
     calib_data <- calib_data[complete.cases(calib_data), ]
 
-    WD <- data.frame(tree_ID=seq(1, model_data$n_tree), WD=model_data$WD)
-    calib_data <- merge(calib_data, WD)
     site_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), site_ID=model_data$site_ID)
     calib_data <- merge(calib_data, site_ID)
     plot_ID <- data.frame(tree_ID=seq(1, model_data$n_tree), plot_ID=model_data$plot_ID)
@@ -72,16 +70,13 @@ ret <- foreach (model_type=model_types) %:%
 
     ###########################################################################
     # Inits for model with correlated random effects
-    calib_model <- lmer(dbh_latent_end ~ WD +
-                        I(WD^2) +
-                        (precip +
+    calib_model <- lmer(dbh_latent_end ~ (precip +
                          I(precip^2) +
                          temp +
                          I(temp^2) +
                          dbh_latent_start +
-                         I(dbh_latent_start^2) +
-                         elev_diff | genus_ID) +
-                        (1|site_ID) +
+                         I(dbh_latent_start^2) | genus_ID) +
+                        (elev_diff | site_ID) +
                         (1|plot_ID) +
                         (1|period_num), data=calib_data)
     save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
@@ -103,20 +98,15 @@ ret <- foreach (model_type=model_types) %:%
     ###########################################################################
     # Inits for model with interactions
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
-    calib_model <- lmer(dbh_latent_end ~ WD + I(WD^2) +
-                        (precip +
+    calib_model <- lmer(dbh_latent_end ~ (precip +
                         I(precip^2) +
                         temp +
                         I(temp^2) +
                         dbh_latent_start +
                         I(dbh_latent_start^2) -
-                        precip * WD +
                         precip * dbh_latent_start +
-                        temp * WD +
-                        temp * dbh_latent_start +
-                        elev_diff -
-                        WD | genus_ID) +
-                        (1|site_ID) +
+                        temp * dbh_latent_start | genus_ID) +
+                        (elev_diff | site_ID) +
                         (1|plot_ID) +
                         (1|period_num), data=calib_data)
     save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))

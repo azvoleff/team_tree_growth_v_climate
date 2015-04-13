@@ -32,6 +32,8 @@ monitored <- c("B",
                "int_jk",
                "int_k",
                "int_t",
+               "B_k",
+               "sigma_B_k",
                "B_g",
                "mu_B_g",
                "sigma_B_g",
@@ -89,11 +91,7 @@ if (model_structure == "simple") {
     model_data$n_B_g <- 12
     # n_B is number of fixed effects
     model_data$n_B <- 2
-    monitored <- monitored[monitored != "int_t"]
-    monitored <- monitored[monitored != "sigma_int_t"]
     monitored <- monitored[monitored != "rho_B_g"]
-    init_data <- init_data[names(init_data) != "int_t"]
-    init_data <- init_data[names(init_data) != "sigma_int_t"]
     init_data <- init_data[names(init_data) != 'B_g_raw']
     init_data <- init_data[names(init_data) != 'sigma_B_g']
     model_data <- model_data[names(model_data) != "n_period"]
@@ -102,7 +100,6 @@ if (model_structure == "simple") {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
 }
 
-model_data$WD_sq <- model_data$WD^2
 model_data$precip_sq <- model_data$precip^2
 
 # Drop missing data indicators (not needed for JAGS)

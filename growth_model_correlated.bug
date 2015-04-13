@@ -1,8 +1,6 @@
 model {
     ###########################################################################
     # Parameters:
-    #   B[1]: fixed effect - wood density
-    #   B[2]: fixed effect - wood density (squared)
     #   int_jk: random intercept - plot level
     #   int_k: random intercept - site level
     #   int_t: random intercept - by period
@@ -13,9 +11,10 @@ model {
     #   B_g[g, 5]: random slope on temperature (squared) genus g
     #   B_g[g, 6]: random slope on initial diameter genus g
     #   B_g[g, 7]: random slope on initial diameter (squared) genus g
-    #   B_g[g, 8]: difference in elevation of plot from mean CRU cell elevation
+    #   B_k: slope on difference in elev. of plot from mean CRU cell elev.
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
+    #   sigma_B_k: std. dev. of site-level slope on elev. difference
     #   sigma_jk: std. dev. of plot-level random intercept
     #   sigma_k: std. dev. of site-level random intercept
     #   sigma_t: std. dev. of period random intercept
@@ -40,7 +39,7 @@ model {
                 B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
-                B_g[genus_ID[i], 8] * elev_diff[plot_ID[i]]
+                B_k[k] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -51,12 +50,6 @@ model {
 
         # Handle first latent dbh (for which there is no prediction)
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
-    }
-
-    ##########################################################################
-    # Fixed effects
-    for (k in 1:n_B) {
-        B[k] ~ dnorm(0, 1.0E-4)
     }
 
     ##########################################################################
@@ -77,8 +70,11 @@ model {
     sigma_int_jk ~ dunif(0, 10)
 
     for (k in 1:n_site) {
+        B_k[k] ~ dnorm(0, tau_B_k)
         int_k[k] ~ dnorm(0, tau_int_k)
     }
+    tau_B_k <- pow(sigma_B_k, -2)
+    sigma_B_k ~ dunif(0, 10)
     tau_int_k <- pow(sigma_int_k, -2)
     sigma_int_k ~ dunif(0, 10)
 

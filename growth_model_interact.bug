@@ -1,10 +1,9 @@
 model {
     ###########################################################################
     # Parameters:
-    #   B[1]: fixed effect - wood density
-    #   B[2]: fixed effect - wood density (squared)
     #   int_jk: random intercept - plot level
     #   int_k: random intercept - site level
+    #   int_t: random intercept - by period
     #   B_g[g, 1]: random intercept for genus g
     #   B_g[g, 2]: random slope on precip genus g
     #   B_g[g, 3]: random slope on precip (squared) genus g
@@ -12,13 +11,12 @@ model {
     #   B_g[g, 5]: random slope on temperature (squared) genus g
     #   B_g[g, 6]: random slope on initial diameter genus g
     #   B_g[g, 7]: random slope on initial diameter (squared) genus g
-    #   B_g[g, 8]: random slope on interaction of density and precip
-    #   B_g[g, 9]: random slope on interaction of initial diameter and precip
-    #   B_g[g, 10]: random slope on interaction of density and temp
-    #   B_g[g, 11]: random slope on interaction of initial diameter and temp
-    #   B_g[g, 12]: difference in elev. of plot from mean CRU cell elev.
+    #   B_g[g, 8]: random slope on interaction of initial diameter and precip
+    #   B_g[g, 9]: random slope on interaction of initial diameter and temp
+    #   B_k: slope on difference in elev. of plot from mean CRU cell elev.
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
+    #   sigma_B_k: std. dev. of site-level slope on elev. difference
     #   sigma_jk: std. dev. of plot-level random intercept
     #   sigma_k: std. dev. of site-level random intercept
     #   sigma_t: std. dev. of period random intercept
@@ -30,10 +28,9 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- B[1] * WD[i] +
-                B[2] * WD_sq[i] +
-                int_jk[plot_ID[i]] +
+            dbh_predicted[i, t] <- int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
+                int_t[t - 1] +
                 B_g[genus_ID[i], 1] +
                 B_g[genus_ID[i], 2] * precip[i, t] +
                 B_g[genus_ID[i], 3] * precip_sq[i, t] +
@@ -41,11 +38,9 @@ model {
                 B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
                 B_g[genus_ID[i], 6]* dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
-                B_g[genus_ID[i], 8] * precip[i, t] * WD[i] +
-                B_g[genus_ID[i], 9] * precip[i, t] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 10] * temp[i, t] * WD[i] +
-                B_g[genus_ID[i], 11] * temp[i, t] * dbh_latent[i, t - 1] +
-                B_g[genus_ID[i], 12] * elev_diff[plot_ID[i]]
+                B_g[genus_ID[i], 8] * precip[i, t] * dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 9] * temp[i, t] * dbh_latent[i, t - 1] +
+                B_k[k] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
@@ -56,12 +51,6 @@ model {
 
         # Handle first latent dbh (for which there is no prediction)
         dbh_latent[i, first_obs_period[i]] ~ dnorm(0, 1.0E-4)
-    }
-
-    ##########################################################################
-    # Fixed effects
-    for (k in 1:n_B) {
-        B[k] ~ dnorm(0, 1.0E-4)
     }
 
     ##########################################################################
