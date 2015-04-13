@@ -27,9 +27,7 @@ model {
     # Likelihood
     for (i in 1:n_tree) {
         for (t in (first_obs_period[i] + 1):last_obs_period[i]) {
-            dbh_predicted[i, t] <- B[1] * WD[i] +
-                B[2] * WD_sq[i] +
-                int_jk[plot_ID[i]] +
+            dbh_predicted[i, t] <- int_jk[plot_ID[i]] +
                 int_k[site_ID[i]] +
                 int_t[t - 1] +
                 B_g[genus_ID[i], 1] +
