@@ -39,7 +39,7 @@ model {
                 B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
                 B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
-                B_k[k] * elev_diff[plot_ID[i]]
+                B_k[site_ID[i]] * elev_diff[plot_ID[i]]
 
             dbh_latent[i, t] ~ dnorm(dbh_predicted[i, t], prec_proc)
         }
