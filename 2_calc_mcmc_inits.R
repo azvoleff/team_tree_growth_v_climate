@@ -85,11 +85,14 @@ ret <- foreach (model_type=model_types) %:%
                         (1|period_num), data=calib_data)
     save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_correlated.RData")))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
-    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
+    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID$"(Intercept)"))
     init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
+    init_data$sigma_B_k <- sqrt(get_variance(calib_model, "site_ID", "elev_diff"))
     init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
+    # Extract site-level random effects
+    init_data$B_k <- as.numeric(unlist(ranef(calib_model)$site_ID$elev_diff))
      # Extract genus-level random effects
     init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
     # Extract variance-covariance matrix for genus-level random effects
@@ -115,11 +118,14 @@ ret <- foreach (model_type=model_types) %:%
                         (1|period_num), data=calib_data)
     save(calib_model, file=file.path(init_folder, paste0("calib_model", suffix, "_interact.RData")))
     init_data$int_jk <- as.numeric(unlist(ranef(calib_model)$plot_ID))
-    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID))
+    init_data$int_k <- as.numeric(unlist(ranef(calib_model)$site_ID$"(Intercept)"))
     init_data$int_t <- as.numeric(unlist(ranef(calib_model)$period))
     init_data$sigma_int_jk <- sqrt(get_variance(calib_model, "plot_ID", "(Intercept)"))
     init_data$sigma_int_k <- sqrt(get_variance(calib_model, "site_ID", "(Intercept)"))
+    init_data$sigma_B_k <- sqrt(get_variance(calib_model, "site_ID", "elev_diff"))
     init_data$sigma_int_t <- sqrt(get_variance(calib_model, "period_num", "(Intercept)"))
+    # Extract site-level random effects
+    init_data$B_k <- as.numeric(unlist(ranef(calib_model)$site_ID$elev_diff))
     # Extract genus-level random effects
     init_data$B_g_raw <- as.matrix(ranef(calib_model)$genus_ID)
     # Extract variance-covariance matrix for genus-level random effects

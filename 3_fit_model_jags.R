@@ -16,8 +16,8 @@ temp_var <- 'tmn_meanannual'
 
 precip_var <- 'mcwd_run12'
 
-model_type <- "full"
-#model_type <- "testing"
+#model_type <- "full"
+model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") in_suffix <- paste0(in_suffix, '_', note)
@@ -46,11 +46,14 @@ mcmc_folder <- file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains")
 load(file.path(data_folder, paste0("model_data_wide", in_suffix, ".RData")))
 load(file.path(data_folder, paste0("model_data_standardizing", in_suffix, ".RData")))
 
+model_data <- model_data[names(model_data) != "WD"]
+
 if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
     model_file <- "growth_model_simple.bug" 
     # n_B is number of fixed effects
-    model_data$n_B <- 10
+    model_data$n_B <- 7
+    init_data$B <- rnorm(model_data$n_B, 0, 1)
     monitored <- monitored[monitored != "B_g"]
     monitored <- monitored[monitored != "mu_B_g"]
     monitored <- monitored[monitored != "rho_B_g"]
@@ -63,12 +66,10 @@ if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_correlated.RData")))
     model_file <- "growth_model_correlated.bug" 
     # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- 8
+    model_data$n_B_g <- 7
+    monitored <- monitored[monitored != "B"]
     # W is the prior scale for the inverse-wishart
     model_data$W <- diag(model_data$n_B_g)
-    # n_B is number of fixed effects
-    model_data$n_B <- 2
-
     # Initialize xi to the standard deviations of the genus-level effects, in
     # an effort to get the scale of mu_B_g_raw and Tau_B_g_raw in the right
     # ballpark
@@ -88,9 +89,8 @@ if (model_structure == "simple") {
     load(file.path(init_folder, paste0("init_data_with_ranefs", in_suffix, "_interact.RData")))
     model_file <- "growth_model_interact.bug"
     # n_B_g is number of genus-level random effects
-    model_data$n_B_g <- 12
-    # n_B is number of fixed effects
-    model_data$n_B <- 2
+    model_data$n_B_g <- 9
+    monitored <- monitored[monitored != "B"]
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[names(init_data) != 'B_g_raw']
     init_data <- init_data[names(init_data) != 'sigma_B_g']
@@ -105,11 +105,9 @@ model_data$precip_sq <- model_data$precip^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
-init_data$B <- rnorm(model_data$n_B, 0, 1)
-
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
-#                      inits=rep(list(init_data), 1),  n.chains=1, adapt=200, 
-#                      burnin=200, sample=200)
+# inits=rep(list(init_data), 1),  n.chains=1, adapt=200, burnin=200, 
+# sample=200)
 # print("finished running single JAGS chain")
 # run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 # out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
