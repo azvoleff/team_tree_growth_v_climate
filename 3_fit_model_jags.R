@@ -119,7 +119,7 @@ init_data$B <- rnorm(model_data$n_B, 0, 1)
 jags_fit <- run.jags(model=model_file, monitor=monitored,
                      data=model_data, inits=rep(list(init_data), 3),
                      n.chains=3, method="parallel", adapt=1000,
-                     burnin=2000, sample=2000, thin=4, summarise=FALSE)
+                     burnin=10000, sample=1000, thin=20, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
