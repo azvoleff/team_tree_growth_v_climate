@@ -74,7 +74,7 @@ ret <- foreach (model_type=model_types) %:%
 
     ###########################################################################
     # Inits for model with correlated random effects
-    calib_model <- lmer(dbh_latent_end ~ (precip +
+    calib_model <- lmer(dbh_latent_end ~ 0 + (precip +
                          I(precip^2) +
                          temp +
                          I(temp^2) +
@@ -102,7 +102,7 @@ ret <- foreach (model_type=model_types) %:%
     ###########################################################################
     # Inits for model with interactions
     load(file.path(init_folder, paste0("init_data", suffix, ".RData")))
-    calib_model <- lmer(dbh_latent_end ~ (precip +
+    calib_model <- lmer(dbh_latent_end ~ 0 + (precip +
                         I(precip^2) +
                         temp +
                         I(temp^2) +
