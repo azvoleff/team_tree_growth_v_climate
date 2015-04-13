@@ -16,8 +16,8 @@ temp_var <- 'tmn_meanannual'
 
 precip_var <- 'mcwd_run12'
 
-#model_type <- "full"
-model_type <- "testing"
+model_type <- "full"
+#model_type <- "testing"
 
 in_suffix <- paste0('_', model_type, '-', temp_var, '-', precip_var)
 if (note != "") in_suffix <- paste0(in_suffix, '_', note)
@@ -75,6 +75,8 @@ if (model_structure == "simple") {
     # ballpark
     init_data$xi <- apply(init_data$B_g_raw, 2, sd)
     init_data$mu_B_g_raw <- apply(init_data$B_g_raw, 2, mean) / init_data$xi
+    # Initialize mean of group-level intercept to zero
+    init_data$mu_B_g_raw[1] <- 0
     # Center the B_g_raw estimates
     init_data$B_g_raw <- init_data$B_g_raw - matrix(rep(init_data$mu_B_g_raw,
                                                         model_data$n_genus),
