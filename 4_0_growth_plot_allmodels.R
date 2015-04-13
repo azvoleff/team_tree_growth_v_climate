@@ -112,6 +112,8 @@ plot_full_interact_model("interact max temp")
 
 ###############################################################################
 ## Full model (correlated random effects)
+start_val <- 20000
+thin_val <- 10
 plot_full_correlated_model <- function(title) {
     plot_mcmc(jags_fit, c("B[1]", "B[2]", "mu_B_g", "sigma_", "B_T_"), title)
 }
