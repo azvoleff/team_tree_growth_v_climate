@@ -13,9 +13,9 @@ registerDoParallel(cl)
 data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
 init_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Initialization")
 
-model_type <- "testing"
-temp_var <- temp_vars[1]
-precip_var <- precip_vars[1]
+# model_type <- "testing"
+# temp_var <- temp_vars[1]
+# precip_var <- precip_vars[1]
 
 ret <- foreach (model_type=model_types) %:%
     foreach (temp_var=temp_vars) %:%
@@ -134,7 +134,6 @@ ret <- foreach (model_type=model_types) %:%
     genus_varcorr <- matrix(c(genus_varcorr), nrow=nrow(genus_varcorr))
     init_data$sigma_B_g <- genus_varcorr
     save(init_data, file=file.path(init_folder, paste0("init_data_with_ranefs", suffix, "_interact.RData")))
-
 }
 
 stopCluster(cl)
