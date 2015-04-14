@@ -15,9 +15,9 @@ model {
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
     #   sigma_B_k: std. dev. of site-level slope on elev. difference
-    #   sigma_jk: std. dev. of plot-level random intercept
-    #   sigma_k: std. dev. of site-level random intercept
-    #   sigma_t: std. dev. of period random intercept
+    #   sigma_int_jk: std. dev. of plot-level random intercept
+    #   sigma_int_k: std. dev. of site-level random intercept
+    #   sigma_int_t: std. dev. of period random intercept
     #   sigma_B_g: variance-covariance matrix of genus-level random effects
     #   mu_B_g: mean of genus-level random effects
     #   rho_B_g: correlation matrix of genus-level random effects
