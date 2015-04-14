@@ -17,9 +17,9 @@ model {
     #   sigma_obs: std. dev. of observation error
     #   sigma_proc: std. dev. of residual error
     #   sigma_B_k: std. dev. of site-level slope on elev. difference
-    #   sigma_jk: std. dev. of plot-level random intercept
-    #   sigma_k: std. dev. of site-level random intercept
-    #   sigma_t: std. dev. of period random intercept
+    #   sigma_int_jk: std. dev. of plot-level random intercept
+    #   sigma_int_k: std. dev. of site-level random intercept
+    #   sigma_int_t: std. dev. of period random intercept
     #   sigma_B_g: variances of genus-level random effects (uncorrelated)
     #   mu_B_g: mean of genus-level random effects
     ###########################################################################
@@ -75,6 +75,14 @@ model {
     }
     tau_int_k <- pow(sigma_int_k, -2)
     sigma_int_k ~ dunif(0, 10)
+
+    ##########################################################################
+    # Period random effects (crossed)
+    for (t in 1:n_period) {
+        int_t[t] ~ dnorm(0, tau_int_t)
+    }
+    tau_int_t <- pow(sigma_int_t, -2)
+    sigma_int_t ~ dunif(0, 10)
 
     ##########################################################################
     # Random effects at genus level (crossed).
