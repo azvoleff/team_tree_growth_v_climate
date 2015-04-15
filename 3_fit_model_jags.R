@@ -6,13 +6,13 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-model_structure <- "simple"
+#model_structure <- "simple"
 #model_structure <- "correlated"
-#model_structure <- "interact"
+model_structure <- "interact"
 
-temp_var <- 'tmn_meanannual'
+#temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
-#temp_var <- 'tmx_meanannual'
+temp_var <- 'tmx_meanannual'
 
 precip_var <- 'mcwd_run12'
 
@@ -96,7 +96,6 @@ if (model_structure == "simple") {
     monitored <- monitored[monitored != "rho_B_g"]
     init_data <- init_data[names(init_data) != 'B_g_raw']
     init_data <- init_data[names(init_data) != 'sigma_B_g']
-    model_data <- model_data[names(model_data) != "n_period"]
     model_type <- paste0(model_type, "_interact")
 } else {
     stop(paste0('Unknown model_structure "', model_structure, '"'))
