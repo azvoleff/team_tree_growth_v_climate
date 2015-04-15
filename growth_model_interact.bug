@@ -71,8 +71,11 @@ model {
     sigma_int_jk ~ dunif(0, 10)
 
     for (k in 1:n_site) {
+        B_k[k] ~ dnorm(0, tau_B_k)
         int_k[k] ~ dnorm(0, tau_int_k)
     }
+    tau_B_k <- pow(sigma_B_k, -2)
+    sigma_B_k ~ dunif(0, 10)
     tau_int_k <- pow(sigma_int_k, -2)
     sigma_int_k ~ dunif(0, 10)
 
