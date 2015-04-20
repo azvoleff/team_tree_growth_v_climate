@@ -6,13 +6,13 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-#model_structure <- "simple"
+model_structure <- "simple"
 #model_structure <- "correlated"
-model_structure <- "interact"
+#model_structure <- "interact"
 
-#temp_var <- 'tmn_meanannual'
+temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
-temp_var <- 'tmx_meanannual'
+#temp_var <- 'tmx_meanannual'
 
 precip_var <- 'mcwd_run12'
 
