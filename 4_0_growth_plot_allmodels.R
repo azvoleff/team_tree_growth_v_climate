@@ -19,15 +19,12 @@ library(coda)
 library(Rcpp)
 
 # Below is required for using regex as it must link (so can't work solely 
-# through BH package.
-#Sys.setenv("PKG_LIBS"="-lboost_regex")
-# Use version of C++ with regex support:
-Sys.setenv("PKG_CXXFLAGS"="-std=c++0x")
-
-sourceCpp('regex_test.cpp')
-jags_param_ids(c('asdf', 'fda', 'werq', 'awee'))
-
+# through BH package. This is easiest to get working on a Linux machine.
+Sys.setenv("PKG_LIBS"="-lboost_regex")
 sourceCpp('jags_param_ids.cpp')
+# # Below is test code for jags_param_ids function
+# jags_param_ids(c('B_g', 'B_g[1]', 'B_g[2,3]', 'B_g[3,4]'))
+# jags_param_ids(c('', 'B_g', 'B_g[1]', 'B_g[2,3]', 'B_g[3,4]'))
 
 cl <- makeCluster(3)
 registerDoParallel(cl)
@@ -36,8 +33,8 @@ plot_width <- 3.5
 plot_height <- 3
 plot_dpi <- 300
 
-start_val <- 30000
-thin_val <- 50
+start_val <- 40000
+thin_val <- 100
 
 plot_mcmc <- function(fit, params, title) {
     mcmc_results <- as.mcmc.list(fit, c(params))
@@ -65,26 +62,20 @@ multimodel_caterpillar <- function(mods, labels=NULL) {
 
 # Function to "destandardize" standardized coefficients in an array of MCMC 
 # results
-destd <- function(d, regex, multiplier) {
-    rows <- grepl(regex, d$Parameter)
+destd <- function(d, rows, multiplier) {
     d[rows, ]$value_destd <- d[rows, ]$value * multiplier
     return(d)
 }
 
 # Function to calculated weighted coefficients from an array of MCMC results.  
 # Weights should be a 2 column data.frame with IDs in the first column, and 
-# weights in the second
+# weights in the second. D should be a ggs object with parameter IDs added 
+# using the jags_param_ids function
 weight_coef <- function(d, w) {
-    par_grp_name <- unique(str_extract(d$Parameter, '[a-zA-Z_]*'))
-    stopifnot(length(par_grp_name) == 1)
-    d$grp_ID <- gsub('[\\[,]*', '', str_extract(d$Parameter, '\\[[0-9]*,'))
-    d$par_ID <- gsub('[\\],]*', '', str_extract(d$Parameter, ',[0-9]*\\]'))
-    stopifnot(ncol(w) == 2)
-    stopifnot(nrow(w) == length(unique(d$grp_ID)))
-    names(w) <- c('grp_ID', 'weight')
     d <- left_join(d, w)
-    d <- group_by(d, Chain, par_ID) %>%
-        summarise(Parameter=paste0(value=mean(value * weight))
+    d <- group_by(d, Model, Chain, Iteration, param_ID) %>%
+        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'mean', sep='_'),
+                  value=mean(weight * value))
     return(d)
 }
 
@@ -158,7 +149,53 @@ interact_labels <- data.frame(Label=c("int",
             "D*T"))
 interact_labels$Parameter <- paste0('mu_B_g[', 1:nrow(interact_labels), ']')
 
-# Calculate weights for each genus ID (doesn't matter which temp_var is used).  
+int_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
+                    .packages=c('runjags', 'ggmcmc', 'mcmcplots')) %dopar% {
+    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
+                   paste0('interact_', temp_var, '.RData')))
+    jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
+    plot_mcmc(jags_fit, c("mu_B_g", "sigma_", "int_", "B_k"), paste0("interact - ", temp_var))
+}
+
+# Note the below is not parallel since running it in parallel breaks the Rcpp 
+# function.
+int_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
+                    .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
+                                'dplyr')) %do% {
+    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
+                   paste0('interact_', temp_var, '.RData')))
+    jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
+    mod <- ggs(jags_fit)
+
+    ids <- jags_param_ids(mod$Parameter)
+    names(ids) <- c("Parameter_Base", "genus_ID", "param_ID")
+
+    mod <- cbind(mod, ids)
+
+    # Return variables to original units ("destandardize")
+    mod$value_destd <- NA
+    load(file.path(data_folder, paste0("model_data_standardizing_full-", 
+                                       temp_var, 
+                                       "_meanannual-mcwd_run12.RData")))
+
+    mod <- destd(mod, mod$param_ID == 1, dbh_sd)
+    mod <- destd(mod, mod$param_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+    mod <- destd(mod, mod$param_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+    mod <- destd(mod, mod$param_ID == 4, dbh_sd/temp_sd)
+    mod <- destd(mod, mod$param_ID == 5, dbh_sd/temp_sd)
+    mod <- destd(mod, mod$param_ID == 6, dbh_sd/dbh_sd)
+    mod <- destd(mod, mod$param_ID == 7, dbh_sd/dbh_sd)
+    # TODO: How to de-standardize interactions?
+    #mod <- destd(mod, mod$param_ID == 8, dbh_sd/dbh_sd)
+    #mod <- destd(mod, mod$param_ID == 9, dbh_sd/dbh_sd)
+
+    mod$Model <- temp_var 
+    return(tbl_df(mod))
+}
+#save(int_mods, file="int_mods.RData")
+
+# Calculate weights for each genus ID (doesn't matter which temp_var is used 
+# since the genus IDs and frequencies are the same across all simulations).
 load(file.path(data_folder, paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
 merged <- tbl_df(data.frame(site_ID=model_data$site_ID, genus_ID=as.integer(model_data$genus_ID)))
 genus_weights <- group_by(merged, genus_ID) %>%
@@ -168,37 +205,11 @@ genus_weights <- group_by(merged, genus_ID) %>%
     select(-n) %>%
     arrange(desc(weight))
 
-int_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
-                    .packages=c('runjags', 'ggmcmc', 'mcmcplots')) %dopar% {
-    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
-                   paste0('interact_', temp_var, '.Rdata')))
-    plot_mcmc(jags_fit, c("mu_B_g", "sigma_", "int_", "B_k"), paste0("interact - ", temp_var))
-    jags_fit <- as.mcmc.list(jags_fit)
-    mod <- ggs(window(jags_fit, start=start_val, thin=thin_val))
-
-    # Return variables to original units ("destandardize")
-    mod$value_destd <- NA
-    load(file.path(data_folder, paste0("model_data_standardizing_full-", 
-                                       temp_var, 
-                                       "_meanannual-mcwd_run12.RData")))
-
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?1\\]', dbh_sd)
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?2\\]', (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?3\\]', (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?4\\]', dbh_sd/temp_sd)
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?5\\]', dbh_sd/temp_sd)
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?6\\]', dbh_sd/dbh_sd)
-    mod <- destd(mod, 'B_g\\[([0-9]*,)?7\\]', dbh_sd/dbh_sd)
-
-    mod$Model <- temp_var 
-    return(mod)
-}
-#save(int_mods, file="int_mods.RData")
-
-g_betas <- filter(int_mods, grepl('^B_g\\[[0-9]*,[0-9]*\\]$', Parameter))
+g_betas <- weight_coef(filter(int_mods, Parameter_Base == 'B_g'), genus_weights)
 
 clim_betas <- filter(int_mods, Parameter %in% paste0('mu_B_g[', 2:5, ']')) %>%
     mutate(value=value_destd) %>% select(-value_destd)
+
 p <- multimodel_caterpillar(clim_betas,
                             labels=c('mu_B_g[2]'='P',
                                      'mu_B_g[3]'=expression(P^2), 
