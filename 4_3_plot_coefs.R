@@ -18,7 +18,7 @@ plot_dpi <- 300
 
 multimodel_caterpillar <- function(mods, labels=NULL) {
     cis <- group_by(mods, Model) %>%
-        do(calc_cis(.))
+        do(ci(.))
     p <- ggplot(cis, aes(x=median, y=Parameter, colour=Model)) +
         theme_bw(base_size=8) +
         geom_point(position=position_dodge(width=.4), size=1.25) +
@@ -97,11 +97,11 @@ genus_weights <- group_by(merged, genus_ID) %>%
 
 g_betas <- weight_coef(filter(int_mods, Parameter_Base == 'B_g'), genus_weights)
 
-p <- multimodel_caterpillar(clim_betas,
-                            labels=c('mu_B_g[2]'='P',
-                                     'mu_B_g[3]'=expression(P^2), 
-                                     'mu_B_g[4]'='T',
-                                     'mu_B_g[5]'=expression(T^2)))
+p <- multimodel_caterpillar(filter(g_betas, Parameter %in% c('B_g_2_mean', 'B_g_3_mean', 'B_g_4_mean', 'B_g_5_mean')),
+                            labels=c('B_g_2_mean'='P',
+                                     'B_g_3_mean'=expression(P^2),
+                                     'B_g_4_mean'='T',
+                                     'B_g_5_mean'=expression(T^2)))
 ggsave('interact_caterpillar_climate.png', p, width=plot_width, height=plot_height, 
        dpi=plot_dpi)
 
