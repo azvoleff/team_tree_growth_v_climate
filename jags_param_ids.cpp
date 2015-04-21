@@ -39,7 +39,7 @@ DataFrame jags_param_ids(CharacterVector s) {
         }
     }
 
-    return DataFrame::create(Named("param") = param,
-                             Named("row") = row,
-                             Named("col") = col);
+    return DataFrame::create(Named("Parameter_Base") = param,
+                             Named("row_ID") = row,
+                             Named("col_ID") = col);
 }

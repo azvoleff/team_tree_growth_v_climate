@@ -12,9 +12,9 @@ library(runjags)
 library(ggmcmc)
 library(foreach)
 library(doParallel)
-library(ggthemes)
 library(coda)
 library(Rcpp)
+library(dplyr)
 
 # Below is required for using regex as it must link (so can't work solely 
 # through BH package. This is easiest to get working on a Linux machine.
@@ -31,140 +31,102 @@ plot_width <- 3.5
 plot_height <- 3
 plot_dpi <- 300
 
-start_val <- 40000
-thin_val <- 100
-
-# Function to "destandardize" standardized coefficients in an array of MCMC 
+# Functions to "destandardize" standardized coefficients in an array of MCMC 
 # results
 destd <- function(d, rows, multiplier) {
-    d[rows, ]$value_destd <- d[rows, ]$value * multiplier
+    d[rows, ]$value <- d[rows, ]$value * multiplier
     return(d)
 }
 
-###############################################################################
-## Simple model (no random effects)
-##
-
-# Note the below is not parallel since running it in parallel breaks the Rcpp 
-# function.
-smp_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
-                    .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
-                                'dplyr')) %do% {
-    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
-                   paste0('interact_', temp_var, '.RData')))
-    jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
-    mod <- ggs(jags_fit)
-
-    ids <- jags_param_ids(mod$Parameter)
-    names(ids) <- c("Parameter_Base", "genus_ID", "param_ID")
-
-    mod <- cbind(mod, ids)
-
-    # Return variables to original units ("destandardize")
-    mod$value_destd <- NA
+destandardize <- function(d, model_type, temp_var) {
     load(file.path(data_folder, paste0("model_data_standardizing_full-", 
                                        temp_var, 
                                        "_meanannual-mcwd_run12.RData")))
-
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 1, dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 4, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 5, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 6, dbh_sd/dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 7, dbh_sd/dbh_sd)
-    # TODO: How to de-standardize interactions?
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 8, dbh_sd/dbh_sd)
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 9, dbh_sd/dbh_sd)
-
-    mod$Model <- temp_var 
-    return(tbl_df(mod))
+    if (model_type == "simple") {
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 1, dbh_sd)
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 4, dbh_sd/temp_sd)
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 5, dbh_sd/temp_sd)
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 6, dbh_sd/dbh_sd)
+        d <- destd(d, d$Parameter_Base == "B_g" & d$col_ID == 7, dbh_sd/dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_t", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_obs", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_proc", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
+    } else if (model_type == "interact") {
+        B_g_rows <- d$Parameter_Base == "B_g"
+        mu_B_g_rows <- d$Parameter_Base == "mu_B_g"
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 1) | (B_g_rows & d$col_ID == 1), dbh_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 4) | (B_g_rows & d$col_ID == 4), dbh_sd/temp_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/temp_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 6) | (B_g_rows & d$col_ID == 6), 1)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), 1)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 8) | (B_g_rows & d$col_ID == 8), 1/precip_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 9) | (B_g_rows & d$col_ID == 9), (1/temp_sd) * 100)
+        d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_t", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_obs", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_proc", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
+    } else if (model_type == "correlated") {
+        B_g_rows <- d$Parameter_Base == "B_g"
+        mu_B_g_rows <- d$Parameter_Base == "mu_B_g"
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 1) | (B_g_rows & d$col_ID == 1), dbh_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 4) | (B_g_rows & d$col_ID == 4), dbh_sd/temp_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/temp_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 6) | (B_g_rows & d$col_ID == 6), dbh_sd/dbh_sd)
+        d <- destd(d, (mu_B_g_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), dbh_sd/dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "int_t", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_obs", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_proc", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
+    } else {
+        stop('unrecognized model type')
+    }
+    return(d)
 }
-save(smp_mods, file="smp_mods.RData")
 
-simple_B[simple_b$parameter == 'p'] <- simple_B[simple_B$Parameter == 'P'] * (dbh_sd/precip_sd) * 100 # Convert from mm to 10s of cm
-simple_B[simple_B$Parameter == 'P^2'] <- simple_B[simple_B$Parameter == 'P^2'] * (dbh_sd/precip_sd) * 100 # Convert from mm to 10s of cm
-simple_B[simple_B$Parameter == 'T'] <- simple_B[simple_B$Parameter == 'T'] * (dbh_sd/temp_sd)
-simple_B[simple_B$Parameter == 'T^2'] <- simple_B[simple_B$Parameter == 'T^2'] * (dbh_sd/temp_sd)
+start_val <- 40000
+thin_val <- 100
+foreach(model_type=c('interact', 'correlated', 'simple')) %do% {
+    # Note the below is not parallel since running it in parallel breaks the Rcpp 
+    # function.
+    params <- foreach(model_type==c('interact', 'correlated', 'simple'),
+                    temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
+                        .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
+                                    'dplyr')) %do% {
+        load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", model_type,
+                       paste0(model_type, '_', temp_var, '.RData')))
+        jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
+        these_params <- ggs(jags_fit)
 
-###############################################################################
-## Full model (interactions, uncorrelated random effects)
+        ids <- jags_param_ids(these_params$Parameter)
 
-# Note the below is not parallel since running it in parallel breaks the Rcpp 
-# function.
-int_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
-                    .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
-                                'dplyr')) %do% {
-    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
-                   paste0('interact_', temp_var, '.RData')))
-    jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
-    mod <- ggs(jags_fit)
+        these_params <- cbind(these_params, ids)
 
-    ids <- jags_param_ids(mod$Parameter)
-    names(ids) <- c("Parameter_Base", "genus_ID", "param_ID")
+        these_params <- destandardize(these_params, model_type, temp_var)
 
-    mod <- cbind(mod, ids)
-
-    # Return variables to original units ("destandardize")
-    mod$value_destd <- NA
-    load(file.path(data_folder, paste0("model_data_standardizing_full-", 
-                                       temp_var, 
-                                       "_meanannual-mcwd_run12.RData")))
-
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 1, dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 4, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 5, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 6, dbh_sd/dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 7, dbh_sd/dbh_sd)
-    # TODO: How to de-standardize interactions?
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 8, dbh_sd/dbh_sd)
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 9, dbh_sd/dbh_sd)
-
-    mod$Model <- temp_var 
-    return(tbl_df(mod))
+        these_params$Model <- temp_var 
+        return(tbl_df(these_params))
+    }
+    save(params, file=paste0(model_type, "parameter_estimates.RData"))
 }
-save(int_mods, file="int_mods.RData")
-
-###############################################################################
-## Full model (correlated random effects)
-start_val <- 20000
-thin_val <- 10
-
-# Note the below is not parallel since running it in parallel breaks the Rcpp 
-# function.
-cor_mods <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, .inorder=FALSE,
-                    .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
-                                'dplyr')) %do% {
-    load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
-                   paste0('interact_', temp_var, '.RData')))
-    jags_fit <- window(as.mcmc.list(jags_fit), start=start_val, thin=thin_val)
-    mod <- ggs(jags_fit)
-
-    ids <- jags_param_ids(mod$Parameter)
-    names(ids) <- c("Parameter_Base", "genus_ID", "param_ID")
-
-    mod <- cbind(mod, ids)
-
-    # Return variables to original units ("destandardize")
-    mod$value_destd <- NA
-    load(file.path(data_folder, paste0("model_data_standardizing_full-", 
-                                       temp_var, 
-                                       "_meanannual-mcwd_run12.RData")))
-
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 1, dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 4, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 5, dbh_sd/temp_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 6, dbh_sd/dbh_sd)
-    mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 7, dbh_sd/dbh_sd)
-    # TODO: How to de-standardize interactions?
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 8, dbh_sd/dbh_sd)
-    # mod <- destd(mod, mod$Parameter_Base == "B_g" & mod$param_ID == 9, dbh_sd/dbh_sd)
-
-    mod$Model <- temp_var 
-    return(tbl_df(mod))
-}
-save(cor_mods, file="cor_mods.RData")
