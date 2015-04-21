@@ -41,18 +41,6 @@ destd <- function(d, rows, multiplier) {
     return(d)
 }
 
-# Function to calculated weighted coefficients from an array of MCMC results.  
-# Weights should be a 2 column data.frame with IDs in the first column, and 
-# weights in the second. D should be a ggs object with parameter IDs added 
-# using the jags_param_ids function
-weight_coef <- function(d, w) {
-    d <- left_join(d, w)
-    d <- group_by(d, Model, Chain, Iteration, param_ID) %>%
-        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'mean', sep='_'),
-                  value=mean(weight * value))
-    return(d)
-}
-
 ###############################################################################
 ## Simple model (no random effects)
 ##
