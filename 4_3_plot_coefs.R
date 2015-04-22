@@ -6,20 +6,31 @@ prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               '/localdisk/home/azvoleff/Data') # vertica1
 prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
 
-data_folder <- file.path(prefix, "TEAM", "Tree_Growth", "Data")
+base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 
 library(ggmcmc)
 library(foreach)
-library(ggthemes)
 
 plot_width <- 3.5
 plot_height <- 3
 plot_dpi <- 300
 
+# Calculate weights for each genus ID (doesn't matter which temp_var is used 
+# since the genus IDs and frequencies are the same across all simulations).
+load(file.path(data_folder, paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
+merged <- tbl_df(data.frame(site_ID=model_data$site_ID, 
+                            genus_ID=as.integer(model_data$genus_ID)))
+genus_weights <- group_by(merged, genus_ID) %>%
+    summarize(n=n()) %>%
+    ungroup() %>%
+    mutate(weight=n/sum(n)) %>%
+    select(-n) %>%
+    arrange(desc(weight))
+
 multimodel_caterpillar <- function(mods, labels=NULL) {
     cis <- group_by(mods, Model) %>%
         do(ci(.))
-    p <- ggplot(cis, aes(x=median, y=Parameter, colour=Model)) +
+    p <- ggplot(cis, aes(x=Parameter, y=median, colour=Model)) +
         theme_bw(base_size=8) +
         geom_point(position=position_dodge(width=.4), size=1.25) +
         geom_linerange(aes(ymin=Low, ymax=High), size=.75, position=position_dodge(width=.4)) +
@@ -41,7 +52,7 @@ weight_coef <- function(d, w) {
     d <- left_join(d, w)
     d <- group_by(d, Model, Chain, Iteration, param_ID) %>%
         summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'mean', sep='_'),
-                  value=mean(weight * value))
+                  value=sum(weight * value))
     return(d)
 }
 
@@ -49,78 +60,70 @@ weight_coef <- function(d, w) {
 ## Simple model (no random effects)
 ##
 
-simple_labels_B <- data.frame(Parameter=paste0('B[', 1:10, ']'),
-    Label=c("int",
-            "P" ,
-            "P^2",
-            "T",
-            "T^2",
-            "D",
-            "D^2"))
+load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_simple.RData"))
+params$Model <- factor(params$Model, levels=c('tmn', 'tmp', 'tmx'),
+                       labels=c('Min. Temp.', 'Mean Temp.', 'Max. Temp.'))
 
-load("smp_mods.RData")
+multimodel_caterpillar(filter(params, Parameter %in% paste0('B[', 1:7, ']')))
+ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
+       height=plot_height, dpi=plot_dpi)
 
-p <- multimodel_caterpillar(filter(simple_B, Parameter %in% c('P', 'P^2', 'T', 'T^2')),
-                            labels=c('P'='P',
-                                     'P^2'=expression(P^2), 
-                                     'T'='T',
-                                     'T^2'=expression(T^2)))
-ggsave('simple_caterpillar_climate.png', p, width=plot_width, 
-       dpi=plot_dpi)
+p <- multimodel_caterpillar(filter(params, Parameter %in% c('B[2]', 'B[3]', 
+                                                            'B[4]', 'B[5]')),
+                            labels=c('B[2]'='P',
+                                     'B[3]'=expression(P^2), 
+                                     'B[4]'='T',
+                                     'B[5]'=expression(T^2)))
+ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
+       height=plot_height, dpi=plot_dpi)
 
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
 
-interact_labels <- data.frame(Label=c("int",
-            "P",
-            "P^2",
-            "T",
-            "T^2",
-            "D",
-            "D^2",
-            "D*P",
-            "D*T"))
-interact_labels$Parameter <- paste0('mu_B_g[', 1:nrow(interact_labels), ']')
+load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_interact.RData"))
 
-load("int_mods.RData")
+multimodel_caterpillar(filter(params, Parameter %in% paste0('mu_B_g[', 1:9, ']')))
 
-# Calculate weights for each genus ID (doesn't matter which temp_var is used 
-# since the genus IDs and frequencies are the same across all simulations).
-load(file.path(data_folder, paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
-merged <- tbl_df(data.frame(site_ID=model_data$site_ID, genus_ID=as.integer(model_data$genus_ID)))
-genus_weights <- group_by(merged, genus_ID) %>%
-    summarize(n=n()) %>%
-    ungroup() %>%
-    mutate(weight=n/sum(n)) %>%
-    select(-n) %>%
-    arrange(desc(weight))
+p <- multimodel_caterpillar(filter(params, Parameter %in% paste0('mu_B_g[', c(2:5, 8:9), ']')),
+                            labels=c('mu_B_g[2]'='P',
+                                     'mu_B_g[3]'=expression(P^2),
+                                     'mu_B_g[4]'='T',
+                                     'mu_B_g[5]'=expression(T^2),
+                                     'mu_B_g[8]'=expression(D%*%P),
+                                     'mu_B_g[9]'=expression(D%*%T)))
+ggsave('caterpillar_climate_interact_unweighted.png', p, width=plot_width, 
+       height=plot_height, dpi=plot_dpi)
 
-g_betas <- weight_coef(filter(int_mods, Parameter_Base == 'B_g'), genus_weights)
-
-p <- multimodel_caterpillar(filter(g_betas, Parameter %in% c('B_g_2_mean', 'B_g_3_mean', 'B_g_4_mean', 'B_g_5_mean')),
+B_g_betas <- weight_coef(filter(params, Parameter_Base == 'B_g') %>% 
+                         rename(genus_ID=row_ID, param_ID=col_ID), 
+                         genus_weights)
+p <- multimodel_caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:5, 8:9), '_mean')),
                             labels=c('B_g_2_mean'='P',
                                      'B_g_3_mean'=expression(P^2),
                                      'B_g_4_mean'='T',
-                                     'B_g_5_mean'=expression(T^2)))
-ggsave('interact_caterpillar_climate.png', p, width=plot_width, height=plot_height, 
-       dpi=plot_dpi)
+                                     'B_g_5_mean'=expression(T^2),
+                                     'B_g_8_mean'=expression(D%*%P),
+                                     'B_g_9_mean'=expression(D%*%T)))
+ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width, 
+       height=plot_height, dpi=plot_dpi)
 
-# mu_B_g_vals <- ggs(as.mcmc.list(jags_fit, "mu_B_g"), par_labels=interact_labels_mu_B_g)
-# ggs_caterpillar(mu_B_g_vals)
-# ggs_caterpillar(mu_B_g_vals) + theme_tufte()
-# ggs_caterpillar(mu_B_g_vals) + theme_solarized_2()
+# Plot Rhats for each model
+foreach(model=c('tmn', 'tmp', 'tmx')) %do% {
+    pars <- filter(params, Model == model)
+    attributes(pars)$nChains <- 3
+    attributes(pars)$nIterations <- max(params$Iteration)
+    ggs_Rhat(pars, 'mu_B_g')
+    ggsave(paste0('Rhat_interact_mu_B_g_', model, '.png'), width=plot_width*2, 
+           height=plot_height*2, dpi=plot_dpi)
+    ggs_Rhat(pars, 'sigma_')
+    ggsave(paste0('Rhat_interact_sigma_', model, '.png'), width=plot_width*2, 
+           height=plot_height*2, dpi=plot_dpi)
+    ggs_Rhat(pars, 'int_')
+    ggsave(paste0('Rhat_interact_int_', model, '.png'), width=plot_width*2, 
+           height=plot_height*3, dpi=plot_dpi)
+}
 
 ###############################################################################
 ## Full model (correlated random effects)
 
-correlated_labels_mu_B_g <- data.frame(Parameter=paste0('mu_B_g[', 1:8, ']'),
-    Label=c("int",
-            "P",
-            "P^2",
-            "T",
-            "T^2",
-            "D",
-            "D^2",
-            "E"))
-
-load("cor_mods.RData")
+load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
