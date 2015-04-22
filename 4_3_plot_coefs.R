@@ -17,7 +17,8 @@ plot_dpi <- 300
 
 # Calculate weights for each genus ID (doesn't matter which temp_var is used 
 # since the genus IDs and frequencies are the same across all simulations).
-load(file.path(data_folder, paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
+load(file.path(base_folder, 'Data', 
+               paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
 merged <- tbl_df(data.frame(site_ID=model_data$site_ID, 
                             genus_ID=as.integer(model_data$genus_ID)))
 genus_weights <- group_by(merged, genus_ID) %>%
@@ -60,22 +61,22 @@ weight_coef <- function(d, w) {
 ## Simple model (no random effects)
 ##
 
-load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_simple.RData"))
-params$Model <- factor(params$Model, levels=c('tmn', 'tmp', 'tmx'),
-                       labels=c('Min. Temp.', 'Mean Temp.', 'Max. Temp.'))
-
-multimodel_caterpillar(filter(params, Parameter %in% paste0('B[', 1:7, ']')))
-ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
-       height=plot_height, dpi=plot_dpi)
-
-p <- multimodel_caterpillar(filter(params, Parameter %in% c('B[2]', 'B[3]', 
-                                                            'B[4]', 'B[5]')),
-                            labels=c('B[2]'='P',
-                                     'B[3]'=expression(P^2), 
-                                     'B[4]'='T',
-                                     'B[5]'=expression(T^2)))
-ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
-       height=plot_height, dpi=plot_dpi)
+# load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_simple.RData"))
+# params$Model <- factor(params$Model, levels=c('tmn', 'tmp', 'tmx'),
+#                        labels=c('Min. Temp.', 'Mean Temp.', 'Max. Temp.'))
+#
+# multimodel_caterpillar(filter(params, Parameter %in% paste0('B[', 1:7, ']')))
+# ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
+#        height=plot_height, dpi=plot_dpi)
+#
+# p <- multimodel_caterpillar(filter(params, Parameter %in% c('B[2]', 'B[3]', 
+#                                                             'B[4]', 'B[5]')),
+#                             labels=c('B[2]'='P',
+#                                      'B[3]'=expression(P^2), 
+#                                      'B[4]'='T',
+#                                      'B[5]'=expression(T^2)))
+# ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
+#        height=plot_height, dpi=plot_dpi)
 
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
@@ -123,7 +124,28 @@ foreach(model=c('tmn', 'tmp', 'tmx')) %do% {
            height=plot_height*3, dpi=plot_dpi)
 }
 
+dbhs <- seq(0, 120, 1)
+T_min <- 18
+T_max <- 25
+preds <- foreach(model=c('tmn', 'tmp', 'tmx')) %do% {
+    B_ests <- filter(B_g_betas, Parameter %in% paste0('B_g_', c(4,5,6,7,9), '_mean'),
+                     Model == model) %>%
+        ungroup() %>%
+        arrange(Parameter, Iteration) %>%
+        select(Parameter, value)
+    # Convert to matrix for linear algebra
+    B <- matrix(B_ests$value, nrow=nrow(B_ests)/length(unique(B_ests$Parameter)))
+    X <- matrix(rep(T_min, length(dbhs)), nrow=1)
+    X <- rbind(X, X^2)
+    X <- rbind(X, dbhs)
+    X <- rbind(X, dbhs^2)
+    X <- rbind(X, T_min*dbhs)
+    # dbhs is subtracted so that output is growth increment
+    preds <- t(X) %*% t(B) - rep(dbhs, nrow(B))
+
+}
+
 ###############################################################################
 ## Full model (correlated random effects)
 
-load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
+# load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
