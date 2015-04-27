@@ -45,12 +45,12 @@ destandardize <- function(d, model_type, temp_var) {
                           "_meanannual-mcwd_run12.RData")))
     if (model_type == "simple") {
         d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 1, dbh_sd)
-        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 2, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 3, (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 2, dbh_sd/precip_sd)
+        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 3, dbh_sd/(precip_sd^2))
         d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 4, dbh_sd/temp_sd)
-        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 5, dbh_sd/temp_sd)
+        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 5, dbh_sd/(temp_sd^2))
         d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 6, 1)
-        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 7, 1)
+        d <- destd(d, d$Parameter_Base == "B" & d$row_ID == 7, dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_t", dbh_sd)
@@ -65,13 +65,13 @@ destandardize <- function(d, model_type, temp_var) {
         B_g_rows <- d$Parameter_Base == "B_g"
         B_g_sigma_mu_rows <- d$Parameter_Base %in% c("mu_B_g", "sigma_B_g")
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 1) | (B_g_rows & d$col_ID == 1), dbh_sd)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), dbh_sd/precip_sd)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), dbh_sd/(precip_sd^2))
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 4) | (B_g_rows & d$col_ID == 4), dbh_sd/temp_sd)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/temp_sd)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/(temp_sd^2))
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 6) | (B_g_rows & d$col_ID == 6), 1)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), 1)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 8) | (B_g_rows & d$col_ID == 8), (1/precip_sd) * 100)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), dbh_sd)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 8) | (B_g_rows & d$col_ID == 8), 1/precip_sd)
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 9) | (B_g_rows & d$col_ID == 9), 1/temp_sd)
         d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
@@ -87,12 +87,12 @@ destandardize <- function(d, model_type, temp_var) {
         B_g_rows <- d$Parameter_Base == "B_g"
         B_g_sigma_mu_rows <- d$Parameter_Base %in% c("mu_B_g", "sigma_B_g")
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 1) | (B_g_rows & d$col_ID == 1), dbh_sd)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), dbh_sd/precip_sd)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), dbh_sd/(precip_sd^2))
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 4) | (B_g_rows & d$col_ID == 4), dbh_sd/temp_sd)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/temp_sd)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 5) | (B_g_rows & d$col_ID == 5), dbh_sd/(temp_sd^2))
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 6) | (B_g_rows & d$col_ID == 6), 1)
-        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), 1)
+        d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 7) | (B_g_rows & d$col_ID == 7), dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_k", dbh_sd)
         d <- destd(d, d$Parameter_Base == "int_t", dbh_sd)
