@@ -64,7 +64,6 @@ destandardize <- function(d, model_type, temp_var) {
     } else if (model_type == "interact") {
         B_g_rows <- d$Parameter_Base == "B_g"
         B_g_sigma_mu_rows <- d$Parameter_Base %in% c("mu_B_g", "sigma_B_g")
-        d$value_destd <- NA
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 1) | (B_g_rows & d$col_ID == 1), dbh_sd)
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 2) | (B_g_rows & d$col_ID == 2), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
         d <- destd(d, (B_g_sigma_mu_rows & d$row_ID == 3) | (B_g_rows & d$col_ID == 3), (dbh_sd/precip_sd) * 100) # Convert from mm to 10s of cm
