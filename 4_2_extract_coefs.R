@@ -112,7 +112,7 @@ destandardize <- function(d, model_type, temp_var) {
 # model_type <- "interact"
 # temp_var <- "tmn"
 
-start_val <- 50000
+start_val <- 60000
 thin_val <- 100
 foreach(model_type=c('simple', 'interact', 'correlated')) %do% {
     # Note the below is not parallel since running it in parallel breaks the Rcpp 
