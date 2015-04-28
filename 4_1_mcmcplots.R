@@ -18,14 +18,15 @@ plot_mcmc <- function(fit, params, model_type, temp_var) {
     mcmc_results <- as.mcmc.list(fit, c(params))
     mcmc_results <- window(mcmc_results, start=start_val, thin=thin_val)
     if (!file_test('-d', model_type)) dir.create(model_type)
-    mcmcplot(mcmc_results, title=paste0(model_type, ' - ', temp_var), 
-             dir=model_type, filename=temp_var)
+    # mcmcplot(mcmc_results, title=paste0(model_type, ' - ', temp_var), 
+    #          dir=model_type, filename=temp_var)
+    mcmcplot(mcmc_results, title=paste0(model_type, ' - ', temp_var))
 }
 
 ###############################################################################
 ## Simple model (no random effects)
-start_val <- 40000
-thin_val <- 50
+start_val <- 100000
+thin_val <- 100
 foreach(temp_var=c('tmn', 'tmp', 'tmx'), .inorder=FALSE,
         .packages=c('runjags', 'mcmcplots')) %dopar% {
     load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "simple", 
@@ -34,9 +35,9 @@ foreach(temp_var=c('tmn', 'tmp', 'tmx'), .inorder=FALSE,
 }
 
 ###############################################################################
-## Full model (interactions, uncorrelated random effects)
-start_val <- 40000
-thin_val <- 50
+## Genus-level random effects model with interaction terms
+start_val <- 100000
+thin_val <- 100
 foreach(temp_var=c('tmn', 'tmp', 'tmx'), .inorder=FALSE,
         .packages=c('runjags', 'mcmcplots')) %dopar% {
     load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "interact", 
@@ -46,9 +47,9 @@ foreach(temp_var=c('tmn', 'tmp', 'tmx'), .inorder=FALSE,
 }
 
 ###############################################################################
-## Full model (correlated random effects)
-start_val <- 20000
-thin_val <- 50
+## Correlated genus-level random effects model
+start_val <- 50000
+thin_val <- 100
 foreach(temp_var=c('tmn', 'tmp', 'tmx'), .inorder=FALSE,
         .packages=c('runjags', 'mcmcplots')) %dopar% {
     load(file.path(prefix, "TEAM", "Tree_Growth", "MCMC_Chains", "correlated", 
