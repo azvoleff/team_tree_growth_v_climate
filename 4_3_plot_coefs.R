@@ -246,14 +246,14 @@ ann_text <- group_by(preds, Panel, Model) %>%
 ann_text$dbh <- 90
 ann_text$mean <- 5
 
-ggplot(preds, aes(x=dbh, y=mean)) +
-    geom_line(aes(colour=clim)) +
-    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-    facet_grid(Panel~Model) +
-    ylab('Increment (cm)') +
-    geom_text(data=ann_text, aes(label=lab))
-
-head(preds)
+# ggplot(preds, aes(x=dbh, y=mean)) +
+#     geom_line(aes(colour=clim)) +
+#     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
+#     facet_grid(Panel~Model) +
+#     ylab('Increment (cm)') +
+#     geom_text(data=ann_text, aes(label=lab))
+#
+# head(preds)
 
 ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
     foreach(this_model=unique(preds$Model)) %do% {
@@ -270,8 +270,12 @@ ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
     return(p)
 }
 
-grid.arrange(ps[[1]], ps[[2]], ps[[3]],
-             ps[[4]], ps[[5]], ps[[6]], ncol=3, nrow=2)
+p <- arrangeGrob(ps[[1]], ps[[2]], ps[[3]],
+                 ps[[4]], ps[[5]], ps[[6]], ncol=3, nrow=2)
+ggsave(paste0('predicted_growth_increments.png'), width=plot_width*2,
+       height=plot_height*2, dpi=plot_dpi, plot=p)
+ggsave(paste0('predicted_growth_increments.svg'), width=plot_width*2,
+       height=plot_height*2, dpi=plot_dpi, plot=p)
 
 ###############################################################################
 ## Full model (correlated random effects)
