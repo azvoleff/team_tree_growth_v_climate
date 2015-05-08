@@ -132,16 +132,14 @@ foreach (model_type=model_types) %:%
     WD_sd <- sd(dbh_ts$WD)
     WD <- (dbh_time_0$WD - WD_mean) / WD_sd
 
-    genus_ID <- dbh_time_0$genus_ID
-    sum(genus_ID == "Unknown") / length(genus_ID)
-
     # Setup wide format dbh, precip, and temp dataframes
-    dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="dbh")
-    precip <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="precip")
-    temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID ~ period_num, value.var="temp")
+    dbh <- dcast(dbh_ts, tree_ID + plot_ID + site_ID + genus_ID ~ period_num, value.var="dbh")
+    precip <- dcast(dbh_ts, tree_ID + plot_ID + site_ID + genus_ID ~ period_num, value.var="precip")
+    temp <- dcast(dbh_ts, tree_ID + plot_ID + site_ID + genus_ID ~ period_num, value.var="temp")
     tree_ID <- dbh$tree_ID
     plot_ID <- dbh$plot_ID
     site_ID <- dbh$site_ID
+    genus_ID <- dbh$genus_ID
     # Eliminate the ID columns
     dbh <- dbh[!grepl('_ID$', names(dbh))]
     precip <- precip[!grepl('_ID$', names(precip))]
