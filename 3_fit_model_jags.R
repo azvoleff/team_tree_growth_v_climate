@@ -6,9 +6,9 @@ source("0_settings.R")
 # Allow block-updating using glm module
 load.module("glm")
 
-model_structure <- "simple"
+#model_structure <- "simple"
 #model_structure <- "correlated"
-#model_structure <- "interact"
+model_structure <- "interact"
 
 temp_var <- 'tmn_meanannual'
 #temp_var <- 'tmp_meanannual'
@@ -115,10 +115,11 @@ model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices
 # save(jags_fit, file=out_name)
 # print(paste("Finished", out_name))
 
+n_chains <- 6
 jags_fit <- run.jags(model=model_file, monitor=monitored,
-                     data=model_data, inits=rep(list(init_data), 3),
-                     n.chains=3, method="parallel", adapt=1000,
-                     burnin=10000, sample=1000, thin=20, summarise=FALSE)
+                     data=model_data, inits=rep(list(init_data), n_chains),
+                     n.chains=n_chains, method="parallel", adapt=1000,
+                     burnin=10000, sample=200, thin=100, summarise=FALSE)
 print("finished running JAGS chains in parallel")
 run_id <- paste0(Sys.info()[4], format(Sys.time(), "_%Y%m%d%H%M%S"))
 out_name <- file.path(mcmc_folder, paste0("jags_fit", out_suffix, '-', run_id, ".RData"))
