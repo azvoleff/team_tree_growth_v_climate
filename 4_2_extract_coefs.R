@@ -112,11 +112,16 @@ destandardize <- function(d, model_type, temp_var) {
 # model_type <- "interact"
 # temp_var <- "tmn"
 
-start_val <- 100000
-thin_val <- 100
 foreach(model_type=c('simple', 'interact', 'correlated')) %do% {
     # Note the below is not parallel since running it in parallel breaks the Rcpp 
     # function.
+    if (model_type == "correlated") {
+        start_val <- 50000
+        thin_val <- 200
+    } else {
+        start_val <- 100000
+        thin_val <- 200
+    }
     params <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, 
                       .inorder=FALSE,
                       .packages=c('runjags', 'ggmcmc', 'mcmcplots', 'Rcpp',
