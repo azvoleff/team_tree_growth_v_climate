@@ -145,6 +145,18 @@ p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_mean'
 ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
+p <- caterpillar(filter(params, Parameter %in% paste0('int_k[', c(1:13), ']')))
+ggsave('caterpillar_int_k_interact.png', p, width=plot_width*1.5, 
+       height=plot_height*1.5, dpi=plot_dpi)
+
+p <- caterpillar(filter(params, Parameter %in% paste0('int_jk[', c(1:82), ']')))
+ggsave('caterpillar_int_jk_interact.png', p, width=plot_width*1.5, 
+       height=plot_height*2, dpi=plot_dpi)
+
+p <- caterpillar(filter(params, Parameter %in% paste0('B_k[', c(1:13), ']')))
+ggsave('caterpillar_B_k_interact.png', p, width=plot_width*1.5, 
+       height=plot_height*1.5, dpi=plot_dpi)
+
 # Plot Rhats for each model
 foreach(this_model=unique(params$Model)) %do% {
     pars <- filter(params, Model == this_model)
