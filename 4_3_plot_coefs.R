@@ -21,6 +21,14 @@ plot_dpi <- 300
 # order to make interpretation of results easier
 mm_per_unit <- 10
 
+# What thinning was used? This does not change the thinning - it only is used 
+# to properly align the plots.
+nThin <- 100
+
+# What burn-in was used? This does not change the thinning - it only is used to 
+# properly align the plots.
+nBurnin  <- 20000
+
 # Calculate weights for each genus ID (doesn't matter which temp_var is used 
 # since the genus IDs and frequencies are the same across all simulations).
 load(file.path(base_folder, 'Data', 
@@ -77,12 +85,11 @@ weight_coef <- function(d, w) {
 # params$Model <- factor(params$Model, levels=c('tmn', 'tmp', 'tmx'),
 #                        labels=c('Min. Temp.', 'Mean Temp.', 'Max. Temp.'))
 #
-# caterpillar(filter(params, Parameter %in% paste0('B[', 1:7, ']')))
+# caterpillar(filter(params, Parameter %in% paste0('B[', 2:7, ']')))
 # ggsave('caterpillar_climate_simple.png', p, width=plot_width, 
 #        height=plot_height, dpi=plot_dpi)
 #
-# p <- caterpillar(filter(params, Parameter %in% c('B[2]', 'B[3]', 
-#                                                             'B[4]', 'B[5]')),
+# p <- caterpillar(filter(params, Parameter %in% c('B[2]', 'B[3]', 'B[4]', 'B[5]')),
 #                             labels=c('B[2]'='P',
 #                                      'B[3]'=expression(P^2), 
 #                                      'B[4]'='T',
@@ -141,10 +148,10 @@ ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5,
 # Plot Rhats for each model
 foreach(this_model=unique(params$Model)) %do% {
     pars <- filter(params, Model == this_model)
-    attributes(pars)$nChains <- 3
+    attributes(pars)$nChains <- max(params$Chain)
     attributes(pars)$nIterations <- max(params$Iteration)
-    attributes(pars)$nThin <- 100
-    attributes(pars)$nBurnin <- 100000
+    attributes(pars)$nThin <- nThin
+    attributes(pars)$nBurnin <- nBurnin
 
     ggs_Rhat(pars, 'B_k')
     ggsave(paste0('Rhat_interact_B_k_', this_model, '.png'), width=plot_width*2, 
@@ -209,8 +216,10 @@ preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
 
     dbhs_centered <- dbhs - dbh_mean
 
-    temps <- c(ceiling(temp_min), floor(temp_max))
-    temps <- temps - temp_mean
+    # Remember temp is standardized, so round it then center it just so the 
+    # units look pretty
+    temps <- round(temp_mean) - temp_mean
+    temps <- c(temps - 2, temps, temps + 2)
     temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
         temp_preds <- make_preds(B, temp, (0 - precip_mean)/mm_per_unit, dbhs_centered)
         temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
@@ -219,8 +228,8 @@ preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
         return(temp_preds)
     }
 
-    precips <- c(ceiling(precip_min), floor(precip_max))
-    precips <- (precips - precip_mean)/mm_per_unit # Fix units
+    # Center, and set units
+    precips <- (c(0, 150, 150 + 100) - precip_mean)/mm_per_unit
     precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
         precip_preds <- make_preds(B, 0, precip, dbhs_centered)
         precip_preds <- cbind(Panel="MCWD",
@@ -263,8 +272,8 @@ ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
         facet_wrap(~Model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(-5, 10)) +
-        theme(legend.position=c(.8, .85)) +
+        coord_cartesian(ylim=c(0, 6)) +
+        theme(legend.position=c(.8, .75)) +
         guides(fill=guide_legend(this_panel),
                colour=guide_legend(this_panel))
     return(p)
@@ -272,10 +281,10 @@ ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
 
 p <- arrangeGrob(ps[[1]], ps[[2]], ps[[3]],
                  ps[[4]], ps[[5]], ps[[6]], ncol=3, nrow=2)
-ggsave(paste0('predicted_growth_increments.png'), width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
-ggsave(paste0('predicted_growth_increments.svg'), width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+ggsave(paste0('predicted_growth_increments.png'), width=plot_width*2.5,
+       height=plot_height*2.5, dpi=plot_dpi, plot=p)
+ggsave(paste0('predicted_growth_increments.svg'), width=plot_width*2.5,
+       height=plot_height*2.5, dpi=plot_dpi, plot=p)
 
 ###############################################################################
 ## Full model (correlated random effects)
