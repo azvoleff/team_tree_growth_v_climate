@@ -167,6 +167,13 @@ foreach (model_type=model_types) %:%
          file=file.path(data_folder, paste0("model_data_standardizing", suffix, 
                                      ".RData")))
 
+    # Save a key that gives elevation difference by plot ID and site - will be 
+    # used later when making predictions.
+    elev_key <- data.frame(plot_ID=unique(growth$plot_ID))
+    elev_key$elev_diff <- elev_diff # Note elev_diff is sorted by plot_ID
+    save(elev_key, file=file.path(data_folder, paste0("model_data_elev_key", 
+                                                      suffix, ".RData")))
+
     # Setup data
     n_tree <- length(unique(dbh_ts$tree_ID))
     n_site <- length(unique(dbh_ts$site_ID))
@@ -276,6 +283,15 @@ foreach (model_type=model_types) %:%
     write.csv(genus_ID_factor_key, file=file.path(data_folder, paste0("genus_ID_factor_key", 
                                                          suffix, ".csv")), 
                                                   row.names=FALSE)
+
+    plot_ID_factor_levels <- levels(factor(plot_ID))
+    plot_ID_factor_key <- cbind(plot_ID_char=as.character(plot_ID_factor_levels), 
+                                plot_ID_numeric=seq(1:length(plot_ID_factor_levels)))
+    write.csv(plot_ID_factor_key, file=file.path(data_folder, 
+                                                 paste0("plot_ID_factor_key", 
+                                                        suffix, ".csv")), 
+                                                 row.names=FALSE)
+
 
     site_ID_factor_levels <- levels(factor(site_ID))
     site_ID_factor_key <- cbind(site_ID_char=as.character(site_ID_factor_levels), 
