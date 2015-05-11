@@ -60,7 +60,7 @@ destandardize <- function(d, model_type, temp_var) {
         d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
-        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd/elev_diff_sd)
     } else if (model_type == "interact") {
         B_g_rows <- d$Parameter_Base == "B_g"
         B_g_sigma_mu_rows <- d$Parameter_Base %in% c("mu_B_g", "sigma_B_g")
@@ -82,7 +82,7 @@ destandardize <- function(d, model_type, temp_var) {
         d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
-        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd/elev_diff_sd)
     } else if (model_type == "correlated") {
         B_g_rows <- d$Parameter_Base == "B_g"
         B_g_sigma_mu_rows <- d$Parameter_Base %in% c("mu_B_g", "sigma_B_g")
@@ -102,7 +102,7 @@ destandardize <- function(d, model_type, temp_var) {
         d <- destd(d, d$Parameter_Base == "sigma_int_jk", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_k", dbh_sd)
         d <- destd(d, d$Parameter_Base == "sigma_int_t", dbh_sd)
-        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd)
+        d <- destd(d, d$Parameter_Base == "B_k", dbh_sd/elev_diff_sd)
     } else {
         stop('unrecognized model type')
     }
