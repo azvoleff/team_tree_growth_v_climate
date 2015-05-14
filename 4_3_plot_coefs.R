@@ -27,7 +27,7 @@ nThin <- 100
 
 # What burn-in was used? This does not change the thinning - it only is used to 
 # properly align the plots.
-nBurnin  <- 20000
+nBurnin  <- 50000
 
 # Calculate weights for each genus ID (doesn't matter which temp_var is used 
 # since the genus IDs and frequencies are the same across all simulations).
