@@ -16,7 +16,7 @@ library(scales) # for 'alpha'
 library(foreach)
 library(doParallel)
 
-cl <- makeCluster(3)
+cl <- makeCluster(2)
 registerDoParallel(cl)
 
 plot_width <- 3.5

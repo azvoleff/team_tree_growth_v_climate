@@ -27,19 +27,29 @@ nThin <- 100
 
 # What burn-in was used? This does not change the thinning - it only is used to 
 # properly align the plots.
-nBurnin  <- 50000
+nBurnin  <- 75000
 
 # Calculate weights for each genus ID (doesn't matter which temp_var is used 
 # since the genus IDs and frequencies are the same across all simulations).
 load(file.path(base_folder, 'Data', 
                paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
 merged <- tbl_df(data.frame(site_ID=model_data$site_ID, 
-                            genus_ID=as.integer(model_data$genus_ID)))
-genus_weights <- group_by(merged, genus_ID) %>%
+                            plot_ID=model_data$plot_ID, 
+                            genus_ID=model_data$genus_ID))
+# genus_weights <- group_by(merged, genus_ID) %>%
+#     summarize(n=n()) %>%
+#     ungroup() %>%
+#     mutate(weight=n/sum(n)) %>%
+#     select(-n) %>%
+#     arrange(desc(weight))
+
+n_sites <- length(unique(merged$site_ID))
+genus_weights <- group_by(merged, site_ID, genus_ID) %>%
     summarize(n=n()) %>%
-    ungroup() %>%
+    group_by(site_ID) %>%
     mutate(weight=n/sum(n)) %>%
-    select(-n) %>%
+    group_by(genus_ID) %>%
+    summarise(weight=sum(weight) / n_sites) %>%
     arrange(desc(weight))
 
 caterpillar <- function(mods, labels=NULL) {
@@ -72,7 +82,7 @@ caterpillar <- function(mods, labels=NULL) {
 weight_coef <- function(d, w) {
     d <- left_join(d, w)
     d <- group_by(d, Model, Chain, Iteration, param_ID) %>%
-        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'mean', sep='_'),
+        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'median', sep='_'),
                   value=sum(weight * value))
     return(d)
 }
@@ -133,15 +143,15 @@ p <- caterpillar(filter(params, Parameter %in% paste0('mu_B_g[', c(2:9), ']')),
 ggsave('caterpillar_climate_interact_unweighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
-p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_mean')),
-                 labels=c('B_g_2_mean'='P',
-                          'B_g_3_mean'=expression(P^2),
-                          'B_g_4_mean'='T',
-                          'B_g_5_mean'=expression(T^2),
-                          'B_g_6_mean'='D',
-                          'B_g_7_mean'=expression(D^2),
-                          'B_g_8_mean'=expression(D%*%P),
-                          'B_g_9_mean'=expression(D%*%T)))
+p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_median')),
+                 labels=c('B_g_2_median'='P',
+                          'B_g_3_median'=expression(P^2),
+                          'B_g_4_median'='T',
+                          'B_g_5_median'=expression(T^2),
+                          'B_g_6_median'='D',
+                          'B_g_7_median'=expression(D^2),
+                          'B_g_8_median'=expression(D%*%P),
+                          'B_g_9_median'=expression(D%*%T)))
 ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
@@ -205,10 +215,10 @@ make_preds <- function(B, temp, precip, dbhs) {
     X <- cbind(X, temp*dbhs)
     # dbhs is subtracted so that output is growth increment
     these_preds <- X %*% B - rep(dbhs, ncol(B))
-    means <- apply(these_preds, 1, mean)
+    medians <- apply(these_preds, 1, median)
     q2pt5 <- apply(these_preds, 1, quantile, .025)
     q97pt5 <- apply(these_preds, 1, quantile, .975)
-    data.frame(mean=means, q2pt5, q97pt5)
+    data.frame(median=medians, q2pt5, q97pt5)
 }
 
 dbhs <- seq(10, 120, 1)
@@ -241,7 +251,7 @@ preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
     }
 
     # Center, and set units
-    precips <- (c(0, 150, 150 + 100) - precip_mean)/mm_per_unit
+    precips <- (c(75, 150, 150 + 75) - precip_mean)/mm_per_unit
     precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
         precip_preds <- make_preds(B, 0, precip, dbhs_centered)
         precip_preds <- cbind(Panel="MCWD",
@@ -278,13 +288,13 @@ ann_text$mean <- 5
 
 ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
     foreach(this_model=unique(preds$Model)) %do% {
-    p <- ggplot(filter(preds, this_model == Model, this_panel == Panel), aes(x=dbh, y=mean)) +
+    p <- ggplot(filter(preds, this_model == Model, this_panel == Panel), aes(x=dbh, y=median)) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
         facet_wrap(~Model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 6)) +
+        coord_cartesian(ylim=c(0, 3)) +
         theme(legend.position=c(.8, .75)) +
         guides(fill=guide_legend(this_panel),
                colour=guide_legend(this_panel))
