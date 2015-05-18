@@ -155,6 +155,16 @@ p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_media
 ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
+p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:5, 8:9), '_median')),
+                 labels=c('B_g_2_median'='P',
+                          'B_g_3_median'=expression(P^2),
+                          'B_g_4_median'='T',
+                          'B_g_5_median'=expression(T^2),
+                          'B_g_8_median'=expression(D%*%P),
+                          'B_g_9_median'=expression(D%*%T)))
+ggsave('caterpillar_climate_interact_weighted_noD.png', p, width=plot_width*1.5, 
+       height=plot_height, dpi=plot_dpi)
+
 p <- caterpillar(filter(params, Parameter %in% paste0('int_k[', c(1:13), ']')))
 ggsave('caterpillar_int_k_interact.png', p, width=plot_width*1.5, 
        height=plot_height*1.5, dpi=plot_dpi)
@@ -166,6 +176,13 @@ ggsave('caterpillar_int_jk_interact.png', p, width=plot_width*1.5,
 p <- caterpillar(filter(params, Parameter %in% paste0('B_k[', c(1:13), ']')))
 ggsave('caterpillar_B_k_interact.png', p, width=plot_width*1.5, 
        height=plot_height*1.5, dpi=plot_dpi)
+
+
+
+# Temp plots
+mins <- c(11:24)
+
+
 
 # Plot Rhats for each model
 foreach(this_model=unique(params$Model)) %do% {
@@ -241,9 +258,9 @@ preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
     # Remember temp is standardized, so round it then center it just so the 
     # units look pretty
     temps <- round(temp_mean) - temp_mean
-    temps <- c(temps - 2, temps, temps + 2)
+    temps <- c(temps - 1, temps, temps + 1)
     temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
-        temp_preds <- make_preds(B, temp, (0 - precip_mean)/mm_per_unit, dbhs_centered)
+        temp_preds <- make_preds(B, temp, (150 - precip_mean)/mm_per_unit, dbhs_centered)
         temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
                             dbh=dbhs,
                             temp_preds)
@@ -294,8 +311,8 @@ ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
         facet_wrap(~Model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 3)) +
-        theme(legend.position=c(.8, .75)) +
+#        coord_cartesian(ylim=c(0, 3)) +
+        theme(legend.position=c(.20, .2)) +
         guides(fill=guide_legend(this_panel),
                colour=guide_legend(this_panel))
     return(p)
