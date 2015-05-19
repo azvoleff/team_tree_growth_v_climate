@@ -27,7 +27,7 @@ nThin <- 100
 
 # What burn-in was used? This does not change the thinning - it only is used to 
 # properly align the plots.
-nBurnin  <- 75000
+nBurnin  <- 100000
 
 # Calculate weights for each genus ID (doesn't matter which temp_var is used 
 # since the genus IDs and frequencies are the same across all simulations).
@@ -181,8 +181,6 @@ ggsave('caterpillar_B_k_interact.png', p, width=plot_width*1.5,
 
 # Temp plots
 mins <- c(11:24)
-
-
 
 # Plot Rhats for each model
 foreach(this_model=unique(params$Model)) %do% {
