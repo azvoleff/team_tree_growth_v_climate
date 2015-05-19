@@ -6,6 +6,7 @@ pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
 prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               'H:/Data', # Buffalo drive
               'O:/Data', # Blue drive
+              '/localdisk/ci_share/azvoleff/Data', # vertica1
               '/localdisk/home/azvoleff/Data') # vertica1
 prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
 
@@ -20,7 +21,7 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 # load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
 # write.csv(params, file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.csv"), row.names=FALSE)
 
-con <- dbConnect(PostgreSQL(), dbname='tree_growth', user='azvoleff', 
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user='cistaff', 
                  password=pgsqlpwd)
 
 make_table <- function(con, model_type) {
