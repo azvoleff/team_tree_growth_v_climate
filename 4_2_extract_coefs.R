@@ -120,7 +120,7 @@ foreach(model_type=c('simple', 'interact', 'correlated')) %do% {
         thin_val <- 200
     } else {
         start_val <- 100000
-        thin_val <- 200
+        thin_val <- 100
     }
     params <- foreach(temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind, 
                       .inorder=FALSE,
