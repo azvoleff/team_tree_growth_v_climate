@@ -1,22 +1,15 @@
 # Forest growth model MCMC results
 
-prefixes <- c('D:/azvoleff/Data', # CI-TEAM
-              'H:/Data', # Buffalo drive
-              'O:/Data', # Blue drive
-              '/localdisk/home/azvoleff/Data') # vertica1
-prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
-
-base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
-data_folder <- file.path(base_folder, "Data")
-
+library(dplyr)
 library(RColorBrewer)
 library(ggmcmc)
 library(gridExtra)
 library(scales) # for 'alpha'
 library(foreach)
 library(doParallel)
+library(RPostgreSQL)
 
-cl <- makeCluster(3)
+cl <- makeCluster(12)
 registerDoParallel(cl)
 
 plot_width <- 3.5
@@ -27,34 +20,27 @@ plot_dpi <- 300
 # order to make interpretation of results easier
 mm_per_unit <- 10
 
-# Calculate weights for each genus ID (doesn't matter which temp_var is used 
-# since the genus IDs and frequencies are the same across all simulations).
-load(file.path(data_folder,
-               paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
-merged <- tbl_df(data.frame(site_ID=model_data$site_ID, 
-                            plot_ID=model_data$plot_ID, 
-                            genus_ID=model_data$genus_ID))
+prefixes <- c('D:/azvoleff/Data', # CI-TEAM
+              'H:/Data', # Buffalo drive
+              'O:/Data', # Blue drive
+              '/localdisk/home/azvoleff/Data') # vertica1
+prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
 
-# Function to calculated weighted coefficients from an array of MCMC results.  
-# Weights should be a 2 column data.frame with IDs in the first column, and 
-# weights in the second. D should be a ggs object with parameter IDs added 
-# using the jags_param_ids function
-weight_coef <- function(d, w) {
-    left_join(d, w) %>%
-        group_by(Model, Chain, Iteration, param_ID) %>%
-        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'median', sep='_'),
-                  value=sum(weight * value))
-}
+base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
+data_folder <- file.path(base_folder, "Data")
+
+pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
+
+# con <- dbConnect(PostgreSQL(), dbname='tree_growth', user='cistaff', 
+# password=pgsqlpwd)
+# dbSendQuery(con, paste0("DROP TABLE IF EXISTS stems"))
+# dbSendQuery(con, paste0("CREATE TABLE stems (site_id integer, plot_id integer, genus_id integer)"))
 
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
 
-load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_interact.RData"))
-
 # Function to make a growth prediction as a function of a particular climate 
 # variable
-#
-# TODO: Test the intercept addition to make sure I did the rep correctly
 make_dbh_preds <- function(B, temp, precip, dbhs, intercept) {
     X <- matrix(rep(1, length(dbhs)), ncol=1) # genus-level intercept
     X <- cbind(X, precip)
@@ -95,156 +81,153 @@ make_temp_preds <- function(B, temps, precip, dbh, intercept) {
     data.frame(median=medians, q2pt5, q97pt5)
 }
 
-# Genus-level random effects
-B_g_params <- filter(params, Parameter_Base == 'B_g') %>% 
-    rename(genus_ID=row_ID, param_ID=col_ID)
-
-# Site-level intercepts
-int_k_params <- filter(params, Parameter_Base == 'int_k') %>% 
-    rename(site_ID=row_ID) %>% select(-col_ID)
-
-
-# Genus-level random effects
-B_g_params <- filter(params, Parameter_Base == 'B_g') %>% 
-    rename(genus_ID=row_ID, param_ID=col_ID)
-
-# Site-level intercepts
-int_k_params <- filter(params, Parameter_Base == 'int_k') %>% 
-    rename(site_ID=row_ID) %>% select(-col_ID)
-
-# Plot-level intercepts
-int_jk_params <- filter(params, Parameter_Base == 'int_jk') %>% 
-    rename(plot_ID=row_ID) %>% select(-col_ID)
-
-# Elevation difference between plot and CRU cell center
-B_k_params <- filter(params, Parameter_Base == 'B_k') %>% 
-    rename(site_ID=row_ID) %>% select(-col_ID)
-
 dbhs <- seq(10, 120, 1)
 
-# this_model <- unique(params$Model)[1]
-# this_plot <- unique(merged$plot_ID)[1]
+# this_model <- 'tmn'
+# this_plot <- 1
 
-preds <- foreach(this_model=unique(params$Model), .combine=rbind, 
-                 .final=tbl_df) %:%
-    foreach(this_plot=unique(merged$plot_ID), .combine=rbind,
-            .packages=c('foreach', 'dplyr')) %dopar% {
+preds <- foreach(this_model=c('tmn', 'tmp', 'tmx', .combine=rbind)) %:% {
+    foreach(this_plot=c(1:82), .combine=rbind,
+            .packages=c('foreach', 'dplyr', 'RPostgreSQL'),
+            .inorder=FALSE) %dopar% {
+        pg_src <- src_postgres('tree_growth', user='cistaff', 
+                               password=pgsqlpwd)
+        params <- tbl(pg_src, 'interact')
+        params <- filter(params, model == this_model)
+        stems <- tbl(pg_src, paste0('stems_', this_model))
 
-    suffix <- paste0("_full-", this_model, "_meanannual-mcwd_run12")
-    # Need to key plot_ID to site_ID
-    plot_ID_factor_key <- read.csv(file=file.path(data_folder,
-                                                  paste0("plot_ID_factor_key", 
-                                                         suffix, ".csv")))
-    # Need to key plot_ID to site_ID
-    site_ID_factor_key <- read.csv(file=file.path(data_folder, 
-                                                  paste0("site_ID_factor_key", 
-                                                         suffix, ".csv")))
-    # Need elevation data
-    load(file.path(data_folder, paste0("model_data_elev_key", suffix, ".RData")))
+        # Genus-level random effects
+        B_g_params <- filter(params, parameter_base == 'B_g') %>% 
+            rename(genus_id=row_id, param_id=col_id)
 
-    # Need to center the predictor variables
-    load(file.path(data_folder, paste0("model_data_standardizing", suffix, 
-                                       ".RData")))
+        # Site-level intercepts
+        int_k_params <- filter(params, parameter_base == 'int_k') %>% 
+            rename(site_id=row_id) %>% select(-col_id) %>% collect()
 
-    plot_ID_factor_key$site_ID_char <- gsub('(VG)|([0-9]*)', '', plot_ID_factor_key$plot_ID_char)
+        # Plot-level intercepts
+        int_jk_params <- filter(params, parameter_base == 'int_jk') %>% 
+            rename(plot_id=row_id) %>% select(-col_id) %>% collect()
 
-    site_key <- left_join(plot_ID_factor_key, rename(elev_key, plot_ID_char=plot_ID)) %>%
-        left_join(site_ID_factor_key, by="site_ID_char") %>%
-        rename(plot_ID=plot_ID_numeric, site_ID=site_ID_numeric)
+        # Elevation difference between plot and CRU cell center
+        B_k_params <- filter(params, parameter_base == 'B_k') %>% 
+            rename(site_id=row_id) %>% select(-col_id) %>% collect()
 
-    this_site <- site_key$site_ID[match(this_plot, site_key$plot_ID)]
-    this_site_char <- site_key$site_ID_char[match(this_plot, site_key$plot_ID)]
-    this_plot_char <- site_key$plot_ID_char[match(this_plot, site_key$plot_ID)]
 
-    this_elev_diff <- site_key$elev_diff[match(this_plot, site_key$plot_ID)]
+        suffix <- paste0("_full-", this_model, "_meanannual-mcwd_run12")
+        # Need to key plot_id to site_id
+        plot_id_factor_key <- read.csv(file=file.path(data_folder,
+                                                      paste0("plot_ID_factor_key", 
+                                                             suffix, ".csv")))
+        # Need to key plot_id to site_id
+        site_id_factor_key <- read.csv(file=file.path(data_folder, 
+                                                      paste0("site_ID_factor_key", 
+                                                             suffix, ".csv")))
+        # Need elevation data
+        load(file.path(data_folder, paste0("model_data_elev_key", suffix, ".RData")))
 
-    genus_weights <- filter(merged, plot_ID == this_plot) %>%
-        group_by(genus_ID) %>%
-        summarize(n=n()) %>%
-        ungroup() %>%
-        mutate(weight=n/sum(n)) %>%
-        select(-n) %>%
-        arrange(desc(weight))
+        # Need to center the predictor variables
+        load(file.path(data_folder, paste0("model_data_standardizing", suffix, 
+                                           ".RData")))
 
-    B_g_betas <- weight_coef(filter(B_g_params, genus_ID %in% 
-                                    genus_weights$genus_ID,
-                                    Model == this_model), genus_weights)
+        plot_id_factor_key$site_ID_char <- gsub('(VG)|([0-9]*)', '', plot_id_factor_key$plot_ID_char)
 
-    # Change MCWD units from mm to cm
-    B_g_betas$value[B_g_betas$Parameter == "B_g_2_median"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_2_median"] * mm_per_unit
-    B_g_betas$value[B_g_betas$Parameter == "B_g_3_median"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_3_median"] * mm_per_unit^2
-    B_g_betas$value[B_g_betas$Parameter == "B_g_8_median"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_8_median"] * mm_per_unit
+        site_key <- left_join(plot_id_factor_key, rename(elev_key, plot_ID_char=plot_ID)) %>%
+            left_join(site_id_factor_key, by="site_ID_char") %>%
+            rename(plot_id=plot_ID_numeric, site_id=site_ID_numeric)
 
-    # Calculate intercept
-    intercept <- filter(int_k_params, site_ID == this_site, Model == this_model)$value +
-        filter(int_jk_params, plot_ID == this_plot, Model == this_model)$value
+        this_site <- site_key$site_id[match(this_plot, site_key$plot_id)]
+        this_site_char <- site_key$site_ID_char[match(this_plot, site_key$plot_id)]
+        this_plot_char <- site_key$plot_ID_char[match(this_plot, site_key$plot_id)]
 
-    # Calculate elevation adjustment for this plot
-    elev_adjust <- filter(B_k_params, site_ID == this_site, Model == this_model)$value * (this_elev_diff - elev_diff_mean)
+        this_elev_diff <- site_key$elev_diff[match(this_plot, site_key$plot_id)]
 
-    intercept <- intercept + elev_adjust
+        genus_weights <- filter(stems, plot_id == this_plot) %>%
+            group_by(genus_id) %>%
+            summarize(n=n()) %>%
+            ungroup() %>%
+            mutate(weight=n/sum(n)) %>%
+            select(-n) %>%
+            arrange(desc(weight))
 
-    # Model effects of temp variation:
-    B <- filter(B_g_betas, Model == this_model) %>%
-        ungroup() %>%
-        arrange(Parameter, Iteration) %>%
-        select(Parameter, value)
-    # Convert to matrix for linear algebra
-    B <- matrix(B$value, nrow=length(unique(B$Parameter)), byrow=TRUE)
+        B_g_betas <- filter(left_join(genus_weights, B_g_params)) %>%
+            mutate(param=sql("parameter_base || '_' || param_id || '_median'")) %>%
+            group_by(model, chain, iteration, param) %>%
+            summarise(value=sum(weight * value)) %>%
+            collect()
 
-    dbhs_centered <- dbhs - dbh_mean
+        # Change MCWD units from mm to cm
+        B_g_betas$value[B_g_betas$param == "B_g_2_median"] <- B_g_betas$value[B_g_betas$param == "B_g_2_median"] * mm_per_unit
+        B_g_betas$value[B_g_betas$param == "B_g_3_median"] <- B_g_betas$value[B_g_betas$param == "B_g_3_median"] * mm_per_unit^2
+        B_g_betas$value[B_g_betas$param == "B_g_8_median"] <- B_g_betas$value[B_g_betas$param == "B_g_8_median"] * mm_per_unit
 
-    temps <- round(temp_mean) - temp_mean
-    temps <- c(temps - 2, temps, temps + 2)
-    temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
-        temp_preds <- make_dbh_preds(B, temp, (150 - precip_mean)/mm_per_unit, 
-                                 dbhs_centered, intercept)
-        temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
-                            dbh=dbhs,
-                            temp_preds)
-        return(temp_preds)
+        # Calculate intercept
+        intercept <- filter(int_k_params, site_id == this_site, model == this_model)$value +
+            filter(int_jk_params, plot_id == this_plot, model == this_model)$value
+
+        # Calculate elevation adjustment for this plot
+        elev_adjust <- filter(B_k_params, site_id == this_site)$value * (this_elev_diff - elev_diff_mean)
+
+        intercept <- intercept + elev_adjust
+
+        # Model effects of temp variation:
+        B <- arrange(B_g_betas, param, iteration)
+        # Convert to matrix for linear algebra
+        B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
+
+        dbhs_centered <- dbhs - dbh_mean
+
+        temps <- round(temp_mean) - temp_mean
+        temps <- c(temps - 2, temps, temps + 2)
+        temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
+            temp_preds <- make_dbh_preds(B, temp, (150 - precip_mean)/mm_per_unit, 
+                                     dbhs_centered, intercept)
+            temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
+                                dbh=dbhs,
+                                temp_preds)
+            return(temp_preds)
+        }
+
+        precips <- (c(75, 150, 150 + 75) - precip_mean)/mm_per_unit
+        precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
+            precip_preds <- make_dbh_preds(B, 0, precip, dbhs_centered, intercept)
+            precip_preds <- cbind(Panel="MCWD",
+                                  clim=precip + precip_mean/mm_per_unit,
+                                  dbh=dbhs,
+                                  precip_preds)
+            return(precip_preds)
+        }
+
+        preds <- rbind(temp_preds, precip_preds)
+        preds <- cbind(model=this_model, plot_id=this_plot_char, 
+                       site_id=this_site_char, preds)
+
+        return(preds)
     }
-
-    precips <- (c(75, 150, 150 + 75) - precip_mean)/mm_per_unit
-    precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
-        precip_preds <- make_dbh_preds(B, 0, precip, dbhs_centered, intercept)
-        precip_preds <- cbind(Panel="MCWD",
-                              clim=precip + precip_mean/mm_per_unit,
-                              dbh=dbhs,
-                              precip_preds)
-        return(precip_preds)
-    }
-
-    preds <- rbind(temp_preds, precip_preds)
-    preds <- cbind(Model=this_model, plot_ID=this_plot_char, 
-                   site_ID=this_site_char, preds)
-
-    return(preds)
 }
 
 preds$clim <- factor(sprintf('%.02f', preds$clim))
 preds$clim <- relevel(preds$clim, '7.50')
-preds$Model <- factor(preds$Model, levels=c('tmn', 'tmp', 'tmx'), 
+preds$model <- factor(preds$model, levels=c('tmn', 'tmp', 'tmx'), 
                       labels=c('Min. Temp. Model',
                                'Mean Temp. Model',
                                'Max. Temp. Model'))
 
 save(preds, file='growth_predictions_byplot.RData')
 
-preds_bysite <- group_by(preds, Model, Panel, clim, dbh, site_ID) %>%
+preds_bysite <- group_by(preds, model, Panel, clim, dbh, site_id) %>%
     summarise(median=median(median),
               q2pt5=median(q2pt5),
               q97pt5=median(q97pt5))
 
-preds_overall <- group_by(preds, Model, Panel, clim, dbh) %>%
+preds_overall <- group_by(preds, model, Panel, clim, dbh) %>%
     summarise(median=median(median),
               q2pt5=median(q2pt5),
               q97pt5=median(q97pt5))
 
 # Make site-by-site plots
-foreach(this_site_ID=unique(preds_bysite$site_ID)) %do% {
-    ggplot(filter(preds_bysite, Model == "Mean Temp. Model",
-                  Panel == "Temperature", site_ID == this_site_ID),
+foreach(this_site_id=unique(preds_bysite$site_id)) %do% {
+    ggplot(filter(preds_bysite, model == "Mean Temp. Model",
+                  Panel == "Temperature", site_id == this_site_id),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=8) +
         geom_line(aes(colour=clim)) +
@@ -252,7 +235,7 @@ foreach(this_site_ID=unique(preds_bysite$site_ID)) %do% {
         coord_cartesian(ylim=c(-1, 3)) +
         scale_colour_brewer(palette = "Dark2", guide=FALSE) + 
         scale_fill_brewer(palette = "Dark2", guide=FALSE) + 
-        ggtitle(this_site_ID) +
+        ggtitle(this_site_id) +
         theme(legend.position=c(.8, .85),
               plot.title=element_text(size=8),
               panel.background=element_rect(fill='transparent', colour=NA),
@@ -261,16 +244,16 @@ foreach(this_site_ID=unique(preds_bysite$site_ID)) %do% {
               plot.margin=unit(c(.3, .4, -.5, -.5), 'lines'),
               panel.grid.minor=element_blank(),
               panel.border=element_blank())
-    ggsave(paste0('ArcMap_plot_predgrowth_', this_site_ID, '.png'), 
+    ggsave(paste0('ArcMap_plot_predgrowth_', this_site_id, '.png'), 
            width=1, height=.75, dpi=300, bg='transparent')
 }
 
 ps <- foreach(this_panel=unique(preds_overall$Panel), .combine=c) %:%
-    foreach(this_model=unique(preds_overall$Model)) %do% {
-    p <- ggplot(filter(preds_overall, this_model == Model, this_panel == Panel), aes(x=dbh, y=median)) +
+    foreach(this_model=unique(preds_overall$model)) %do% {
+    p <- ggplot(filter(preds_overall, this_model == model, this_panel == Panel), aes(x=dbh, y=median)) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~Model) +
+        facet_wrap(~model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         coord_cartesian(ylim=c(0, 1)) +
@@ -293,7 +276,7 @@ models <- c('Min. Temp. Model', 'Mean Temp. Model',
 legend_titles <- c('Min. Temp.', 'Mean Temp.', 'Max. Temp', 'MCWD')
 ps <- foreach(this_panel=panels, this_model=models,
               legend_title=legend_titles) %do% {
-    p <- ggplot(filter(preds_overall, this_model == Model, this_panel == Panel), aes(x=dbh, y=median)) +
+    p <- ggplot(filter(preds_overall, this_model == model, this_panel == Panel), aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
@@ -315,12 +298,12 @@ ggsave('predicted_growth_increments_frombyplot_2x2.png', width=plot_width*2,
 ggsave('predicted_growth_increments_frombyplot_2x2.svg', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, Model == "Mean Temp. Model", Panel == "Temperature"),
+p <- ggplot(filter(preds_bysite, model == "Mean Temp. Model", Panel == "Temperature"),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_ID) +
+        facet_wrap(~site_id) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         scale_colour_brewer("Mean Temp.", palette = "Dark2") + 
@@ -328,13 +311,13 @@ p <- ggplot(filter(preds_bysite, Model == "Mean Temp. Model", Panel == "Temperat
 ggsave('predicted_growth_increments_sites.png', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, Model == "Mean Temp. Model", Panel == 
-                   "Temperature", site_ID != 'KRP'),
+p <- ggplot(filter(preds_bysite, model == "Mean Temp. Model", Panel == 
+                   "Temperature", site_id != 'KRP'),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_ID) +
+        facet_wrap(~site_id) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         coord_cartesian(ylim=c(0, 1.5)) +
@@ -343,13 +326,13 @@ p <- ggplot(filter(preds_bysite, Model == "Mean Temp. Model", Panel ==
 ggsave('predicted_growth_increments_sites_mean_temp_noKRP.png', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, Model == "Min. Temp. Model", Panel == 
-                   "Temperature", site_ID != 'KRP'),
+p <- ggplot(filter(preds_bysite, model == "Min. Temp. Model", Panel == 
+                   "Temperature", site_id != 'KRP'),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_ID) +
+        facet_wrap(~site_id) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         coord_cartesian(ylim=c(0, 1.5)) +
@@ -358,13 +341,13 @@ p <- ggplot(filter(preds_bysite, Model == "Min. Temp. Model", Panel ==
 ggsave('predicted_growth_increments_sites_min_temp_noKRP.png', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, Model == "Max. Temp. Model", Panel == 
-                   "Temperature", site_ID != 'KRP'),
+p <- ggplot(filter(preds_bysite, model == "Max. Temp. Model", Panel == 
+                   "Temperature", site_id != 'KRP'),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_ID) +
+        facet_wrap(~site_id) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         coord_cartesian(ylim=c(0, 1.5)) +
@@ -373,13 +356,13 @@ p <- ggplot(filter(preds_bysite, Model == "Max. Temp. Model", Panel ==
 ggsave('predicted_growth_increments_sites_max_temp_noKRP.png', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, Model == "Min. Temp. Model", Panel == 
-                   "MCWD", site_ID != 'KRP'),
+p <- ggplot(filter(preds_bysite, model == "Min. Temp. Model", Panel == 
+                   "MCWD", site_id != 'KRP'),
            aes(x=dbh, y=median)) +
         theme_bw(base_size=10) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_ID) +
+        facet_wrap(~site_id) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
         coord_cartesian(ylim=c(0, 1.5)) +
