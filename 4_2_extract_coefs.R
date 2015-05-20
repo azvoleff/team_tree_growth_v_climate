@@ -143,4 +143,7 @@ foreach(model_type=c('simple', 'interact', 'correlated')) %do% {
     save(params, file=file.path(base_folder, "Extracted_Parameters", 
                                 paste0("parameter_estimates_", model_type, 
                                        ".RData")))
+    write.csv(params, file.path(base_folder, "Extracted_Parameters", 
+                                "parameter_estimates_", model_type, ".csv"), 
+              row.names=FALSE)
 }
