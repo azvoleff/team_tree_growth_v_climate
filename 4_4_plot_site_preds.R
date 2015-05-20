@@ -9,7 +9,7 @@ library(foreach)
 library(doParallel)
 library(RPostgreSQL)
 
-cl <- makeCluster(12)
+cl <- makeCluster(20)
 registerDoParallel(cl)
 
 plot_width <- 3.5
