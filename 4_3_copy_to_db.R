@@ -54,6 +54,17 @@ copy_csv <- function(con, csv_file, model_type) {
     dbSendQuery(con, paste0("VACUUM ANALYZE ", model_type, ";"))
 }
 
+copy_stems <- function(con, temp_var, stems) {
+    stem_table <- paste('stems', temp_var, sep='_')
+    if (dbExistsTable(con, stem_table)) dbRemoveTable(con, stem_table)
+    dbWriteTable(con, stem_table, stems)
+    dbSendQuery(con, paste0("VACUUM ANALYZE ", stem_table, ";"))
+    idx_qry <- paste0("CREATE INDEX ON ", stem_table, " (site_id);",
+        "CREATE INDEX ON ", stem_table, " (plot_id);",
+        "CREATE INDEX ON ", stem_table, " (genus_id);")
+    dbSendQuery(con, idx_qry)
+}
+
 foreach (model_type=c('simple', 'interact', 'correlated')) %do% {
     message(paste("Copying", model_type))
     make_table(con, model_type)
@@ -63,7 +74,11 @@ foreach (model_type=c('simple', 'interact', 'correlated')) %do% {
     create_indices(con, model_type)
 }
 
-# Below is dplyr command
-library(dplyr)
-pgsrc <- src_postgres('tree_growth', user='azvoleff', password='DEBUGent')
-simple_data <- tbl(pgsrc, 'interact')
+foreach (temp_var=c('tmn', 'tmp', 'tmx')) %do% {
+    load(file.path(data_folder, paste0("model_data_wide_full-", this_model, 
+                                       "_meanannual-mcwd_run12.RData")))
+    stems <- data.frame(site_id=model_data$site_ID, 
+                        plot_id=model_data$plot_ID, 
+                        genus_id=model_data$genus_ID)
+    copy_stems(con, temp_var, stems)
+}
