@@ -30,8 +30,9 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 data_folder <- file.path(base_folder, "Data")
 
 pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
+pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
 
-# con <- dbConnect(PostgreSQL(), dbname='tree_growth', user='cistaff', 
+# con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
 # password=pgsqlpwd)
 # dbSendQuery(con, paste0("DROP TABLE IF EXISTS stems"))
 # dbSendQuery(con, paste0("CREATE TABLE stems (site_id integer, plot_id integer, genus_id integer)"))
@@ -39,58 +40,18 @@ pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
 
-# Function to make a growth prediction as a function of a particular climate 
-# variable
-make_dbh_preds <- function(B, temp, precip, dbhs, intercept) {
-    X <- matrix(rep(1, length(dbhs)), ncol=1) # genus-level intercept
-    X <- cbind(X, precip)
-    X <- cbind(X, precip^2)
-    X <- cbind(X, temp)
-    X <- cbind(X, temp^2)
-    X <- cbind(X, dbhs)
-    X <- cbind(X, dbhs^2)
-    X <- cbind(X, precip*dbhs)
-    X <- cbind(X, temp*dbhs)
-    # dbhs is subtracted so that output is growth increment
-    these_preds <- X %*% B - rep(dbhs, ncol(B))
-    these_preds <- these_preds + matrix(rep(intercept, length(dbhs)), 
-                                        ncol=ncol(these_preds), byrow=TRUE)
-    medians <- apply(these_preds, 1, median)
-    q2pt5 <- apply(these_preds, 1, quantile, .025)
-    q97pt5 <- apply(these_preds, 1, quantile, .975)
-    data.frame(median=medians, q2pt5, q97pt5)
-}
-
-make_temp_preds <- function(B, temps, precip, dbh, intercept) {
-    X <- matrix(rep(1, length(temps)), ncol=1) # genus-level intercept
-    X <- cbind(X, precip)
-    X <- cbind(X, precip^2)
-    X <- cbind(X, temps)
-    X <- cbind(X, temps^2)
-    X <- cbind(X, dbh)
-    X <- cbind(X, dbh^2)
-    X <- cbind(X, precip*dbh)
-    X <- cbind(X, temps*dbh)
-    # dbh is subtracted so that output is growth increment
-    these_preds <- X %*% B - rep(dbh, ncol(B))
-    these_preds <- these_preds + matrix(rep(intercept, length(temps)), 
-                                        ncol=ncol(these_preds), byrow=TRUE)
-    medians <- apply(these_preds, 1, median)
-    q2pt5 <- apply(these_preds, 1, quantile, .025)
-    q97pt5 <- apply(these_preds, 1, quantile, .975)
-    data.frame(median=medians, q2pt5, q97pt5)
-}
-
 dbhs <- seq(10, 120, 1)
+precips <- c(7.5, 15, 22.5)
+temps <- c(10:32)
 
-# this_model <- 'tmn'
-# this_plot <- 1
+this_model <- 'tmn'
+this_plot <- 1
 
-preds <- foreach(this_model=c('tmn', 'tmp', 'tmx', .combine=rbind)) %:% {
+preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
     foreach(this_plot=c(1:82), .combine=rbind,
             .packages=c('foreach', 'dplyr', 'RPostgreSQL'),
             .inorder=FALSE) %dopar% {
-        pg_src <- src_postgres('tree_growth', user='cistaff', 
+        pg_src <- src_postgres('tree_growth', user=pgsqluser, 
                                password=pgsqlpwd)
         params <- tbl(pg_src, 'interact')
         params <- filter(params, model == this_model)
@@ -146,8 +107,7 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx', .combine=rbind)) %:% {
             summarize(n=n()) %>%
             ungroup() %>%
             mutate(weight=n/sum(n)) %>%
-            select(-n) %>%
-            arrange(desc(weight))
+            select(-n)
 
         B_g_betas <- filter(left_join(genus_weights, B_g_params)) %>%
             mutate(param=sql("parameter_base || '_' || param_id || '_median'")) %>%
@@ -175,35 +135,60 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx', .combine=rbind)) %:% {
         B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
 
         dbhs_centered <- dbhs - dbh_mean
+        temps_centered <- temps - temp_mean
+        precips_centered <- precips - precip_mean
 
-        temps <- round(temp_mean) - temp_mean
-        temps <- c(temps - 2, temps, temps + 2)
-        temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
-            temp_preds <- make_dbh_preds(B, temp, (150 - precip_mean)/mm_per_unit, 
-                                     dbhs_centered, intercept)
-            temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
-                                dbh=dbhs,
-                                temp_preds)
-            return(temp_preds)
+        X <- foreach(dbh=dbhs_centered, .combine=rbind) %:%
+            foreach(temp=temps_centered, .combine=rbind) %:%
+            foreach(precip=precips_centered, .combine=rbind) %do% {
+                X <- matrix(1, ncol=1) # genus-level intercept
+                X <- cbind(X, precip)
+                X <- cbind(X, precip^2)
+                X <- cbind(X, temp)
+                X <- cbind(X, temp^2)
+                X <- cbind(X, dbh)
+                X <- cbind(X, dbh^2)
+                X <- cbind(X, precip*dbh)
+                X <- cbind(X, temp*dbh)
         }
+        # X[, 6] (dbh) is subtracted so that output is growth increment
+        these_preds <- X %*% B - matrix(rep(X[, 6], each=ncol(these_preds)), 
+                                        ncol=ncol(these_preds), byrow=TRUE)
+        these_preds <- these_preds + matrix(rep(intercept, nrow(these_preds)), 
+                                            ncol=ncol(these_preds), byrow=TRUE)
+        medians <- apply(these_preds, 1, median)
+        q2pt5 <- apply(these_preds, 1, quantile, .025)
+        q97pt5 <- apply(these_preds, 1, quantile, .975)
+        these_preds <- data.frame(model=this_model,
+                                  plot_id=this_plot_char, 
+                                  site_id=this_site_char,
+                                  precip=X[, 2] + precip_mean,
+                                  temp=X[, 4] + temp_mean,
+                                  dbh=X[, 6] + dbh_mean,
+                                  median=medians,
+                                  q2pt5,
+                                  q97pt5)
 
-        precips <- (c(75, 150, 150 + 75) - precip_mean)/mm_per_unit
-        precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
-            precip_preds <- make_dbh_preds(B, 0, precip, dbhs_centered, intercept)
-            precip_preds <- cbind(Panel="MCWD",
-                                  clim=precip + precip_mean/mm_per_unit,
-                                  dbh=dbhs,
-                                  precip_preds)
-            return(precip_preds)
-        }
-
-        preds <- rbind(temp_preds, precip_preds)
-        preds <- cbind(model=this_model, plot_id=this_plot_char, 
-                       site_id=this_site_char, preds)
-
-        return(preds)
-    }
+        return(these_preds)
 }
+
+save(preds, file='growth_predictions_byplot.RData')
+
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
+                 password=pgsqlpwd)
+if (dbExistsTable(con, "preds_interact")) dbRemoveTable(con, "preds_interact")
+dbWriteTable(con, "preds_interact", preds)
+dbSendQuery(con, paste0("VACUUM ANALYZE preds_interact;"))
+idx_qry <- paste0("CREATE INDEX ON preds_interact (model);",
+    "CREATE INDEX ON preds_interact (plot_id);",
+    "CREATE INDEX ON preds_interact (site_id);",
+    "CREATE INDEX ON preds_interact (precip);",
+    "CREATE INDEX ON preds_interact (temp);",
+    "CREATE INDEX ON preds_interact (dbh);")
+dbSendQuery(con, idx_qry)
+
+###############################################################################
+# Now plot results
 
 preds$clim <- factor(sprintf('%.02f', preds$clim))
 preds$clim <- relevel(preds$clim, '7.50')
@@ -211,8 +196,6 @@ preds$model <- factor(preds$model, levels=c('tmn', 'tmp', 'tmx'),
                       labels=c('Min. Temp. Model',
                                'Mean Temp. Model',
                                'Max. Temp. Model'))
-
-save(preds, file='growth_predictions_byplot.RData')
 
 preds_bysite <- group_by(preds, model, Panel, clim, dbh, site_id) %>%
     summarise(median=median(median),
