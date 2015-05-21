@@ -85,8 +85,9 @@ foreach (temp_var=c('tmn', 'tmp', 'tmx'),
     con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
                      password=pgsqlpwd)
 
-    load(file.path(data_folder, paste0("model_data_wide_full-", this_model, 
-                                       "_meanannual-mcwd_run12.RData")))
+    load(file.path(base_folder, 'Data', paste0("model_data_wide_full-", 
+                                               temp_var, 
+                                               "_meanannual-mcwd_run12.RData")))
     stems <- data.frame(site_id=model_data$site_ID, 
                         plot_id=model_data$plot_ID, 
                         genus_id=model_data$genus_ID)
