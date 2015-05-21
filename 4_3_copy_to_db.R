@@ -2,6 +2,7 @@ library(foreach)
 library(RPostgreSQL)
 
 pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
+pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
 
 prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               'H:/Data', # Buffalo drive
@@ -21,7 +22,7 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 # load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
 # write.csv(params, file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.csv"), row.names=FALSE)
 
-con <- dbConnect(PostgreSQL(), dbname='tree_growth', user='cistaff', 
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
                  password=pgsqlpwd)
 
 make_table <- function(con, model_type) {
