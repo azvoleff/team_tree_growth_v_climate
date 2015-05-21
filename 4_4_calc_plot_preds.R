@@ -111,14 +111,11 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
 
         B_g_betas <- filter(left_join(genus_weights, B_g_params)) %>%
             mutate(param=sql("parameter_base || '_' || param_id || '_median'")) %>%
-            group_by(model, chain, iteration, param) %>%
+            group_by(chain, iteration, param) %>%
             summarise(value=sum(weight * value)) %>%
+            ungroup() %>%
+            arrange(iteration, param) %>%
             collect()
-
-        # Change MCWD units from mm to cm
-        B_g_betas$value[B_g_betas$param == "B_g_2_median"] <- B_g_betas$value[B_g_betas$param == "B_g_2_median"] * mm_per_unit
-        B_g_betas$value[B_g_betas$param == "B_g_3_median"] <- B_g_betas$value[B_g_betas$param == "B_g_3_median"] * mm_per_unit^2
-        B_g_betas$value[B_g_betas$param == "B_g_8_median"] <- B_g_betas$value[B_g_betas$param == "B_g_8_median"] * mm_per_unit
 
         # Calculate intercept
         intercept <- filter(int_k_params, site_id == this_site, model == this_model)$value +
@@ -130,13 +127,13 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
         intercept <- intercept + elev_adjust
 
         # Model effects of temp variation:
-        B <- arrange(B_g_betas, param, iteration)
         # Convert to matrix for linear algebra
-        B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
+        B <- matrix(B_g_betas$value, nrow=length(unique(B_g_betas$param)), byrow=TRUE)
 
         dbhs_centered <- dbhs - dbh_mean
         temps_centered <- temps - temp_mean
-        precips_centered <- precips - precip_mean
+        # Change MCWD units from cm to mm
+        precips_centered <- (precips * mm_per_unit) - precip_mean
 
         X <- foreach(dbh=dbhs_centered, .combine=rbind) %:%
             foreach(temp=temps_centered, .combine=rbind) %:%
@@ -151,23 +148,26 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
                 X <- cbind(X, precip*dbh)
                 X <- cbind(X, temp*dbh)
         }
+        these_preds <- X %*% B 
+        these_preds <- these_preds + matrix(rep(intercept, nrow(X)), 
+                                            nrow=nrow(X), byrow=TRUE)
         # X[, 6] (dbh) is subtracted so that output is growth increment
-        these_preds <- X %*% B - matrix(rep(X[, 6], each=ncol(these_preds)), 
-                                        ncol=ncol(these_preds), byrow=TRUE)
-        these_preds <- these_preds + matrix(rep(intercept, nrow(these_preds)), 
-                                            ncol=ncol(these_preds), byrow=TRUE)
+        these_preds <- these_preds - matrix(rep(X[, 6], each=ncol(B)), 
+                                            ncol=ncol(B), byrow=TRUE)
         medians <- apply(these_preds, 1, median)
         q2pt5 <- apply(these_preds, 1, quantile, .025)
         q97pt5 <- apply(these_preds, 1, quantile, .975)
         these_preds <- data.frame(model=this_model,
                                   plot_id=this_plot_char, 
                                   site_id=this_site_char,
-                                  precip=X[, 2] + precip_mean,
+                                  precip=(X[, 2] + precip_mean)/mm_per_unit,
                                   temp=X[, 4] + temp_mean,
                                   dbh=X[, 6] + dbh_mean,
                                   median=medians,
                                   q2pt5,
                                   q97pt5)
+
+        head(filter(these_preds, precip == 15, temp == 20))
 
         return(these_preds)
 }
