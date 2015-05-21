@@ -1,5 +1,9 @@
 library(foreach)
 library(RPostgreSQL)
+library(doParallel)
+
+cl <- makeCluster(2)
+registerDoParallel(cl)
 
 pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
 pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
@@ -21,9 +25,6 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 #
 # load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
 # write.csv(params, file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.csv"), row.names=FALSE)
-
-con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
-                 password=pgsqlpwd)
 
 make_table <- function(con, model_type) {
     dbSendQuery(con, paste0("DROP TABLE IF EXISTS ", model_type))
@@ -66,7 +67,11 @@ copy_stems <- function(con, temp_var, stems) {
     dbSendQuery(con, idx_qry)
 }
 
-foreach (model_type=c('simple', 'interact', 'correlated')) %do% {
+foreach (model_type=c('simple', 'interact', 'correlated'),
+         .packages=c('RPostgreSQL')) %dopar% {
+    con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
+                     password=pgsqlpwd)
+
     message(paste("Copying", model_type))
     make_table(con, model_type)
     csv_file <- file.path(base_folder, "Extracted_Parameters", 
@@ -75,7 +80,11 @@ foreach (model_type=c('simple', 'interact', 'correlated')) %do% {
     create_indices(con, model_type)
 }
 
-foreach (temp_var=c('tmn', 'tmp', 'tmx')) %do% {
+foreach (temp_var=c('tmn', 'tmp', 'tmx'),
+         .packages=c('RPostgreSQL')) %dopar% {
+    con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
+                     password=pgsqlpwd)
+
     load(file.path(data_folder, paste0("model_data_wide_full-", this_model, 
                                        "_meanannual-mcwd_run12.RData")))
     stems <- data.frame(site_id=model_data$site_ID, 
