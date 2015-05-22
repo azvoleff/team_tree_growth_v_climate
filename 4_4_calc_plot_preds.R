@@ -6,7 +6,9 @@ library(ggmcmc)
 library(gridExtra)
 library(scales) # for 'alpha'
 library(foreach)
+library(matrixStats) # for weightedMedian
 library(doParallel)
+library(reshape2)
 library(RPostgreSQL)
 
 cl <- makeCluster(20)
@@ -44,12 +46,13 @@ dbhs <- seq(10, 120, 1)
 precips <- c(7.5, 15, 22.5)
 temps <- c(10:32)
 
-this_model <- 'tmn'
-this_plot <- 1
+# this_model <- 'tmn'
+# this_plot <- 1
 
 preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
     foreach(this_plot=c(1:82), .combine=rbind,
-            .packages=c('foreach', 'dplyr', 'RPostgreSQL'),
+            .packages=c('foreach', 'dplyr', 'RPostgreSQL', 'reshape2', 
+                        'matrixStats'),
             .inorder=FALSE) %dopar% {
         pg_src <- src_postgres('tree_growth', user=pgsqluser, 
                                password=pgsqlpwd)
@@ -109,13 +112,22 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
             mutate(weight=n/sum(n)) %>%
             select(-n)
 
+        # Calculate weighted median values of each parameter for each iteration 
+        # (combining the separate chains together). Each iteration has multiple 
+        # estimates of each parameter as there is one estimated parameter value 
+        # for each genus.
         B_g_betas <- filter(left_join(genus_weights, B_g_params)) %>%
-            mutate(param=sql("parameter_base || '_' || param_id || '_median'")) %>%
-            group_by(chain, iteration, param) %>%
-            summarise(value=sum(weight * value)) %>%
-            ungroup() %>%
-            arrange(iteration, param) %>%
-            collect()
+            mutate(param=sql("parameter_base || '_' || param_id"),
+                   estimate_id=sql("chain || '_' || iteration")) %>%
+            arrange(param, estimate_id, genus_id) %>%
+            collect() %>%
+            dcast(param + estimate_id ~ genus_id, value.var="value") %>%
+            select(-estimate_id)
+        B_g_betas <- data.frame(param=paste0(B_g_betas$param, '_median'),
+                                value=rowWeightedMedians(as.matrix(B_g_betas[-1]), w=genus_weights$weight))
+
+        # Convert to matrix for linear algebra
+        B <- matrix(B_g_betas$value, nrow=length(unique(B_g_betas$param)), byrow=TRUE)
 
         # Calculate intercept
         intercept <- filter(int_k_params, site_id == this_site, model == this_model)$value +
@@ -125,10 +137,6 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
         elev_adjust <- filter(B_k_params, site_id == this_site)$value * (this_elev_diff - elev_diff_mean)
 
         intercept <- intercept + elev_adjust
-
-        # Model effects of temp variation:
-        # Convert to matrix for linear algebra
-        B <- matrix(B_g_betas$value, nrow=length(unique(B_g_betas$param)), byrow=TRUE)
 
         dbhs_centered <- dbhs - dbh_mean
         temps_centered <- temps - temp_mean
