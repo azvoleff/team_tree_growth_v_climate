@@ -1,17 +1,14 @@
 # Forest growth model MCMC results
-
-prefixes <- c('D:/azvoleff/Data', # CI-TEAM
-              'H:/Data', # Buffalo drive
-              'O:/Data', # Blue drive
-              '/localdisk/home/azvoleff/Data') # vertica1
-prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
-
-base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
-
 library(RColorBrewer)
 library(ggmcmc)
 library(gridExtra)
 library(foreach)
+library(dplyr)
+library(matrixStats)
+library(RPostgreSQL)
+
+pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
+pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
 
 plot_width <- 3.5
 plot_height <- 3
@@ -29,13 +26,6 @@ nThin <- 100
 # properly align the plots.
 nBurnin  <- 100000
 
-# Calculate weights for each genus ID (doesn't matter which temp_var is used 
-# since the genus IDs and frequencies are the same across all simulations).
-load(file.path(base_folder, 'Data', 
-               paste0("model_data_wide_full-tmn_meanannual-mcwd_run12.RData")))
-merged <- tbl_df(data.frame(site_ID=model_data$site_ID, 
-                            plot_ID=model_data$plot_ID, 
-                            genus_ID=model_data$genus_ID))
 # genus_weights <- group_by(merged, genus_ID) %>%
 #     summarize(n=n()) %>%
 #     ungroup() %>%
@@ -43,23 +33,41 @@ merged <- tbl_df(data.frame(site_ID=model_data$site_ID,
 #     select(-n) %>%
 #     arrange(desc(weight))
 
-n_sites <- length(unique(merged$site_ID))
-genus_weights <- group_by(merged, site_ID, genus_ID) %>%
+pg_src <- src_postgres('tree_growth', user=pgsqluser, password=pgsqlpwd)
+
+stems <- tbl(pg_src, paste0('stems'))
+params <- tbl(pg_src, 'interact')
+
+stems %>%
+    group_by(model, site_id, plot_id, genus_id) %>%
+    # Count num indiv of each genus within plot
     summarize(n=n()) %>%
-    group_by(site_ID) %>%
+    ungroup() %>%
+    group_by(model, site_id, plot_id) %>%
+    # Convert counts to plot-level weights
     mutate(weight=n/sum(n)) %>%
-    group_by(genus_ID) %>%
-    summarise(weight=sum(weight) / n_sites) %>%
-    arrange(desc(weight))
+    collect() %>%
+    group_by(model, site_id, genus_id) %>%
+    # Convert plot-level weights to site-level weights for each genus
+    summarise(weight=sum(weight)) %>%
+    group_by(model, site_id) %>%
+    # Normalize weights
+    mutate(weight=weight/sum(weight)) -> genus_weights
+
+genus_weights <- copy_to(pg_src, genus_weights)
+
+# Check that weighting worked correctly (totals should be three as there are 
+# three models:
+#group_by(genus_weights, site_id) %>% summarise(sum(weight))
 
 caterpillar <- function(mods, labels=NULL) {
-    cis <- group_by(mods, Model) %>%
+    cis <- group_by(mods, model) %>%
         do(ci(.))
-    # cis$Model <- ordered(cis$Model, levels=rev(unique(cis$Model)))
+    # cis$model <- ordered(cis$model, levels=rev(unique(cis$model)))
     # # Flip parameters so first parameters show up on top
-    # cis$Parameter <- ordered(cis$Parameter, levels=rev(unique(cis$Parameter)))
-    p <- ggplot(cis, aes(x=reorder(Parameter, rev(1:length(Parameter))), 
-                         y=median, colour=Model, fill=Model)) +
+    # cis$param <- ordered(cis$param, levels=rev(unique(cis$param)))
+    p <- ggplot(cis, aes(x=reorder(param, rev(1:length(param))), 
+                         y=median, colour=model, fill=model)) +
         theme_bw(base_size=8) +
         geom_point(position=position_dodge(width=.4), size=1.25) +
         geom_linerange(aes(ymin=Low, ymax=High), size=.75, position=position_dodge(width=.4)) +
@@ -75,24 +83,12 @@ caterpillar <- function(mods, labels=NULL) {
     p
 }
 
-# Function to calculated weighted coefficients from an array of MCMC results.  
-# Weights should be a 2 column data.frame with IDs in the first column, and 
-# weights in the second. D should be a ggs object with parameter IDs added 
-# using the jags_param_ids function
-weight_coef <- function(d, w) {
-    d <- left_join(d, w)
-    d <- group_by(d, Model, Chain, Iteration, param_ID) %>%
-        summarise(Parameter=paste(Parameter_Base[1], param_ID[1], 'median', sep='_'),
-                  value=sum(weight * value))
-    return(d)
-}
-
 ###############################################################################
 ## Simple model (no random effects)
 ##
 
 # load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_simple.RData"))
-# params$Model <- factor(params$Model, levels=c('tmn', 'tmp', 'tmx'),
+# params$model <- factor(params$model, levels=c('tmn', 'tmp', 'tmx'),
 #                        labels=c('Min. Temp.', 'Mean Temp.', 'Max. Temp.'))
 #
 # caterpillar(filter(params, Parameter %in% paste0('B[', 2:7, ']')))
@@ -110,11 +106,25 @@ weight_coef <- function(d, w) {
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
 
-load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_interact.RData"))
+params <- tbl(pg_src, 'interact')
 
-B_g_betas <- weight_coef(filter(params, Parameter_Base == 'B_g') %>% 
-                         rename(genus_ID=row_ID, param_ID=col_ID), 
-                         genus_weights)
+B_g_params <- filter(params, parameter_base == 'B_g') %>% 
+    rename(genus_id=row_id, param_id=col_id)
+    left_join(genus_weights) %>%
+    mutate(param=sql("parameter_base || '_' || param_id"),
+           estimate_id=sql("chain || '_' || iteration")) %>%
+    arrange(model, param, estimate_id, genus_id)
+
+B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), 
+                              .combine=rbind) %do% {
+    these_B_g_betas <- filter(B_g_params, model == this_model) %>%
+        collect() %>%
+        dcast(model + param + estimate_id ~ genus_id, value.var="value") %>%
+        select(-estimate_id)
+    data.frame(model=these_B_g_betas$model,
+               param=paste0(these_B_g_betas$param, '_median'),
+               value=rowWeightedMedians(as.matrix(these_B_g_betas[c(-1, -2)]), w=genus_weights$weight))
+}
 
 B_g_labels <- c('mu_B_g[1]'='int.',
                 'mu_B_g[2]'='P',
@@ -127,23 +137,11 @@ B_g_labels <- c('mu_B_g[1]'='int.',
                 'mu_B_g[9]'=expression(D%*%T))
 
 # Change MCWD units from mm to cm
-params$value[params$Parameter == "mu_B_g[2]"] <- params$value[params$Parameter == "mu_B_g[2]"] * mm_per_unit
-params$value[params$Parameter == "mu_B_g[3]"] <- params$value[params$Parameter == "mu_B_g[3]"] * mm_per_unit^2
-params$value[params$Parameter == "mu_B_g[8]"] <- params$value[params$Parameter == "mu_B_g[8]"] * mm_per_unit
-B_g_betas$value[B_g_betas$Parameter == "B_g_2_mean"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_2_mean"] * mm_per_unit
-B_g_betas$value[B_g_betas$Parameter == "B_g_3_mean"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_3_mean"] * mm_per_unit^2
-B_g_betas$value[B_g_betas$Parameter == "B_g_8_mean"] <- B_g_betas$value[B_g_betas$Parameter == "B_g_8_mean"] * mm_per_unit
+B_g_betas$value[B_g_betas$param == "B_g_2_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_2_mean"] * mm_per_unit
+B_g_betas$value[B_g_betas$param == "B_g_3_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_3_mean"] * mm_per_unit^2
+B_g_betas$value[B_g_betas$param == "B_g_8_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_8_mean"] * mm_per_unit
 
-caterpillar(filter(params, Parameter %in% paste0('mu_B_g[', 1:9, ']')), 
-            labels=B_g_labels)
-
-p <- caterpillar(filter(params, Parameter %in% paste0('mu_B_g[', c(2:9), ']')), 
-                 labels=B_g_labels[2:9])
-
-ggsave('caterpillar_climate_interact_unweighted.png', p, width=plot_width*1.5, 
-       height=plot_height, dpi=plot_dpi)
-
-p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_median')),
+p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:9), '_median')),
                  labels=c('B_g_2_median'='P',
                           'B_g_3_median'=expression(P^2),
                           'B_g_4_median'='T',
@@ -155,7 +153,7 @@ p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:9), '_media
 ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
-p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:5, 8:9), '_median')),
+p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:5, 8:9), '_median')),
                  labels=c('B_g_2_median'='P',
                           'B_g_3_median'=expression(P^2),
                           'B_g_4_median'='T',
@@ -165,28 +163,26 @@ p <- caterpillar(filter(B_g_betas, Parameter %in% paste0('B_g_', c(2:5, 8:9), '_
 ggsave('caterpillar_climate_interact_weighted_noD.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
-p <- caterpillar(filter(params, Parameter %in% paste0('int_k[', c(1:13), ']')))
+p <- caterpillar(filter(params, param %in% paste0('int_k[', c(1:13), ']')))
 ggsave('caterpillar_int_k_interact.png', p, width=plot_width*1.5, 
        height=plot_height*1.5, dpi=plot_dpi)
 
-p <- caterpillar(filter(params, Parameter %in% paste0('int_jk[', c(1:82), ']')))
+p <- caterpillar(filter(params, param %in% paste0('int_jk[', c(1:82), ']')))
 ggsave('caterpillar_int_jk_interact.png', p, width=plot_width*1.5, 
        height=plot_height*2, dpi=plot_dpi)
 
-p <- caterpillar(filter(params, Parameter %in% paste0('B_k[', c(1:13), ']')))
+p <- caterpillar(filter(params, param %in% paste0('B_k[', c(1:13), ']')))
 ggsave('caterpillar_B_k_interact.png', p, width=plot_width*1.5, 
        height=plot_height*1.5, dpi=plot_dpi)
-
-
 
 # Temp plots
 mins <- c(11:24)
 
 # Plot Rhats for each model
-foreach(this_model=unique(params$Model)) %do% {
-    pars <- filter(params, Model == this_model)
-    attributes(pars)$nChains <- max(params$Chain)
-    attributes(pars)$nIterations <- max(params$Iteration)
+foreach(this_model=unique(params$model)) %do% {
+    pars <- filter(params, model == this_model)
+    attributes(pars)$nChains <- max(params$chain)
+    attributes(pars)$nIterations <- max(params$iteration)
     attributes(pars)$nThin <- nThin
     attributes(pars)$nBurnin <- nBurnin
 
@@ -237,19 +233,19 @@ make_preds <- function(B, temp, precip, dbhs) {
 }
 
 dbhs <- seq(10, 120, 1)
-preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
+preds <- foreach(this_model=unique(B_g_betas$model), .combine=rbind) %do% {
     # Need to center the predictor variables
     load(file.path(base_folder, 'Data',
                    paste0("model_data_standardizing_full-", this_model, 
                           "_meanannual-mcwd_run12.RData")))
 
     # Model effects of temp variation:
-    B <- filter(B_g_betas, Model == this_model) %>%
+    B <- filter(B_g_betas, model == this_model) %>%
         ungroup() %>%
-        arrange(Parameter, Iteration) %>%
-        select(Parameter, value)
+        arrange(param, iteration) %>%
+        select(param, value)
     # Convert to matrix for linear algebra
-    B <- matrix(B$value, nrow=length(unique(B$Parameter)), byrow=TRUE)
+    B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
 
     dbhs_centered <- dbhs - dbh_mean
 
@@ -277,17 +273,17 @@ preds <- foreach(this_model=unique(B_g_betas$Model), .combine=rbind) %do% {
     }
 
     preds <- rbind(temp_preds, precip_preds)
-    preds <- cbind(Model=this_model, preds)
+    preds <- cbind(model=this_model, preds)
 
     return(preds)
 }
 
 preds$clim <- factor(sprintf('%.02f', preds$clim))
-preds$Model <- factor(preds$Model, levels=c('tmn', 'tmp', 'tmx'), 
+preds$model <- factor(preds$model, levels=c('tmn', 'tmp', 'tmx'), 
                       labels=c('Min. Temp. Model',
                                'Mean Temp. Model',
                                'Max. Temp. Model'))
-ann_text <- group_by(preds, Panel, Model) %>%
+ann_text <- group_by(preds, Panel, model) %>%
     summarise(lab=paste0('Lower=', unique(clim)[1], '\nUpper=', unique(clim)[2]))
 ann_text$dbh <- 90
 ann_text$mean <- 5
@@ -295,18 +291,18 @@ ann_text$mean <- 5
 # ggplot(preds, aes(x=dbh, y=mean)) +
 #     geom_line(aes(colour=clim)) +
 #     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-#     facet_grid(Panel~Model) +
+#     facet_grid(Panel~model) +
 #     ylab('Increment (cm)') +
 #     geom_text(data=ann_text, aes(label=lab))
 #
 # head(preds)
 
 ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
-    foreach(this_model=unique(preds$Model)) %do% {
-    p <- ggplot(filter(preds, this_model == Model, this_panel == Panel), aes(x=dbh, y=median)) +
+    foreach(this_model=unique(preds$model)) %do% {
+    p <- ggplot(filter(preds, this_model == model, this_panel == Panel), aes(x=dbh, y=median)) +
         geom_line(aes(colour=clim)) +
         geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~Model) +
+        facet_wrap(~model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
 #        coord_cartesian(ylim=c(0, 3)) +
