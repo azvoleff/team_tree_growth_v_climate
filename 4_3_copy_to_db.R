@@ -56,17 +56,6 @@ copy_csv <- function(con, csv_file, model_type) {
     dbSendQuery(con, paste0("VACUUM ANALYZE ", model_type, ";"))
 }
 
-copy_stems <- function(con, temp_var, stems) {
-    stem_table <- paste('stems', temp_var, sep='_')
-    if (dbExistsTable(con, stem_table)) dbRemoveTable(con, stem_table)
-    dbWriteTable(con, stem_table, stems)
-    dbSendQuery(con, paste0("VACUUM ANALYZE ", stem_table, ";"))
-    idx_qry <- paste0("CREATE INDEX ON ", stem_table, " (site_id);",
-        "CREATE INDEX ON ", stem_table, " (plot_id);",
-        "CREATE INDEX ON ", stem_table, " (genus_id);")
-    dbSendQuery(con, idx_qry)
-}
-
 foreach (model_type=c('simple', 'interact', 'correlated'),
          .packages=c('RPostgreSQL')) %dopar% {
     con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
@@ -80,16 +69,24 @@ foreach (model_type=c('simple', 'interact', 'correlated'),
     create_indices(con, model_type)
 }
 
-foreach (temp_var=c('tmn', 'tmp', 'tmx'),
-         .packages=c('RPostgreSQL')) %dopar% {
-    con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
-                     password=pgsqlpwd)
-
+stems <- foreach (temp_var=c('tmn', 'tmp', 'tmx'),
+                  .packages=c('RPostgreSQL'),
+                  .combine=rbind) %dopar% {
     load(file.path(base_folder, 'Data', paste0("model_data_wide_full-", 
                                                temp_var, 
                                                "_meanannual-mcwd_run12.RData")))
-    stems <- data.frame(site_id=model_data$site_ID, 
-                        plot_id=model_data$plot_ID, 
-                        genus_id=model_data$genus_ID)
-    copy_stems(con, temp_var, stems)
+    data.frame(model=temp_var,
+               site_id=model_data$site_ID, 
+               plot_id=model_data$plot_ID, 
+               genus_id=model_data$genus_ID)
 }
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
+                 password=pgsqlpwd)
+if (dbExistsTable(con, 'stems')) dbRemoveTable(con, 'stems')
+dbWriteTable(con, 'stems', stems)
+dbSendQuery(con, paste0("VACUUM ANALYZE stems;"))
+idx_qry <- paste0("CREATE INDEX ON stems (model);",
+    "CREATE INDEX ON stems (site_id);",
+    "CREATE INDEX ON stems (plot_id);",
+    "CREATE INDEX ON stems (genus_id);")
+dbSendQuery(con, idx_qry)
