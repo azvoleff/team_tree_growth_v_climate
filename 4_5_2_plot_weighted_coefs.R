@@ -5,6 +5,15 @@ library(gridExtra)
 library(foreach)
 library(dplyr)
 
+prefixes <- c('D:/azvoleff/Data', # CI-TEAM
+              'H:/Data', # Buffalo drive
+              'O:/Data', # Blue drive
+              '/localdisk/ci_share/azvoleff/Data', # vertica1
+              '/localdisk/home/azvoleff/Data') # vertica1
+prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
+
+base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
+
 plot_width <- 3.5
 plot_height <- 3
 plot_dpi <- 300
@@ -85,18 +94,6 @@ p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:5, 8:9), '_medi
 ggsave('caterpillar_climate_interact_weighted_noD.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
 
-p <- caterpillar(filter(params, param %in% paste0('int_k[', c(1:13), ']')))
-ggsave('caterpillar_int_k_interact.png', p, width=plot_width*1.5, 
-       height=plot_height*1.5, dpi=plot_dpi)
-
-p <- caterpillar(filter(params, param %in% paste0('int_jk[', c(1:82), ']')))
-ggsave('caterpillar_int_jk_interact.png', p, width=plot_width*1.5, 
-       height=plot_height*2, dpi=plot_dpi)
-
-p <- caterpillar(filter(params, param %in% paste0('B_k[', c(1:13), ']')))
-ggsave('caterpillar_B_k_interact.png', p, width=plot_width*1.5, 
-       height=plot_height*1.5, dpi=plot_dpi)
-
 # Temp plots
 mins <- c(11:24)
 
@@ -164,7 +161,7 @@ preds <- foreach(this_model=unique(B_g_betas$model), .combine=rbind) %do% {
     # Model effects of temp variation:
     B <- filter(B_g_betas, model == this_model) %>%
         ungroup() %>%
-        arrange(param, iteration) %>%
+        arrange(param) %>%
         select(param, value)
     # Convert to matrix for linear algebra
     B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
@@ -227,7 +224,7 @@ ps <- foreach(this_panel=unique(preds$Panel), .combine=c) %:%
         facet_wrap(~model) +
         xlab('Initial size (cm)') +
         ylab('Growth increment (cm)') +
-#        coord_cartesian(ylim=c(0, 3)) +
+        coord_cartesian(ylim=c(0, .7)) +
         theme(legend.position=c(.20, .2)) +
         guides(fill=guide_legend(this_panel),
                colour=guide_legend(this_panel))
