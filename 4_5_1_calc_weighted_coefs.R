@@ -69,4 +69,4 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
                                         w=genus_weights$weight))
 }
 
-save(B_g_betas, 'B_g_betas_weighted_overall.RData')
+save(B_g_betas, file='B_g_betas_weighted_overall.RData')

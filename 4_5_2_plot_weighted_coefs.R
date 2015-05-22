@@ -23,7 +23,9 @@ nBurnin  <- 100000
 
 caterpillar <- function(mods, labels=NULL) {
     cis <- group_by(mods, model) %>%
-        do(ci(.))
+        rename(Parameter=param) %>%
+        do(ci(.)) %>%
+        rename(param=Parameter)
     # cis$model <- ordered(cis$model, levels=rev(unique(cis$model)))
     # # Flip parameters so first parameters show up on top
     # cis$param <- ordered(cis$param, levels=rev(unique(cis$param)))
@@ -44,7 +46,7 @@ caterpillar <- function(mods, labels=NULL) {
     p
 }
 
-save(B_g_betas, 'B_g_betas_weighted_overall.RData')
+load('B_g_betas_weighted_overall.RData')
 
 B_g_labels <- c('mu_B_g[1]'='int.',
                 'mu_B_g[2]'='P',
