@@ -113,8 +113,7 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
                                  'matrixStats'), .inorder=FALSE) %dopar% {
     params <- tbl(src_postgres('tree_growth', user=pgsqluser, 
                                password=pgsqlpwd), 'interact')
-    B_g_params <- filter(params, parameter_base == 'B_g',
-                         model == this_model) %>% 
+    Bs <- filter(params, parameter_base == 'B_g', model == this_model) %>% 
         rename(genus_id=row_id, param_id=col_id) %>%
         collapse() %>%
         mutate(param=sql("parameter_base || '_' || param_id"),
@@ -126,15 +125,14 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
         dcast(model + param + estimate_id ~ genus_id, value.var="value") %>%
         select(-estimate_id)
     # Remember columns 1 and 2 are the model and parameter IDs
-    stopifnot(names(these_B_g_betas)[c(-1, -2)] == genus_weights$genus_id)
-    d <- data.frame(model=these_B_g_betas$model,
-        param=paste0(these_B_g_betas$param, '_median'),
-        value=rowWeightedMedians(as.matrix(these_B_g_betas[c(-1, -2)]), 
-                                 w=genus_weights$weight))
-    return(d)
+    stopifnot(names(Bs)[c(-1, -2)] == genus_weights$genus_id)
+    data.frame(model=Bs$model,
+               param=paste0(Bs$param, '_median'),
+               value=rowWeightedMedians(as.matrix(Bs[c(-1, -2)]), 
+                                        w=genus_weights$weight))
 }
 
-save(B_g_betas, 'B_g_betas_weighted.RData')
+save(B_g_betas, 'B_g_betas_weighted_overall.RData')
 
 B_g_labels <- c('mu_B_g[1]'='int.',
                 'mu_B_g[2]'='P',
