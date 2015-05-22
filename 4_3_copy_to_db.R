@@ -69,9 +69,13 @@ foreach (model_type=c('simple', 'interact', 'correlated'),
     create_indices(con, model_type)
 }
 
-stems <- foreach (temp_var=c('tmn', 'tmp', 'tmx'),
-                  .packages=c('RPostgreSQL'),
-                  .combine=rbind) %dopar% {
+prefixes <- c('D:/azvoleff/Data', # CI-TEAM
+              'H:/Data', # Buffalo drive
+              'O:/Data', # Blue drive
+              '/localdisk/home/azvoleff/Data') # vertica1
+prefix <- prefixes[match(TRUE, unlist(lapply(prefixes, function(x) file_test('-d', x))))]
+base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
+stems <- foreach (temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind) %dopar% {
     load(file.path(base_folder, 'Data', paste0("model_data_wide_full-", 
                                                temp_var, 
                                                "_meanannual-mcwd_run12.RData")))
@@ -80,8 +84,8 @@ stems <- foreach (temp_var=c('tmn', 'tmp', 'tmx'),
                plot_id=model_data$plot_ID, 
                genus_id=model_data$genus_ID)
 }
-con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
-                 password=pgsqlpwd)
+
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, password=pgsqlpwd)
 if (dbExistsTable(con, 'stems')) dbRemoveTable(con, 'stems')
 dbWriteTable(con, 'stems', stems)
 dbSendQuery(con, paste0("VACUUM ANALYZE stems;"))
