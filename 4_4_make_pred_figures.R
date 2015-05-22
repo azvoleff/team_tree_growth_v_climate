@@ -6,8 +6,11 @@ library(ggplot2)
 library(gridExtra)
 library(RPostgreSQL)
 
+pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
+pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
+
 preds <- tbl(src_postgres('tree_growth', user=pgsqluser, password=pgsqlpwd), 
-             'preds')
+             'preds_interact')
 
 preds$clim <- factor(sprintf('%.02f', preds$clim))
 preds$clim <- relevel(preds$clim, '7.50')
@@ -16,7 +19,7 @@ preds$model <- factor(preds$model, levels=c('tmn', 'tmp', 'tmx'),
                                'Mean Temp. Model',
                                'Max. Temp. Model'))
 
-preds_bysite <- group_by(preds, model, Panel, clim, dbh, site_id) %>%
+preds_bysite <- group_by(preds, model, site_id, precip, temp, dbh) %>%
     summarise(median=median(median),
               q2pt5=median(q2pt5),
               q97pt5=median(q97pt5))
