@@ -18,7 +18,7 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 load('vg_plot_cwds.RData')
 cwds <- melt(cwds, id.vars=c('sitecode', 'plot_ID', 'date'))
 
-load('vg_plot_CRU.RData')
+load('vg_plot_cru.RData')
 cru <- select(cru, -plot_num) %>%
     rename(variable=dataset)
 
