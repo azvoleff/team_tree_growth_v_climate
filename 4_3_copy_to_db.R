@@ -84,16 +84,12 @@ stems <- foreach (temp_var=c('tmn', 'tmp', 'tmx'), .combine=rbind) %dopar% {
     second_obs_row <- match(c(1:nrow(model_data$dbh)), model_data$obs_indices[, 1]) + 1
     obs_indices_linear <- (model_data$obs_indices[, 2] - 1) * nrow(model_data$dbh) + model_data$obs_indices[, 1]
     initial_dbh <- model_data$dbh[obs_indices_linear[first_obs_row]]
-    initial_precip <- model_data$precip[obs_indices_linear[second_obs_row]]
-    initial_temp <- model_data$temp[obs_indices_linear[second_obs_row]]
 
     data.frame(model=temp_var,
                site_id=model_data$site_ID, 
                plot_id=model_data$plot_ID, 
                genus_id=model_data$genus_ID,
-               initial_dbh=initial_dbh,
-               initial_precip=initial_precip,
-               initial_temp=initial_temp)
+               initial_dbh=initial_dbh)
 }
 
 con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, password=pgsqlpwd)
