@@ -266,6 +266,7 @@ foreach (model_type=model_types) %:%
     # Standardize the diameter variables and precip variable the same way they are 
     # standardized in the wide dataset
     merge_data <- data.frame(tree_ID=growth$tree_ID,
+                             period_num=growth$period_num,
                              growth_rgr=growth$growth_rgr,
                              diameter_start=(growth$diameter_start - dbh_mean) / dbh_sd,
                              diameter_end=(growth$diameter_end - dbh_mean) / dbh_sd,

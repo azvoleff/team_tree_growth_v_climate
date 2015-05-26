@@ -1,3 +1,4 @@
+library(dplyr)
 library(foreach)
 library(RPostgreSQL)
 library(doParallel)
@@ -26,6 +27,9 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 # load(file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.RData"))
 # write.csv(params, file.path(base_folder, "Extracted_Parameters", "parameter_estimates_correlated.csv"), row.names=FALSE)
 
+###############################################################################
+### Add results data
+###############################################################################
 foreach (model_type=c('simple', 'interact', 'correlated'),
          .packages=c('RPostgreSQL')) %dopar% {
     con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
@@ -60,6 +64,9 @@ foreach (model_type=c('simple', 'interact', 'correlated'),
     dbSendQuery(con, idx_qry)
 }
 
+###############################################################################
+### Add stems data
+###############################################################################
 prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               'H:/Data', # Buffalo drive
               'O:/Data', # Blue drive
