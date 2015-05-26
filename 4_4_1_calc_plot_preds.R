@@ -42,8 +42,8 @@ dbhs <- seq(10, 120, 1)
 precips <- c(7.5, 15, 22.5)
 temps <- c(10:32)
 
-# this_model <- 'tmn'
-# this_plot <- 1
+this_model <- 'tmn'
+this_plot <- 1
 
 preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
     foreach(this_plot=c(1:82), .combine=rbind,
@@ -54,7 +54,10 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
                                password=pgsqlpwd)
         params <- tbl(pg_src, 'interact')
         params <- filter(params, model == this_model)
-        stems <- tbl(pg_src, paste0('stems_', this_model))
+        stems <- tbl(pg_src, 'stems')
+        stems <- filter(stems, model == this_model)
+
+        clim <- tbl(pg_src, 'climate')
 
         # Genus-level random effects
         B_g_params <- filter(params, parameter_base == 'B_g') %>% 
