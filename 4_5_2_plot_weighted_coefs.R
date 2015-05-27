@@ -55,22 +55,12 @@ caterpillar <- function(mods, labels=NULL) {
     p
 }
 
-load('B_g_betas_weighted_overall.RData')
-
-B_g_labels <- c('mu_B_g[1]'='int.',
-                'mu_B_g[2]'='P',
-                'mu_B_g[3]'=expression(P^2),
-                'mu_B_g[4]'='T',
-                'mu_B_g[5]'=expression(T^2),
-                'mu_B_g[6]'='D',
-                'mu_B_g[7]'=expression(D^2),
-                'mu_B_g[8]'=expression(D%*%P),
-                'mu_B_g[9]'=expression(D%*%T))
+load('B_g_betas_weighted.RData')
 
 # Change MCWD units from mm to cm
-B_g_betas$value[B_g_betas$param == "B_g_2_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_2_mean"] * mm_per_unit
-B_g_betas$value[B_g_betas$param == "B_g_3_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_3_mean"] * mm_per_unit^2
-B_g_betas$value[B_g_betas$param == "B_g_8_mean"] <- B_g_betas$value[B_g_betas$param == "B_g_8_mean"] * mm_per_unit
+B_g_betas$value[B_g_betas$param == "B_g_2_median"] <- B_g_betas$value[B_g_betas$param == "B_g_2_median"] * mm_per_unit
+B_g_betas$value[B_g_betas$param == "B_g_3_median"] <- B_g_betas$value[B_g_betas$param == "B_g_3_median"] * mm_per_unit^2
+B_g_betas$value[B_g_betas$param == "B_g_8_median"] <- B_g_betas$value[B_g_betas$param == "B_g_8_median"] * mm_per_unit
 
 p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:9), '_median')),
                  labels=c('B_g_2_median'='P',
@@ -115,6 +105,11 @@ make_preds <- function(B, temp, precip, dbhs) {
 }
 
 dbhs <- seq(10, 120, 1)
+precips <- c(7.5, 15, 22.5)
+temps <- c(10:32)
+
+this_model <- 'tmn'
+
 preds <- foreach(this_model=unique(B_g_betas$model), .combine=rbind) %do% {
     # Need to center the predictor variables
     load(file.path(base_folder, 'Data',
@@ -130,40 +125,54 @@ preds <- foreach(this_model=unique(B_g_betas$model), .combine=rbind) %do% {
     B <- matrix(B$value, nrow=length(unique(B$param)), byrow=TRUE)
 
     dbhs_centered <- dbhs - dbh_mean
+    temps_centered <- temps - temp_mean
+    # Change MCWD units from cm to mm
+    precips_centered <- (precips * mm_per_unit) - precip_mean
 
-    # Remember temp is standardized, so round it then center it just so the 
-    # units look pretty
-    temps <- round(temp_mean) - temp_mean
-    temps <- c(temps - 2, temps, temps + 2)
-    temp_preds <- foreach(temp=temps, .combine=rbind) %do% {
-        temp_preds <- make_preds(B, temp, (150 - precip_mean)/mm_per_unit, dbhs_centered)
-        temp_preds <- cbind(Panel="Temperature", clim=temp + temp_mean, 
-                            dbh=dbhs,
-                            temp_preds)
-        return(temp_preds)
+    X <- foreach(dbh=dbhs_centered, .combine=rbind) %:%
+        foreach(temp=temps_centered, .combine=rbind) %:%
+        foreach(precip=precips_centered, .combine=rbind) %do% {
+            X <- matrix(1, ncol=1) # genus-level intercept
+            X <- cbind(X, precip)
+            X <- cbind(X, precip^2)
+            X <- cbind(X, temp)
+            X <- cbind(X, temp^2)
+            X <- cbind(X, dbh)
+            X <- cbind(X, dbh^2)
+            X <- cbind(X, precip*dbh)
+            X <- cbind(X, temp*dbh)
     }
+    these_preds <- X %*% B 
+    # X[, 6] (dbh) is subtracted so that output is growth increment
+    these_preds <- these_preds - matrix(rep(X[, 6], each=ncol(B)), 
+                                        ncol=ncol(B), byrow=TRUE)
+    medians <- apply(these_preds, 1, median)
+    q2pt5 <- apply(these_preds, 1, quantile, .025)
+    q97pt5 <- apply(these_preds, 1, quantile, .975)
+    these_preds <- data.frame(model=this_model,
+                              precip=(X[, 2] + precip_mean)/mm_per_unit,
+                              temp=X[, 4] + temp_mean,
+                              dbh=X[, 6] + dbh_mean,
+                              median=medians,
+                              q2pt5,
+                              q97pt5)
 
-    # Center, and set units
-    precips <- (c(75, 150, 150 + 75) - precip_mean)/mm_per_unit
-    precip_preds <- foreach(precip=precips, .combine=rbind) %do% {
-        precip_preds <- make_preds(B, 0, precip, dbhs_centered)
-        precip_preds <- cbind(Panel="MCWD",
-                              clim=precip + precip_mean/mm_per_unit,
-                              dbh=dbhs,
-                              precip_preds)
-        return(precip_preds)
-    }
-
-    preds <- rbind(temp_preds, precip_preds)
-    preds <- cbind(model=this_model, preds)
-
-    return(preds)
+    return(these_preds)
 }
+save(preds, file='growth_predictions.RData')
 
-
-
-
-
+con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
+                 password=pgsqlpwd)
+if (dbExistsTable(con, "preds_interact")) dbRemoveTable(con, "preds_interact)")
+dbWriteTable(con, "preds_interact", preds)
+dbSendQuery(con, paste0("VACUUM ANALYZE preds_interact;"))
+idx_qry <- paste0("CREATE INDEX ON preds_interact (model);",
+    "CREATE INDEX ON preds_interact (plot_id);",
+    "CREATE INDEX ON preds_interact (site_id);",
+    "CREATE INDEX ON preds_interact (precip);",
+    "CREATE INDEX ON preds_interact (temp);",
+    "CREATE INDEX ON preds_interact (dbh);")
+dbSendQuery(con, idx_qry)
 
 
 dbhs <- seq(10, 120, 1)
@@ -301,19 +310,19 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
         return(these_preds)
 }
 
-save(preds, file='growth_predictions_byplot.RData')
+save(preds, file='growth_predictions_bydbh_byplot.RData')
 
 con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
                  password=pgsqlpwd)
-if (dbExistsTable(con, "preds_interact")) dbRemoveTable(con, "preds_interact")
-dbWriteTable(con, "preds_interact", preds)
-dbSendQuery(con, paste0("VACUUM ANALYZE preds_interact;"))
-idx_qry <- paste0("CREATE INDEX ON preds_interact (model);",
-    "CREATE INDEX ON preds_interact (plot_id);",
-    "CREATE INDEX ON preds_interact (site_id);",
-    "CREATE INDEX ON preds_interact (precip);",
-    "CREATE INDEX ON preds_interact (temp);",
-    "CREATE INDEX ON preds_interact (dbh);")
+if (dbExistsTable(con, "preds_byplot_interact")) dbRemoveTable(con, "preds_byplot_interact)")
+dbWriteTable(con, "preds_byplot_interact", preds)
+dbSendQuery(con, paste0("VACUUM ANALYZE preds_byplot_interact;"))
+idx_qry <- paste0("CREATE INDEX ON preds_byplot_interact (model);",
+    "CREATE INDEX ON preds_byplot_interact (plot_id);",
+    "CREATE INDEX ON preds_byplot_interact (site_id);",
+    "CREATE INDEX ON preds_byplot_interact (precip);",
+    "CREATE INDEX ON preds_byplot_interact (temp);",
+    "CREATE INDEX ON preds_byplot_interact (dbh);")
 dbSendQuery(con, idx_qry)
 
 
