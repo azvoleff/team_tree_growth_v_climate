@@ -39,67 +39,141 @@ stems <- mutate(stems, dbh_class=cut(initial_dbh_destd,
 
 # Fix error due to rounding error:
 
-# Calculate site-level genus weights, weighting all plots equally within sites
+# Calculate site-level weights, weighting within dbh classes
 stems %>%
     filter(initial_dbh_destd < 120) %>%
     group_by(model, site_id, dbh_class, genus_id) %>%
     # Count num indiv of each genus within each dbh_class within each plot  
     # within each site
     summarize(n=n()) %>%
-    ungroup() %>%
     group_by(model, site_id, dbh_class) %>%
     # Convert counts to site-level weights within dbh classes
     mutate(weight=n/sum(n)) %>%
-    collect() -> genus_weights_bysite
+    collect() -> genus_weights_bysite_bydbh
 
-# Calculate overall genus weights, weighting all sites equally
-genus_weights <- group_by(genus_weights_bysite, dbh_class, genus_id) %>%
+# Calculate overall weights, weighting within dbh classes
+group_by(genus_weights_bysite_bydbh, model, dbh_class, genus_id) %>%
     # Sum genus weights across sites
     summarise(weight=sum(weight)) %>%
     # Normalize weights overall
-    mutate(weight=weight/sum(weight))
+    mutate(weight=weight/sum(weight)) -> genus_weights_bydbh 
+
+# Calculate overall weights, weighting all sites equally, ignoring dbh classes
+stems %>%
+    filter(initial_dbh_destd < 120) %>%
+    group_by(model, site_id, genus_id) %>%
+    # Count num indiv of each genus within each within each site
+    summarize(n=n()) %>%
+    group_by(model, site_id) %>%
+    # Convert counts to site-level weights by genus
+    mutate(weight=n/sum(n)) %>%
+    collect() %>%
+    # Convert site-level weights to overall weights
+    group_by(model, genus_id) %>%
+    # Normalize weights 
+    summarise(weight=sum(weight)) %>%
+    group_by(model) %>%
+    # Normalize weights
+    mutate(weight=weight/sum(weight)) %>%
+    collect() -> genus_weights
 
 # Check that weighting worked correctly (totals should be three as there are 
 # three models:
-#group_by(genus_weights, site_id) %>% summarise(sum(weight))
+# group_by(genus_weights, model) %>% summarise(sum(weight))
+# group_by(genus_weights_bydbh, model) %>% summarise(sum(weight))
+# group_by(genus_weights_bysite_bydbh, model) %>% summarise(sum(weight))
+
+params <- tbl(src_postgres('tree_growth', user=pgsqluser, 
+                           password=pgsqlpwd), 'interact')
+Bs <- filter(params, parameter_base == 'B_g') %>% 
+    group_by(chain) %>%
+    # Thin chains (there are 6 chains so for 1000 samples only need every 
+    # 6th sample from each chain)
+    filter(iteration %% 6 == 0) %>%
+    rename(genus_id=row_id, param_id=col_id) %>%
+    collapse() %>%
+    mutate(param=sql("parameter_base || '_' || param_id"),
+           estimate_id=sql("chain || '_' || iteration")) %>%
+    collapse() %>%
+    select(model, param, estimate_id, genus_id, value) %>%
+    arrange(model, param, estimate_id, genus_id) %>%
+    collect() %>%
+    dcast(model + param + estimate_id ~ genus_id, value.var="value") %>%
+    select(-estimate_id)
+
+###############################################################################
+### Calculate coefs weighted overall
+###############################################################################
 B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
                      .packages=c('dplyr', 'RPostgreSQL', 'reshape2', 
-                                 'matrixStats'), .inorder=FALSE) %dopar% {
-    params <- tbl(src_postgres('tree_growth', user=pgsqluser, 
-                               password=pgsqlpwd), 'interact')
-    Bs <- filter(params, parameter_base == 'B_g', model == this_model) %>% 
-        group_by(chain) %>%
-        # Thin chains (there are 6 chains so for 1000 samples only need every 
-        # 6th sample from each chain)
-        filter(iteration %% 6 == 0) %>%
-        rename(genus_id=row_id, param_id=col_id) %>%
-        collapse() %>%
-        mutate(param=sql("parameter_base || '_' || param_id"),
-               estimate_id=sql("chain || '_' || iteration")) %>%
-        collapse() %>%
-        select(model, param, estimate_id, genus_id, value) %>%
-        arrange(model, param, estimate_id, genus_id) %>%
-        collect() %>%
-        dcast(model + param + estimate_id ~ genus_id, value.var="value") %>%
-        select(-estimate_id)
+                                 'matrixStats', 'foreach'), .inorder=FALSE) %dopar% {
+    these_Bs <- filter(Bs, model == this_model)
 
-    genus_weights_cast <- dcast(genus_weights, dbh_class ~ genus_id, 
-                                value.var="weight", fill=0)
+    these_weights <- filter(genus_weights, model == this_model)
+
+    # Remember columns 1 and 2 of these_Bs are the model and parameter IDs, and 
+    # columns 1 and 2 of these_weights are the model_id and genus_id
+    stopifnot(names(these_Bs)[c(-1, -2)] == these_weights$genus_id)
+
+    data.frame(model=these_Bs$model,
+               param=paste0(these_Bs$param, '_median'),
+               value=rowWeightedMedians(as.matrix(these_Bs[c(-1, -2)]),
+                                        w=as.numeric(these_weights$weight)))
+}
+save(B_g_betas, file='B_g_betas_weighted.RData')
+
+###############################################################################
+### Calculate coefs weighted by dbh class and site
+###############################################################################
+B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
+                     .packages=c('dplyr', 'RPostgreSQL', 'reshape2', 
+                                 'matrixStats', 'foreach'), .inorder=FALSE) %dopar% {
+    these_Bs <- filter(Bs, model == this_model)
+
+    genus_weights_cast <- dcast(filter(genus_weights_bysite_bydbh, model == this_model),
+                                site_id + dbh_class ~ genus_id, value.var="weight", fill=0)
 
     # Remember columns 1 and 2 of Bs are the model and parameter IDs, and 
+    # columns 1 and 2 of genus_weights_cast are the site_id and dbh_class
+    stopifnot(names(these_Bs)[c(-1, -2)] == names(genus_weights_cast[c(-1, -2)]))
+
+    these_B_g_betas <- foreach(n=1:nrow(genus_weights_cast), .combine=rbind) %do% {
+        these_weights <- as.numeric(genus_weights_cast[c(-1, -2)][n, ])
+        data.frame(model=these_Bs$model,
+                   param=paste0(these_Bs$param, '_median'),
+                   site_id=genus_weights_cast$site_id[n],
+                   dbh_class=genus_weights_cast$dbh_class[n],
+                   value=rowWeightedMedians(as.matrix(these_Bs[c(-1, -2)]), 
+                                            w=these_weights))
+    }
+
+}
+save(B_g_betas, file='B_g_betas_weighted_bydbh_bysite.RData')
+
+###############################################################################
+### Calculate coefs weighted by dbh class
+###############################################################################
+B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
+                     .packages=c('dplyr', 'RPostgreSQL', 'reshape2', 
+                                 'matrixStats', 'foreach'), .inorder=FALSE) %dopar% {
+    these_Bs <- filter(Bs, model == this_model)
+
+    genus_weights_cast <- dcast(filter(genus_weights_bydbh, model == this_model),
+                                dbh_class ~ genus_id, value.var="weight", fill=0)
+
+    # Remember columns 1 and 2 of these_Bs are the model and parameter IDs, and 
     # column 1 of genus_weights_cast is the dbh_class
-    stopifnot(names(Bs)[c(-1, -2)] == names(genus_weights_cast[-1]))
+    stopifnot(names(these_Bs)[c(-1, -2)] == names(genus_weights_cast[-1]))
 
     these_B_g_Betas <- foreach(n=1:nrow(genus_weights_cast), 
                                .combine=rbind) %do% {
         these_weights <- as.numeric(genus_weights_cast[-1][n, ])
         this_dbh_class <- genus_weights_cast$dbh_class[n]
-        data.frame(model=Bs$model,
-                   param=paste0(Bs$param, '_median'),
+        data.frame(model=these_Bs$model,
+                   param=paste0(these_Bs$param, '_median'),
                    dbh_class=this_dbh_class,
-                   value=rowWeightedMedians(as.matrix(Bs[c(-1, -2)]), 
+                   value=rowWeightedMedians(as.matrix(these_Bs[c(-1, -2)]), 
                                             w=these_weights))
     }
 }
-
-save(B_g_betas, file='B_g_betas_weighted_overall.RData')
+save(B_g_betas, file='B_g_betas_weighted_bydbh.RData')
