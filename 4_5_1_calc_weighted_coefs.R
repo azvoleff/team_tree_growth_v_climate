@@ -37,8 +37,6 @@ stems <- mutate(stems, dbh_class=cut(initial_dbh_destd,
                                      c(seq(10, 45, 5), seq(50, 120, 10)),
                                      include.lowest=TRUE))
 
-# Fix error due to rounding error:
-
 # Calculate site-level weights, weighting within dbh classes
 stems %>%
     filter(initial_dbh_destd < 120) %>%
