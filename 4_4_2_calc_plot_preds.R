@@ -45,7 +45,12 @@ B_k_params <- filter(params, parameter_base == 'B_k') %>%
 
 clim <- tbl(pg_src, 'climate')
 
+load('B_g_betas_weighted_bydbhwide_byplot.RData')
+B_g_betas_wide <- rename(B_g_betas, dbh_class=dbh_class_wide)
+
 load('B_g_betas_weighted_bydbh_byplot.RData')
+B_g_betas <- rbind(B_g_betas, B_g_betas_wide)
+rm(B_g_betas_wide)
 
 # Calculate dbhs to predict for from midpoints of dbh classes
 dbhs <- data.frame(dbh_class=levels(B_g_betas$dbh_class))
@@ -53,7 +58,7 @@ dbhs$low <- as.numeric(gsub('^.', '', str_extract(dbhs$dbh_class, '^.[0-9]*')))
 dbhs$high <- as.numeric(gsub('.$', '', str_extract(dbhs$dbh_class, '[0-9]*.$')))
 dbhs$mid <- (dbhs$high - dbhs$low)/2 + dbhs$low
 
-precips <- c(7.5, 15, 22.5)
+precips <- c(0, 7.5, 15, 22.5)
 temp_diffs <- c(0:6)
 
 preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %do% {
