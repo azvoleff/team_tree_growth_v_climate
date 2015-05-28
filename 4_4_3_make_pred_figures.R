@@ -53,7 +53,7 @@ p <- ggplot(preds_overall_pchg, aes(x=dbh, y=median)) +
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=precip), alpha=.2) +
     facet_wrap(~model) +
     xlab('Initial size (cm)') +
-    ylab('Growth increment (cm)') +
+    ylab('Growth (cm)') +
     coord_cartesian(ylim=c(-.1, 1)) +
     scale_colour_brewer("MCWD", palette = "Dark2") + 
     scale_fill_brewer("MCWD", palette = "Dark2") +
@@ -84,11 +84,11 @@ p <- ggplot(filter(preds_overall_tchg_site, temp_diff %in% c(0, 2, 4)),
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=temp_diff_factor), alpha=.2) +
     facet_grid(site_id~model) +
     xlab('Initial size (cm)') +
-    ylab('Growth increment (cm)') +
+    ylab('Growth (cm)') +
     coord_cartesian(ylim=c(-.1, 1)) +
     theme(legend.key.size=unit(.3, 'cm')) +
-    scale_colour_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2") + 
-    scale_fill_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2")
+    scale_colour_brewer("Temp.\nchange", labels=parse_format(), palette = "Dark2") + 
+    scale_fill_brewer("Temp.\nchange", labels=parse_format(), palette = "Dark2")
 ggsave('predicted_growth_increments_tchg_bydbh_bysite.png', width=plot_width*3,
        height=plot_height*5, dpi=plot_dpi, plot=p)
 
@@ -111,7 +111,7 @@ p <- ggplot(filter(preds_overall_tchg, temp_diff %in% c(0, 2, 4)),
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=temp_diff_factor), alpha=.2) +
     facet_wrap(~model) +
     xlab('Initial size (cm)') +
-    ylab('Growth increment (cm)') +
+    ylab('Growth (cm)') +
     coord_cartesian(ylim=c(-.1, 1)) +
     theme(legend.key.size=unit(.3, 'cm')) +
     scale_colour_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2") + 
@@ -128,8 +128,8 @@ p <- ggplot(filter(preds_overall_tchg, dbh_factor %in% c(12.5, 22.5, 55)),
     geom_line(aes(colour=dbh_factor), size=.25) +
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=dbh_factor), alpha=.2) +
     facet_wrap(~model) +
-    xlab(expression('Temp. Change (' * degree * 'C)')) +
-    ylab('Growth increment (cm)') +
+    xlab(expression('Temp. change (' * degree * 'C)')) +
+    ylab('Growth (cm)') +
     coord_cartesian(ylim=c(-.1, 1)) +
     theme(legend.key.size=unit(.3, 'cm')) +
     scale_colour_brewer('Initial size (cm)', palette = "Dark2") + 
@@ -150,8 +150,8 @@ p <- ggplot(preds_overall_tchg_overall, aes(x=temp_diff, y=median)) +
     theme_bw(base_size=8) +
     geom_line(aes(colour=model), size=.25) +
     geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=model), alpha=.2) +
-    xlab(expression('Temp. Change (' * degree * 'C)')) +
-    ylab('Growth increment (cm)') +
+    xlab(expression('Temp. change (' * degree * 'C)')) +
+    ylab('Growth (cm)') +
     coord_cartesian(ylim=c(-.1, 1)) +
     theme(legend.key.size=unit(.3, 'cm')) +
     scale_colour_brewer('Model', palette = "Dark2") + 
