@@ -156,7 +156,7 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
                                  'matrixStats', 'foreach'), .inorder=FALSE) %dopar% {
     these_Bs <- filter(Bs, model == this_model)
 
-    genus_weights_cast <- dcast(filter(genus_weights_byplot_bydbh, model == this_model),
+    genus_weights_cast <- dcast(filter(genus_weights_byplot_bydbhwide, model == this_model),
                                 site_id + plot_id + dbh_class_wide ~ genus_id, 
                                 value.var="weight", fill=0)
 
