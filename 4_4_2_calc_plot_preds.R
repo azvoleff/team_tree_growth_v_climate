@@ -144,6 +144,7 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %do% {
                                     plot_id=this_plot_char, 
                                     site_id=this_site_char,
                                     precip=(X[, 2] + precip_mean)/mm_per_unit,
+                                    precip_diff=(X[, 2] + precip_mean - plot_precip_mean)/mm_per_unit,
                                     temp=X[, 4] + temp_mean,
                                     temp_diff=X[, 4] + temp_mean - plot_temp_mean,
                                     dbh=X[, 6] + dbh_mean,
