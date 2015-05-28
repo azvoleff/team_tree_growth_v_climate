@@ -33,9 +33,13 @@ stems <- mutate(stems, initial_dbh_destd=initial_dbh*dbh_sd + dbh_mean) %>%
 # Fix inaccuracies arising due to rounding error:
 stems$initial_dbh_destd[abs(stems$initial_dbh_destd - 10) < .001] <- 10
 
-stems <- mutate(stems, dbh_class=cut(initial_dbh_destd,
-                                     c(seq(10, 45, 5), seq(50, 120, 10)),
-                                     include.lowest=TRUE))
+stems <- mutate(stems,
+                dbh_class=cut(initial_dbh_destd,
+                              c(seq(10, 45, 5), seq(50, 120, 10)),
+                              include.lowest=TRUE),
+                dbh_class_wide=cut(initial_dbh_destd,
+                                   c(10, 20, 30, 50, 80, 120),
+                                   include.lowest=TRUE))
 
 # Calculate plot-level weights, weighting within dbh classes
 stems %>%
@@ -48,6 +52,18 @@ stems %>%
     # Convert counts to plot-level weights within dbh classes
     mutate(weight=n/sum(n)) %>%
     collect() -> genus_weights_byplot_bydbh
+
+# Calculate plot-level weights, weighting within (wide) dbh classes
+stems %>%
+    filter(initial_dbh_destd < 120) %>%
+    group_by(model, site_id, plot_id, dbh_class_wide, genus_id) %>%
+    # Count num indiv of each genus within each dbh_class within each plot  
+    # within each site
+    summarize(n=n()) %>%
+    group_by(model, site_id, plot_id, dbh_class_wide) %>%
+    # Convert counts to plot-level weights within dbh classes
+    mutate(weight=n/sum(n)) %>%
+    collect() -> genus_weights_byplot_bydbhwide
 
 # Calculate site-level weights, weighting within dbh classes
 stems %>%
@@ -131,6 +147,36 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
                                         w=as.numeric(these_weights$weight)))
 }
 save(B_g_betas, file='B_g_betas_weighted.RData')
+
+###############################################################################
+### Calculate coefs weighted by dbh class (wide) and plot
+###############################################################################
+B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
+                     .packages=c('dplyr', 'RPostgreSQL', 'reshape2', 
+                                 'matrixStats', 'foreach'), .inorder=FALSE) %dopar% {
+    these_Bs <- filter(Bs, model == this_model)
+
+    genus_weights_cast <- dcast(filter(genus_weights_byplot_bydbh, model == this_model),
+                                site_id + plot_id + dbh_class_wide ~ genus_id, 
+                                value.var="weight", fill=0)
+
+    # Remember columns 1 and 2 of Bs are the model and parameter IDs, and 
+    # columns 1 and 2 of genus_weights_cast are the plot_id and dbh_class_wide
+    stopifnot(names(these_Bs)[c(-1, -2)] == names(genus_weights_cast[c(-1, -2, -3)]))
+
+    these_B_g_betas <- foreach(n=1:nrow(genus_weights_cast), .combine=rbind) %do% {
+        these_weights <- as.numeric(genus_weights_cast[c(-1, -2, -3)][n, ])
+        data.frame(model=these_Bs$model,
+                   param=paste0(these_Bs$param, '_median'),
+                   site_id=genus_weights_cast$site_id[n],
+                   plot_id=genus_weights_cast$plot_id[n],
+                   dbh_class_wide=genus_weights_cast$dbh_class_wide[n],
+                   value=rowWeightedMedians(as.matrix(these_Bs[c(-1, -2)]), 
+                                            w=these_weights))
+    }
+
+}
+save(B_g_betas, file='B_g_betas_weighted_bydbhwide_byplot.RData')
 
 ###############################################################################
 ### Calculate coefs weighted by dbh class and plot
