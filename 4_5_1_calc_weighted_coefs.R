@@ -146,10 +146,10 @@ B_g_betas <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind,
 
     # Remember columns 1 and 2 of Bs are the model and parameter IDs, and 
     # columns 1 and 2 of genus_weights_cast are the plot_id and dbh_class
-    stopifnot(names(these_Bs)[c(-1, -2, -3)] == names(genus_weights_cast[c(-1, -2)]))
+    stopifnot(names(these_Bs)[c(-1, -2)] == names(genus_weights_cast[c(-1, -2, -3)]))
 
     these_B_g_betas <- foreach(n=1:nrow(genus_weights_cast), .combine=rbind) %do% {
-        these_weights <- as.numeric(genus_weights_cast[c(-1, -2)][n, ])
+        these_weights <- as.numeric(genus_weights_cast[c(-1, -2, -3)][n, ])
         data.frame(model=these_Bs$model,
                    param=paste0(these_Bs$param, '_median'),
                    site_id=genus_weights_cast$site_id[n],
