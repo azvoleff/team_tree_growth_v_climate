@@ -6,148 +6,155 @@ library(ggplot2)
 library(gridExtra)
 library(RPostgreSQL)
 
+plot_width <- 3
+plot_height <- 1.5
+plot_dpi <- 300
+
 pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
 pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
 
 preds <- tbl(src_postgres('tree_growth', user=pgsqluser, password=pgsqlpwd), 
-             'preds_interact')
+             'preds_interact') %>% collect()
 
-preds$clim <- factor(sprintf('%.02f', preds$clim))
-preds$clim <- relevel(preds$clim, '7.50')
 preds$model <- factor(preds$model, levels=c('tmn', 'tmp', 'tmx'), 
-                      labels=c('Min. Temp. Model',
-                               'Mean Temp. Model',
-                               'Max. Temp. Model'))
+                      labels=c('Min. Temp.',
+                               'Mean Temp.',
+                               'Max. Temp.'))
 
-preds_bysite <- group_by(preds, model, site_id, precip, temp, dbh) %>%
+# Fix inaccuracies due to roounding
+preds <- mutate(preds, temp_diff=round(temp_diff))
+
+preds_bysite <- group_by(preds, model, site_id, precip, temp_diff, dbh) %>%
     summarise(median=median(median),
               q2pt5=median(q2pt5),
               q97pt5=median(q97pt5))
 
-preds_overall <- group_by(preds, model, Panel, clim, dbh) %>%
+preds_overall <- group_by(preds_bysite, model, precip, temp_diff, dbh) %>%
     summarise(median=median(median),
               q2pt5=median(q2pt5),
               q97pt5=median(q97pt5))
 
-ps <- foreach(this_panel=unique(preds_overall$Panel), .combine=c) %:%
-    foreach(this_model=unique(preds_overall$model)) %do% {
-    p <- ggplot(filter(preds_overall, this_model == model, this_panel == Panel), aes(x=dbh, y=median)) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~model) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1)) +
-        theme(legend.position=c(.8, .7)) +
-        guides(fill=guide_legend(this_panel),
-               colour=guide_legend(this_panel))
-    return(p)
-}
+################################################################################
+# Plot growth increment vs dbh with lines for precip
+preds_overall_pchg <- group_by(preds, model, precip, dbh) %>%
+    # Filter out precips that aren't the plot-level means
+    filter(precip %in% c(7.5, 15, 22.5)) %>%
+    # Filter out a set of temp diffs
+    filter(temp_diff == 0) %>%
+    summarise(median=median(median),
+              q2pt5=median(q2pt5),
+              q97pt5=median(q97pt5))
+# preds_overall_pchg$temp_diff <- factor(sprintf('%.02f', preds_overall_pchg$temp_diff))
+preds_overall_pchg$precip <- factor(preds_overall_pchg$precip)
 
-p <- arrangeGrob(ps[[1]], ps[[2]], ps[[3]],
-                 ps[[4]], ps[[5]], ps[[6]], ncol=3, nrow=2)
-ggsave('predicted_growth_increments_frombyplot.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
-ggsave('predicted_growth_increments_frombyplot.svg', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+p <- ggplot(preds_overall_pchg, aes(x=dbh, y=median)) +
+    theme_bw(base_size=8) +
+    geom_line(aes(colour=precip), size=.25) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=precip), alpha=.2) +
+    facet_wrap(~model) +
+    xlab('Initial size (cm)') +
+    ylab('Growth increment (cm)') +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    scale_colour_brewer("MCWD", palette = "Dark2") + 
+    scale_fill_brewer("MCWD", palette = "Dark2") +
+    theme(legend.key.size=unit(.3, 'cm'))
+          #legend.title=element_text(size=6, face='plain'))
+          # legend.direction='horizontal',
+          # legend.position=c(.1, .7))
+ggsave('predicted_growth_increments_pchg.png', width=plot_width*1.5,
+       height=plot_height, dpi=plot_dpi, plot=p)
 
-panels <- c(rep('Temperature', 3), 'MCWD')
-models <- c('Min. Temp. Model', 'Mean Temp. Model',
-            'Max. Temp. Model', 'Min. Temp. Model')
-legend_titles <- c('Min. Temp.', 'Mean Temp.', 'Max. Temp', 'MCWD')
-ps <- foreach(this_panel=panels, this_model=models,
-              legend_title=legend_titles) %do% {
-    p <- ggplot(filter(preds_overall, this_model == model, this_panel == Panel), aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        geom_line(aes(y=q2pt5, colour=clim), alpha=.2) +
-        geom_line(aes(y=q97pt5, colour=clim), alpha=.2) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1)) +
-        theme(legend.position=c(.8, .7)) +
-        guides(fill=guide_legend(legend_title),
-               colour=guide_legend(legend_title)) +
-        scale_colour_brewer(palette = "Dark2", guide=FALSE) + 
-        scale_fill_brewer(palette = "Dark2", guide=FALSE)
-    return(p)
-}
-p <- arrangeGrob(ps[[1]], ps[[2]], ps[[3]], ps[[4]], ncol=2, nrow=2)
-ggsave('predicted_growth_increments_frombyplot_2x2.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
-ggsave('predicted_growth_increments_frombyplot_2x2.svg', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+################################################################################
+# Plot growth increment vs dbh with lines for temperature increase at site 
+# level
+preds_overall_tchg_site <- group_by(preds, site_id, model, temp_diff, dbh) %>%
+    # Filter out precips that aren't the plot-level means
+    filter(!(precip %in% c(7.5, 15, 22.5))) %>%
+    summarise(median=median(median),
+              q2pt5=median(q2pt5),
+              q97pt5=median(q97pt5))
+# preds_overall_tchg_site$temp_diff <- factor(sprintf('%.02f', preds_overall_tchg_site$temp_diff))
+preds_overall_tchg_site$temp_diff_factor <- factor(paste0('+', preds_overall_tchg_site$temp_diff, '* degree * C'))
+preds_overall_tchg_site$dbh_factor <- factor(preds_overall_tchg_site$dbh)
 
-p <- ggplot(filter(preds_bysite, model == "Mean Temp. Model", Panel == "Temperature"),
-           aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_id) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        scale_colour_brewer("Mean Temp.", palette = "Dark2") + 
-        scale_fill_brewer("Mean Temp.", palette = "Dark2")
-ggsave('predicted_growth_increments_sites.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+p <- ggplot(filter(preds_overall_tchg_site, temp_diff %in% c(0, 2, 4)),
+            aes(x=dbh, y=median)) +
+    theme_bw(base_size=8) +
+    geom_line(aes(colour=temp_diff_factor), size=.25) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=temp_diff_factor), alpha=.2) +
+    facet_grid(site_id~model) +
+    xlab('Initial size (cm)') +
+    ylab('Growth increment (cm)') +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    theme(legend.key.size=unit(.3, 'cm')) +
+    scale_colour_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2") + 
+    scale_fill_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2")
+ggsave('predicted_growth_increments_tchg_bydbh_bysite.png', width=plot_width*3,
+       height=plot_height*5, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, model == "Mean Temp. Model", Panel == 
-                   "Temperature", site_id != 'KRP'),
-           aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_id) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1.5)) +
-        scale_colour_brewer("Mean Temp.", palette = "Dark2") + 
-        scale_fill_brewer("Mean Temp.", palette = "Dark2")
-ggsave('predicted_growth_increments_sites_mean_temp_noKRP.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+################################################################################
+# Plot growth increment vs dbh with lines for temperature increase
+preds_overall_tchg <- group_by(preds, model, temp_diff, dbh) %>%
+    # Filter out precips that aren't the plot-level means
+    filter(!(precip %in% c(7.5, 15, 22.5))) %>%
+    summarise(median=median(median),
+              q2pt5=median(q2pt5),
+              q97pt5=median(q97pt5))
+# preds_overall_tchg$temp_diff <- factor(sprintf('%.02f', preds_overall_tchg$temp_diff))
+preds_overall_tchg$temp_diff_factor <- factor(paste0('+', preds_overall_tchg$temp_diff, '* degree * C'))
+preds_overall_tchg$dbh_factor <- factor(preds_overall_tchg$dbh)
 
-p <- ggplot(filter(preds_bysite, model == "Min. Temp. Model", Panel == 
-                   "Temperature", site_id != 'KRP'),
-           aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_id) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1.5)) +
-        scale_colour_brewer("Min. Temp.", palette = "Dark2") + 
-        scale_fill_brewer("Min. Temp.", palette = "Dark2")
-ggsave('predicted_growth_increments_sites_min_temp_noKRP.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+p <- ggplot(filter(preds_overall_tchg, temp_diff %in% c(0, 2, 4)),
+            aes(x=dbh, y=median)) +
+    theme_bw(base_size=8) +
+    geom_line(aes(colour=temp_diff_factor), size=.25) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=temp_diff_factor), alpha=.2) +
+    facet_wrap(~model) +
+    xlab('Initial size (cm)') +
+    ylab('Growth increment (cm)') +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    theme(legend.key.size=unit(.3, 'cm')) +
+    scale_colour_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2") + 
+    scale_fill_brewer("Temp.\nChange", labels=parse_format(), palette = "Dark2")
+ggsave('predicted_growth_increments_tchg_bydbh.png', width=plot_width*1.5,
+       height=plot_height, dpi=plot_dpi, plot=p)
 
-p <- ggplot(filter(preds_bysite, model == "Max. Temp. Model", Panel == 
-                   "Temperature", site_id != 'KRP'),
-           aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_id) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1.5)) +
-        scale_colour_brewer("Max. Temp.", palette = "Dark2") + 
-        scale_fill_brewer("Max. Temp.", palette = "Dark2")
-ggsave('predicted_growth_increments_sites_max_temp_noKRP.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+################################################################################
+# Plot growth increment vs temperature increase with lines for dbh
 
-p <- ggplot(filter(preds_bysite, model == "Min. Temp. Model", Panel == 
-                   "MCWD", site_id != 'KRP'),
-           aes(x=dbh, y=median)) +
-        theme_bw(base_size=10) +
-        geom_line(aes(colour=clim)) +
-        geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=clim), alpha=.2) +
-        facet_wrap(~site_id) +
-        xlab('Initial size (cm)') +
-        ylab('Growth increment (cm)') +
-        coord_cartesian(ylim=c(0, 1.5)) +
-        scale_colour_brewer("MCWD", palette = "Dark2") + 
-        scale_fill_brewer("MCWD", palette = "Dark2")
-ggsave('predicted_growth_increments_sites_MCWD_noKRP.png', width=plot_width*2,
-       height=plot_height*2, dpi=plot_dpi, plot=p)
+p <- ggplot(filter(preds_overall_tchg, dbh_factor %in% c(12.5, 22.5, 55)), 
+            aes(x=temp_diff, y=median)) +
+    theme_bw(base_size=8) +
+    geom_line(aes(colour=dbh_factor), size=.25) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=dbh_factor), alpha=.2) +
+    facet_wrap(~model) +
+    xlab(expression('Temp. Change (' * degree * 'C)')) +
+    ylab('Growth increment (cm)') +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    theme(legend.key.size=unit(.3, 'cm')) +
+    scale_colour_brewer('Initial size (cm)', palette = "Dark2") + 
+    scale_fill_brewer('Initial size (cm)', palette = "Dark2")
+ggsave('predicted_growth_increments_tchg_byT.png', width=plot_width*1.5,
+       height=plot_height, dpi=plot_dpi, plot=p)
+
+preds_overall_tchg_overall <- group_by(preds, model, temp_diff) %>%
+    # Filter out precips that aren't the plot-level means
+    filter(!(precip %in% c(7.5, 15, 22.5))) %>%
+    summarise(median=median(median),
+              q2pt5=median(q2pt5),
+              q97pt5=median(q97pt5))
+# preds_overall_tchg$temp_diff <- factor(sprintf('%.02f', preds_overall_tchg$temp_diff))
+preds_overall_tchg_overall$temp_diff_factor <- factor(paste0('+', preds_overall_tchg_overall$temp_diff, '* degree * C'))
+
+p <- ggplot(preds_overall_tchg_overall, aes(x=temp_diff, y=median)) +
+    theme_bw(base_size=8) +
+    geom_line(aes(colour=model), size=.25) +
+    geom_ribbon(aes(ymin=q2pt5, ymax=q97pt5, fill=model), alpha=.2) +
+    xlab(expression('Temp. Change (' * degree * 'C)')) +
+    ylab('Growth increment (cm)') +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    theme(legend.key.size=unit(.3, 'cm')) +
+    scale_colour_brewer('Model', palette = "Dark2") + 
+    scale_fill_brewer('Model', palette = "Dark2")
+ggsave('predicted_growth_increments_tchg_byT_overall.png', width=plot_width,
+       height=plot_height, dpi=plot_dpi, plot=p)
