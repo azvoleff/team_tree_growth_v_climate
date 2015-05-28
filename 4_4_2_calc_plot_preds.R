@@ -2,17 +2,9 @@
 
 library(dplyr)
 library(foreach)
-library(matrixStats) # for weightedMedian
-library(doParallel)
 library(reshape2)
+library(stringr)
 library(RPostgreSQL)
-
-cl <- makeCluster(20)
-registerDoParallel(cl)
-
-plot_width <- 3.5
-plot_height <- 3
-plot_dpi <- 300
 
 # How many mm of precip per 1 unit change? Convert precip from mm to cm in 
 # order to make interpretation of results easier
@@ -30,153 +22,140 @@ data_folder <- file.path(base_folder, "Data")
 pgsqlpwd <- as.character(read.table('~/pgsqlpwd')[[1]])
 pgsqluser <- as.character(read.table('~/pgsqluser')[[1]])
 
-# con <- dbConnect(PostgreSQL(), dbname='tree_growth', user=pgsqluser, 
-# password=pgsqlpwd)
-# dbSendQuery(con, paste0("DROP TABLE IF EXISTS stems"))
-# dbSendQuery(con, paste0("CREATE TABLE stems (site_id integer, plot_id integer, genus_id integer)"))
-
 ###############################################################################
 ## Full model (interactions, uncorrelated random effects)
+pg_src <- src_postgres('tree_growth', user=pgsqluser, 
+                       password=pgsqlpwd)
+params <- tbl(pg_src, 'interact') %>%
+    # Thin chains (there are 6 chains so for 1000 samples only need every 6th 
+    # sample from each chain)
+    filter(iteration %% 6 == 0)
 
-dbhs <- seq(10, 120, 1)
+# Site-level intercepts
+int_k_params <- filter(params, parameter_base == 'int_k') %>% 
+    rename(site_id=row_id) %>% select(-col_id) %>% collect()
+
+# Plot-level intercepts
+int_jk_params <- filter(params, parameter_base == 'int_jk') %>% 
+    rename(plot_id=row_id) %>% select(-col_id) %>% collect()
+
+# Elevation difference between plot and CRU cell center
+B_k_params <- filter(params, parameter_base == 'B_k') %>% 
+    rename(site_id=row_id) %>% select(-col_id) %>% collect()
+
+clim <- tbl(pg_src, 'climate')
+
+load('B_g_betas_weighted_bydbh_byplot.RData')
+
+# Calculate dbhs to predict for from midpoints of dbh classes
+dbhs <- data.frame(dbh_class=levels(B_g_betas$dbh_class))
+dbhs$low <- as.numeric(gsub('^.', '', str_extract(dbhs$dbh_class, '^.[0-9]*')))
+dbhs$high <- as.numeric(gsub('.$', '', str_extract(dbhs$dbh_class, '[0-9]*.$')))
+dbhs$mid <- (dbhs$high - dbhs$low)/2 + dbhs$low
+
 precips <- c(7.5, 15, 22.5)
-temps <- c(10:32)
+temp_diffs <- c(0:6)
 
-this_model <- 'tmn'
-this_plot <- 1
+preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %do% {
+    suffix <- paste0("_full-", this_model, "_meanannual-mcwd_run12")
+    # Need to key plot_id to site_id
+    plot_id_factor_key <- read.csv(file=file.path(data_folder,
+                                                  paste0("plot_ID_factor_key", 
+                                                         suffix, ".csv")))
+    # Need to key plot_id to site_id
+    site_id_factor_key <- read.csv(file=file.path(data_folder, 
+                                                  paste0("site_ID_factor_key", 
+                                                         suffix, ".csv")))
+    # Need elevation data
+    load(file.path(data_folder, paste0("model_data_elev_key", suffix, ".RData")))
 
-preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %:%
-    foreach(this_plot=c(1:82), .combine=rbind,
-            .packages=c('foreach', 'dplyr', 'RPostgreSQL', 'reshape2', 
-                        'matrixStats'),
-            .inorder=FALSE) %dopar% {
-        pg_src <- src_postgres('tree_growth', user=pgsqluser, 
-                               password=pgsqlpwd)
-        params <- tbl(pg_src, 'interact')
-        params <- filter(params, model == this_model)
-        stems <- tbl(pg_src, 'stems')
-        stems <- filter(stems, model == this_model)
+    # Need to center the predictor variables
+    load(file.path(data_folder, paste0("model_data_standardizing", suffix, 
+                                       ".RData")))
 
-        clim <- tbl(pg_src, 'climate')
+    plot_id_factor_key$site_ID_char <- gsub('(VG)|([0-9]*)', '', plot_id_factor_key$plot_ID_char)
 
-        # Genus-level random effects
-        B_g_params <- filter(params, parameter_base == 'B_g') %>% 
-            rename(genus_id=row_id, param_id=col_id)
+    site_key <- left_join(plot_id_factor_key, rename(elev_key, plot_ID_char=plot_ID)) %>%
+        left_join(site_id_factor_key, by="site_ID_char") %>%
+        rename(plot_id=plot_ID_numeric, site_id=site_ID_numeric)
 
-        # Site-level intercepts
-        int_k_params <- filter(params, parameter_base == 'int_k') %>% 
-            rename(site_id=row_id) %>% select(-col_id) %>% collect()
+    int_k_params_thismodel <- filter(int_k_params, model == this_model)
+    int_jk_params_thismodel <- filter(int_jk_params, model == this_model)
+    B_k_params_thismodel <- filter(B_k_params, model == this_model)
 
-        # Plot-level intercepts
-        int_jk_params <- filter(params, parameter_base == 'int_jk') %>% 
-            rename(plot_id=row_id) %>% select(-col_id) %>% collect()
-
-        # Elevation difference between plot and CRU cell center
-        B_k_params <- filter(params, parameter_base == 'B_k') %>% 
-            rename(site_id=row_id) %>% select(-col_id) %>% collect()
-
-
-        suffix <- paste0("_full-", this_model, "_meanannual-mcwd_run12")
-        # Need to key plot_id to site_id
-        plot_id_factor_key <- read.csv(file=file.path(data_folder,
-                                                      paste0("plot_ID_factor_key", 
-                                                             suffix, ".csv")))
-        # Need to key plot_id to site_id
-        site_id_factor_key <- read.csv(file=file.path(data_folder, 
-                                                      paste0("site_ID_factor_key", 
-                                                             suffix, ".csv")))
-        # Need elevation data
-        load(file.path(data_folder, paste0("model_data_elev_key", suffix, ".RData")))
-
-        # Need to center the predictor variables
-        load(file.path(data_folder, paste0("model_data_standardizing", suffix, 
-                                           ".RData")))
-
-        plot_id_factor_key$site_ID_char <- gsub('(VG)|([0-9]*)', '', plot_id_factor_key$plot_ID_char)
-
-        site_key <- left_join(plot_id_factor_key, rename(elev_key, plot_ID_char=plot_ID)) %>%
-            left_join(site_id_factor_key, by="site_ID_char") %>%
-            rename(plot_id=plot_ID_numeric, site_id=site_ID_numeric)
-
+    preds_thismodel <- foreach(this_plot=c(1:82), .combine=rbind) %do% {
+        print(paste(this_model, this_plot))
         this_site <- site_key$site_id[match(this_plot, site_key$plot_id)]
         this_site_char <- site_key$site_ID_char[match(this_plot, site_key$plot_id)]
         this_plot_char <- site_key$plot_ID_char[match(this_plot, site_key$plot_id)]
 
         this_elev_diff <- site_key$elev_diff[match(this_plot, site_key$plot_id)]
 
-        genus_weights <- filter(stems, plot_id == this_plot) %>%
-            group_by(genus_id) %>%
-            summarize(n=n()) %>%
-            ungroup() %>%
-            mutate(weight=n/sum(n)) %>%
-            select(-n)
+        B_g_betas_thisplot <- filter(B_g_betas, model == this_model, plot_id == this_plot)
 
-        # Calculate weighted median values of each parameter for each iteration 
-        # (combining the separate chains together). Each iteration has multiple 
-        # estimates of each parameter as there is one estimated parameter value 
-        # for each genus.
-        B_g_betas <- filter(left_join(genus_weights, B_g_params)) %>%
-            mutate(param=sql("parameter_base || '_' || param_id"),
-                   estimate_id=sql("chain || '_' || iteration")) %>%
-            arrange(param, estimate_id, genus_id) %>%
-            collect() %>%
-            dcast(param + estimate_id ~ genus_id, value.var="value") %>%
-            select(-estimate_id)
-        B_g_betas <- data.frame(param=paste0(B_g_betas$param, '_median'),
-                                value=rowWeightedMedians(as.matrix(B_g_betas[-1]), w=genus_weights$weight))
+        plot_temp_mean <- collect(filter(clim, plot_id == this_plot, variable == this_model))$mean
+        # Use absolute value as in model MCWD is defined as positive
+        plot_precip_mean <- abs(collect(filter(clim, plot_id == this_plot, variable == 'mcwd_run12'))$mean)
 
-        # Convert to matrix for linear algebra
-        B <- matrix(B_g_betas$value, nrow=length(unique(B_g_betas$param)), byrow=TRUE)
+        dbhs_centered <- dbhs$mid - dbh_mean
+        temps_centered <- (plot_temp_mean - temp_mean) + temp_diffs
+        # Change MCWD units from cm to mm
+        precips_centered <- c(plot_precip_mean, precips * mm_per_unit) - precip_mean
 
         # Calculate intercept
-        intercept <- filter(int_k_params, site_id == this_site, model == this_model)$value +
-            filter(int_jk_params, plot_id == this_plot, model == this_model)$value
+        intercept <- filter(int_k_params_thismodel, site_id == this_site, model == this_model)$value +
+            filter(int_jk_params_thismodel, plot_id == this_plot, model == this_model)$value
 
         # Calculate elevation adjustment for this plot
-        elev_adjust <- filter(B_k_params, site_id == this_site)$value * (this_elev_diff - elev_diff_mean)
+        elev_adjust <- filter(B_k_params_thismodel, site_id == this_site)$value * (this_elev_diff - elev_diff_mean)
 
         intercept <- intercept + elev_adjust
 
-        dbhs_centered <- dbhs - dbh_mean
-        temps_centered <- temps - temp_mean
-        # Change MCWD units from cm to mm
-        precips_centered <- (precips * mm_per_unit) - precip_mean
+        preds_thisplot <- foreach(this_dbh_class=unique(B_g_betas_thisplot$dbh_class), 
+                               .combine=rbind) %do% {
+            this_dbh <- dbhs_centered[match(this_dbh_class, dbhs$dbh_class)]
 
-        X <- foreach(dbh=dbhs_centered, .combine=rbind) %:%
-            foreach(temp=temps_centered, .combine=rbind) %:%
-            foreach(precip=precips_centered, .combine=rbind) %do% {
-                X <- matrix(1, ncol=1) # genus-level intercept
-                X <- cbind(X, precip)
-                X <- cbind(X, precip^2)
-                X <- cbind(X, temp)
-                X <- cbind(X, temp^2)
-                X <- cbind(X, dbh)
-                X <- cbind(X, dbh^2)
-                X <- cbind(X, precip*dbh)
-                X <- cbind(X, temp*dbh)
+            # Convert to matrix for linear algebra
+            B <- matrix(filter(B_g_betas_thisplot, dbh_class == this_dbh_class)$value, 
+                        nrow=length(unique(B_g_betas_thisplot$param)), byrow=TRUE)
+
+            X <- foreach(temp=temps_centered, .combine=rbind) %:%
+                foreach(precip=precips_centered, .combine=rbind) %do% {
+                    X <- matrix(1, ncol=1) # genus-level intercept
+                    X <- cbind(X, precip)
+                    X <- cbind(X, precip^2)
+                    X <- cbind(X, temp)
+                    X <- cbind(X, temp^2)
+                    X <- cbind(X, this_dbh)
+                    X <- cbind(X, this_dbh^2)
+                    X <- cbind(X, precip*this_dbh)
+                    X <- cbind(X, temp*this_dbh)
+            }
+            preds_thisdbh <- X %*% B 
+            preds_thisdbh <- preds_thisdbh + matrix(rep(intercept, nrow(X)), 
+                                                nrow=nrow(X), byrow=TRUE)
+            # X[, 6] (dbh) is subtracted so that output is growth increment
+            preds_thisdbh <- preds_thisdbh - matrix(rep(X[, 6], each=ncol(B)), 
+                                                ncol=ncol(B), byrow=TRUE)
+            medians <- apply(preds_thisdbh, 1, median)
+            q2pt5 <- apply(preds_thisdbh, 1, quantile, .025)
+            q97pt5 <- apply(preds_thisdbh, 1, quantile, .975)
+            preds_thisdbh <- data.frame(model=this_model,
+                                    plot_id=this_plot_char, 
+                                    site_id=this_site_char,
+                                    precip=(X[, 2] + precip_mean)/mm_per_unit,
+                                    temp=X[, 4] + temp_mean,
+                                    temp_diff=X[, 4] + temp_mean - plot_temp_mean,
+                                    dbh=X[, 6] + dbh_mean,
+                                    median=medians,
+                                    q2pt5,
+                                    q97pt5)
+
+            return(preds_thisdbh)
         }
-        these_preds <- X %*% B 
-        these_preds <- these_preds + matrix(rep(intercept, nrow(X)), 
-                                            nrow=nrow(X), byrow=TRUE)
-        # X[, 6] (dbh) is subtracted so that output is growth increment
-        these_preds <- these_preds - matrix(rep(X[, 6], each=ncol(B)), 
-                                            ncol=ncol(B), byrow=TRUE)
-        medians <- apply(these_preds, 1, median)
-        q2pt5 <- apply(these_preds, 1, quantile, .025)
-        q97pt5 <- apply(these_preds, 1, quantile, .975)
-        these_preds <- data.frame(model=this_model,
-                                  plot_id=this_plot_char, 
-                                  site_id=this_site_char,
-                                  precip=(X[, 2] + precip_mean)/mm_per_unit,
-                                  temp=X[, 4] + temp_mean,
-                                  dbh=X[, 6] + dbh_mean,
-                                  median=medians,
-                                  q2pt5,
-                                  q97pt5)
-
-        head(filter(these_preds, precip == 15, temp == 20))
-
-        return(these_preds)
+        return(preds_thisplot)
+    }
+    return(preds_thismodel)
 }
 
 save(preds, file='growth_predictions_byplot.RData')
