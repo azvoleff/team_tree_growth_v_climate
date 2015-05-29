@@ -43,7 +43,7 @@ caterpillar <- function(mods, labels=NULL) {
                          y=median, colour=model, fill=model)) +
         theme_bw(base_size=8) +
         geom_point(aes(shape=model), position=position_dodge(width=.4), size=1.25) +
-        geom_linerange(aes(ymin=Low, ymax=High), size=.75, position=position_dodge(width=.4)) +
+        geom_linerange(aes(ymin=Low, ymax=High), size=.5, position=position_dodge(width=.4)) +
         geom_linerange(aes(ymin=low, ymax=high), size=.25, position=position_dodge(width=.4)) +
         xlab('Parameter') +
         ylab('Effect (cm)') +
