@@ -179,7 +179,7 @@ ggsave('predicted_growth_increments_tchg_byT_overall.pdf', width=plot_width,
 preds_overall_pchg_overall <- filter(preds, dbh_type == 'narrow') %>%
     group_by(model, precip) %>%
     # Filter out the test precips
-    filter(precip %in% precip_test_levels) %>%
+    filter(precip %in% c(0, precip_test_levels)) %>%
     # Filter to include only plot-level mean temps
     filter(temp_diff == 0) %>%
     summarise(median=median(median),
