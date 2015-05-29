@@ -17,7 +17,7 @@ base_folder <- file.path(prefix, "TEAM", "Tree_Growth")
 
 plot_width <- 3.5
 plot_height <- 3
-plot_dpi <- 300
+plot_dpi <- 600
 
 # How many mm of precip per 1 unit change? Convert precip from mm to cm in 
 # order to make interpretation of results easier
@@ -42,13 +42,14 @@ caterpillar <- function(mods, labels=NULL) {
     p <- ggplot(cis, aes(x=reorder(param, rev(1:length(param))), 
                          y=median, colour=model, fill=model)) +
         theme_bw(base_size=8) +
-        geom_point(position=position_dodge(width=.4), size=1.25) +
+        geom_point(aes(shape=model), position=position_dodge(width=.4), size=1.25) +
         geom_linerange(aes(ymin=Low, ymax=High), size=.75, position=position_dodge(width=.4)) +
         geom_linerange(aes(ymin=low, ymax=high), size=.25, position=position_dodge(width=.4)) +
         xlab('Parameter') +
         ylab('Effect (cm)') +
-        scale_fill_manual("Model", values=c('#882255', '#117733', '#88CCEE')) +
-        scale_colour_manual("Model", values=c('#882255', '#117733', '#88CCEE'))
+        scale_shape_manual("Model", values=c(23, 4, 17)) + 
+        scale_colour_brewer("Model", palette = "Dark2") + 
+        scale_fill_brewer("Model", palette = "Dark2")
     if (!is.null(labels)) {
         p <- p + scale_x_discrete(labels=labels) +
             theme(axis.text.x=element_text(vjust=0))
@@ -81,6 +82,8 @@ p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(1:9), '_median'))
                           'B_g_9_median'=expression(D%*%T)))
 ggsave('caterpillar_climate_interact_weighted.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
+ggsave('caterpillar_climate_interact_weighted.pdf', p, width=plot_width*1.5, 
+       height=plot_height, dpi=plot_dpi)
 
 p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:5, 8:9), '_median')),
                  labels=c('B_g_2_median'='P',
@@ -91,8 +94,12 @@ p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_', c(2:5, 8:9), '_medi
                           'B_g_9_median'=expression(D%*%T)))
 ggsave('caterpillar_climate_interact_weighted_noD.png', p, width=plot_width*1.5, 
        height=plot_height, dpi=plot_dpi)
+ggsave('caterpillar_climate_interact_weighted_noD.pdf', p, width=plot_width*1.5, 
+       height=plot_height, dpi=plot_dpi)
 
 p <- caterpillar(filter(B_g_betas, param %in% paste0('B_g_6_median')),
                  labels=c('B_g_6_median'='D'))
 ggsave('caterpillar_climate_interact_weighted_onlyD.png', p, width=plot_width*1.5, 
+       height=plot_height/2, dpi=plot_dpi)
+ggsave('caterpillar_climate_interact_weighted_onlyD.pdf', p, width=plot_width*1.5, 
        height=plot_height/2, dpi=plot_dpi)
