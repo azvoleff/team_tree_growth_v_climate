@@ -145,18 +145,22 @@ preds <- foreach(this_model=c('tmn', 'tmp', 'tmx'), .combine=rbind) %do% {
             medians <- apply(preds_thisdbh, 1, median)
             q2pt5 <- apply(preds_thisdbh, 1, quantile, .025)
             q97pt5 <- apply(preds_thisdbh, 1, quantile, .975)
+            q5 <- apply(preds_thisdbh, 1, quantile, .05)
+            q95 <- apply(preds_thisdbh, 1, quantile, .95)
             preds_thisdbh <- data.frame(model=this_model,
-                                    plot_id=this_plot_char, 
-                                    site_id=this_site_char,
-                                    precip=(X[, 2] + precip_mean)/mm_per_unit,
-                                    precip_diff=(X[, 2] + precip_mean - plot_precip_mean)/mm_per_unit,
-                                    temp=X[, 4] + temp_mean,
-                                    temp_diff=X[, 4] + temp_mean - plot_temp_mean,
-                                    dbh_class=this_dbh_class,
-                                    dbh=X[, 6] + dbh_mean,
-                                    median=medians,
-                                    q2pt5,
-                                    q97pt5)
+                                        plot_id=this_plot_char, 
+                                        site_id=this_site_char,
+                                        precip=(X[, 2] + precip_mean)/mm_per_unit,
+                                        precip_diff=(X[, 2] + precip_mean - plot_precip_mean)/mm_per_unit,
+                                        temp=X[, 4] + temp_mean,
+                                        temp_diff=X[, 4] + temp_mean - plot_temp_mean,
+                                        dbh_class=this_dbh_class,
+                                        dbh=X[, 6] + dbh_mean,
+                                        median=medians,
+                                        q2pt5,
+                                        q97pt5,
+                                        q5,
+                                        q95)
 
             return(preds_thisdbh)
         }
