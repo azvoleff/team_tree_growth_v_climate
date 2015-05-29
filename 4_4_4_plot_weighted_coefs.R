@@ -5,6 +5,7 @@ library(ggmcmc)
 library(gridExtra)
 library(foreach)
 library(dplyr)
+library(reshape2)
 
 prefixes <- c('D:/azvoleff/Data', # CI-TEAM
               'H:/Data', # Buffalo drive
@@ -103,3 +104,17 @@ ggsave('caterpillar_climate_interact_weighted_onlyD.png', p, width=plot_width*1.
        height=plot_height/2, dpi=plot_dpi)
 ggsave('caterpillar_climate_interact_weighted_onlyD.pdf', p, width=plot_width*1.5, 
        height=plot_height/2, dpi=plot_dpi)
+
+# Save table of parameter estimates:
+cis <- group_by(B_g_betas, model) %>%
+    rename(Parameter=param) %>%
+    do(ci(.)) %>%
+    rename(param=Parameter)
+
+# Make a string that I can use in the table in Word
+cis$estimate <- paste0(signif(cis$median, 4), ' (',
+                       signif(cis$Low, 4), ', ',
+                       signif(cis$High, 4), ')')
+
+coef_table <- dcast(cis, param ~ model, value.var='estimate')
+write.csv(coef_table, file='parameter_estimates.csv', row.names=FALSE)
