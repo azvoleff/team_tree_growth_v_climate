@@ -8,6 +8,8 @@ library(ggplot2)
 library(gridExtra)
 library(RColorBrewer)
 library(foreach)
+library(broom)
+library(tidyr)
 
 plot_width <- 3
 plot_height <- 1.5
@@ -87,6 +89,8 @@ idx_qry <- paste0("CREATE INDEX ON climate (variable);",
     "CREATE INDEX ON climate (plot_id_char);")
 dbSendQuery(con, idx_qry)
 
+clim$value[clim$variable == 'mcwd_run12'] <- abs(clim$value[clim$variable == 'mcwd_run12'])
+
 sites <- read.csv(file.path(prefix, 'TEAM/Sitecode_Key/sitecode_key.csv'))
 site_means <- group_by(clim, sitecode, year, variable) %>%
     summarise(value=mean(value)) %>%
@@ -113,7 +117,7 @@ mcwd_plot <- ggplot(filter(site_means, variable == 'MCWD', year >=
            shape=guide_legend(ncol=3)) +
     plot_theme + 
     theme(legend.key.height=unit(.3, 'cm'),
-          legend.key.width=unit(.7, 'cm'))
+          legend.key.width=unit(1, 'cm'))
 ggsave('climate_mcwd_run12.png', width=plot_width*2,
        height=plot_height, dpi=plot_dpi, plot=mcwd_plot)
 ggsave('climate_mcwd_run12.pdf', width=plot_width*2,
@@ -146,7 +150,7 @@ temp_plot <- ggplot(filter(site_means,
            shape=guide_legend(ncol=3)) +
     plot_theme + 
     theme(legend.key.height=unit(.3, 'cm'),
-          legend.key.width=unit(.7, 'cm'),
+          legend.key.width=unit(1, 'cm'),
           legend.position='bottom',
           legend.title=element_blank())
 ggsave('climate_temp.png', width=plot_width*2,
@@ -207,3 +211,66 @@ ggsave('climate_combined.pdf', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
 ggsave('climate_combined.svg', width=plot_width*2,
        height=plot_height*2, dpi=plot_dpi, plot=p)
+
+site_means$year_numeric <- year(site_means$year)
+trends <- group_by(site_means, sitecode, sitename_short, variable) %>%
+  do(trend=lm(value ~ year_numeric, data = .)) %>%
+  tidy(trend) %>%
+  filter(term == 'year_numeric') %>%
+  mutate(significant=p.value < .05)
+
+trends$variable_type <- 'Temperature'
+trends$variable_type[trends$variable == 'MCWD'] <- 'MCWD'
+
+trends <- group_by(trends, variable_type) %>%
+    mutate(estimate_normed=estimate/max(abs(c(max(estimate), min(estimate)))))
+
+group_by(trends, variable) %>%
+    summarise(max(estimate)*10)
+
+
+# Convert to decadal
+# with(trends, estimate[variable_type == 'Temperature'] <- estimate[variable_type == 'Temperature'] * 10)
+# # Convert to decadal and to cm
+# with(trends, estimate[variable_type == 'MCWD'] <- estimate[variable_type == 'MCWD'] * 10 / 10)
+
+ggplot(trends, aes(variable, estimate_normed, fill=variable)) +
+    geom_bar(stat='identity', position='dodge') +
+    facet_wrap(~sitename_short) +
+    scale_fill_manual(breaks=c('MCWD', 'Minimum Temperature', 'Mean Temperature', 'Maximum Temperature'),
+                      values=c('#2b8cbe', '#fdcc8a', '#fc8d59', '#d73015'))
+
+subplot_width <- 1.5
+subplot_height <- 1
+subplot_dpi <- 300
+foreach(n=1:nrow(trends)) %do% {
+    this_sitecode <- trends$sitecode[n]
+    p <- ggplot(filter(trends, sitecode == this_sitecode),
+           aes(variable, estimate_normed, fill=variable)) +
+    geom_bar(stat='identity', position='dodge') +
+    scale_fill_manual(breaks=c('MCWD', 'Minimum Temperature', 'Mean 
+                               Temperature', 'Maximum Temperature'),
+                      values=c('#2b8cbe', '#fdcc8a', '#fc8d59', '#d73015')) +
+    geom_hline(aes(yintercept=0), size=.25, colour='black') +
+    coord_cartesian(ylim=c(-1, 1)) +
+    #scale_y_continuous(breaks=c(-.5, .5)) +
+    guides(fill=FALSE) +
+    theme(panel.background=element_rect(fill='transparent', colour=NA),
+          plot.background=element_rect(fill='transparent', colour=NA),
+          axis.title=element_blank(),
+          axis.ticks=element_blank(),
+          axis.text=element_blank(),
+          axis.title=element_blank(),
+          axis.line=element_line(size=.25, color='black', linetype='solid'),
+          axis.line.x=element_blank(),
+          panel.grid=element_blank(),
+          # panel.grid.major=element_line(size=.1, color='black', linetype='solid'),
+          # panel.grid.major.x=element_blank(),
+          # panel.grid.minor=element_blank(),
+          plot.margin=unit(c(0, 0, 0, 0), 'lines'))
+    ggsave(paste0('climate_subplots/trends_', this_sitecode, '.png'), 
+       width=subplot_width, height=subplot_height, dpi=subplot_dpi, 
+       bg='transparent', plot=p)
+    ggsave(paste0('climate_subplots/trends_', this_sitecode, '.emf'), 
+       width=subplot_width, height=subplot_height, dpi=subplot_dpi, plot=p)
+}
