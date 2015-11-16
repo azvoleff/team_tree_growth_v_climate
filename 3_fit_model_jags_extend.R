@@ -2,3 +2,4 @@ jags_fit <- extend.jags(jags_fit, sample=1000, add.monitor=c("int_jk", "int_k", 
 
 jags_fit <- extend.jags(jags_fit, sample=1000, add.monitor=c("B_g"))
 
+jags_fit <- extend.jags(jags_fit, sample=400, summarise=FALSE)
