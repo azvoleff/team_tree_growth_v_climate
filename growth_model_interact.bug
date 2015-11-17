@@ -36,7 +36,7 @@ model {
                 B_g[genus_ID[i], 3] * precip_sq[i, t] +
                 B_g[genus_ID[i], 4] * temp[i, t] +
                 B_g[genus_ID[i], 5] * pow(temp[i, t], 2) +
-                B_g[genus_ID[i], 6]* dbh_latent[i, t - 1] +
+                B_g[genus_ID[i], 6] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 7] * pow(dbh_latent[i, t - 1], 2) +
                 B_g[genus_ID[i], 8] * precip[i, t] * dbh_latent[i, t - 1] +
                 B_g[genus_ID[i], 9] * temp[i, t] * dbh_latent[i, t - 1] +
