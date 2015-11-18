@@ -106,6 +106,10 @@ model_data$precip_sq <- model_data$precip^2
 # Drop missing data indicators (not needed for JAGS)
 model_data <- model_data[!(names(model_data) %in% c("miss_indices", "obs_indices"))]
 
+# JAGS cannot monitor nodes that have NAs. So set all NAs within dbh_latent to 
+# zero
+init_data$dbh_latent[is.na(init_data$dbh_latent)] <- 0
+
 # jags_fit <- run.jags(model=model_file, monitor=monitored, data=model_data, 
 # inits=rep(list(init_data), 1),  n.chains=1, adapt=200, burnin=200, 
 # sample=200)
