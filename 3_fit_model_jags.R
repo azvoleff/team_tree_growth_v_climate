@@ -1,10 +1,6 @@
 library(runjags)
-library(rjags)
 
 source("0_settings.R")
-
-# Allow block-updating using glm module
-load.module("glm")
 
 #model_structure <- "simple"
 #model_structure <- "correlated"
